@@ -1,0 +1,42 @@
+{
+  "expo": {
+    "name": "Closetly",
+    "slug": "closetly-virtualcloset",
+    "version": "1.0.0",
+    "orientation": "portrait",
+    "userInterfaceStyle": "light",
+    "assetBundlePatterns": [
+      "**/*"
+    ],
+    "ios": {
+      "supportsTablet": true,
+      "bundleIdentifier": "com.closetly.app"
+    },
+    "android": {
+      "package": "com.closetly.app"
+    },
+    "plugins": [
+      "expo-router",
+      "expo-localization",
+      "expo-secure-store"
+    ],
+    "scheme": "closetly",
+    "experiments": {
+      "typedRoutes": true
+    },
+    "extra": {
+      "router": {
+        "origin": false
+      },
+      "eas": {
+        "projectId": "c694e446-16cc-4d93-a03c-9eef1d7bc6be"
+      }
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/c694e446-16cc-4d93-a03c-9eef1d7bc6be"
+    }
+  }
+}

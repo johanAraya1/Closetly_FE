@@ -1,0 +1,203 @@
+/**
+ * Internationalization (i18n)
+ * Configuración de idiomas para la app
+ */
+
+import { I18n } from 'i18n-js';
+import * as Localization from 'expo-localization';
+
+const i18n = new I18n({
+  en: {
+    common: {
+      welcome: 'Welcome',
+      loading: 'Loading...',
+      save: 'Save',
+      cancel: 'Cancel',
+      delete: 'Delete',
+      edit: 'Edit',
+      create: 'Create',
+      back: 'Back',
+      search: 'Search',
+      filter: 'Filter',
+      sort: 'Sort',
+      apply: 'Apply',
+      reset: 'Reset',
+      confirm: 'Confirm',
+      error: 'Error',
+      success: 'Success',
+    },
+    auth: {
+      login: 'Log In',
+      register: 'Sign Up',
+      logout: 'Log Out',
+      email: 'Email',
+      password: 'Password',
+      username: 'Username',
+      fullName: 'Full Name',
+      forgotPassword: 'Forgot password?',
+      dontHaveAccount: "Don't have an account?",
+      alreadyHaveAccount: 'Already have an account?',
+      signIn: 'Sign In',
+      createAccount: 'Create Account',
+      optional: 'Optional',
+      // Onboarding
+      appName: 'Closetly',
+      appTagline: 'Your digital wardrobe manager',
+      onboardingDescription: 'Organize your clothes, create outfits, and never wonder what to wear again.',
+      getStarted: 'Get Started',
+      iAlreadyHaveAccount: 'I already have an account',
+      // Login
+      welcomeBack: 'Welcome back',
+      loginSubtitle: 'Sign in to continue',
+      // Register
+      joinClosetly: 'Join Closetly and organize your wardrobe',
+    },
+    home: {
+      title: 'Welcome back, {{username}}! 👋',
+      subtitle: 'What are you wearing today?',
+      quickActions: 'Quick Actions',
+      addGarment: 'Add Garment',
+      createOutfit: 'Create Outfit',
+      browse: 'Browse',
+      favoriteOutfits: 'Favorite Outfits',
+      recentOutfits: 'Recent Outfits',
+      seeAll: 'See All',
+      noOutfits: 'No outfits yet',
+      noOutfitsMessage: 'Start creating your first outfit to see it here',
+      loadingWardrobe: 'Loading your wardrobe...',
+    },
+    closet: {
+      title: 'My Closet',
+      subtitle: 'Manage your wardrobe',
+      allGarments: 'All Garments',
+      noGarments: 'No garments yet',
+      noGarmentsMessage: 'Start adding clothes to your closet',
+      addYourFirst: 'Add Your First Garment',
+    },
+    collections: {
+      title: 'Collections',
+      subtitle: 'Organize your wardrobe',
+      myCollections: 'My Collections',
+      noCollections: 'No collections yet',
+      noCollectionsMessage: 'Create collections to organize your clothes',
+      createFirst: 'Create Your First Collection',
+    },
+    profile: {
+      title: 'Profile',
+      settings: 'Settings',
+      editProfile: 'Edit Profile',
+      language: 'Language',
+      theme: 'Theme',
+      about: 'About',
+      privacy: 'Privacy Policy',
+      terms: 'Terms of Service',
+    },
+    settings: {
+      title: 'Settings',
+      language: 'Language',
+      chooseLanguage: 'Choose Language',
+      english: 'English',
+      spanish: 'Spanish',
+    },
+  },
+  es: {
+    common: {
+      welcome: 'Bienvenido',
+      loading: 'Cargando...',
+      save: 'Guardar',
+      cancel: 'Cancelar',
+      delete: 'Eliminar',
+      edit: 'Editar',
+      create: 'Crear',
+      back: 'Volver',
+      search: 'Buscar',
+      filter: 'Filtrar',
+      sort: 'Ordenar',
+      apply: 'Aplicar',
+      reset: 'Restablecer',
+      confirm: 'Confirmar',
+      error: 'Error',
+      success: 'Éxito',
+    },
+    auth: {
+      login: 'Iniciar Sesión',
+      register: 'Registrarse',
+      logout: 'Cerrar Sesión',
+      email: 'Correo Electrónico',
+      password: 'Contraseña',
+      username: 'Usuario',
+      fullName: 'Nombre Completo',
+      forgotPassword: '¿Olvidaste tu contraseña?',
+      dontHaveAccount: '¿No tienes una cuenta?',
+      alreadyHaveAccount: '¿Ya tienes una cuenta?',
+      signIn: 'Iniciar Sesión',
+      createAccount: 'Crear Cuenta',
+      optional: 'Opcional',
+      // Onboarding
+      appName: 'Closetly',
+      appTagline: 'Tu guardarropa digital',
+      onboardingDescription: 'Organiza tu ropa, crea outfits y nunca te preguntes qué ponerte.',
+      getStarted: 'Comenzar',
+      iAlreadyHaveAccount: 'Ya tengo una cuenta',
+      // Login
+      welcomeBack: 'Bienvenido de nuevo',
+      loginSubtitle: 'Inicia sesión para continuar',
+      // Register
+      joinClosetly: 'Únete a Closetly y organiza tu guardarropa',
+    },
+    home: {
+      title: '¡Bienvenido de nuevo, {{username}}! 👋',
+      subtitle: '¿Qué vas a usar hoy?',
+      quickActions: 'Acciones Rápidas',
+      addGarment: 'Agregar Prenda',
+      createOutfit: 'Crear Outfit',
+      browse: 'Explorar',
+      favoriteOutfits: 'Outfits Favoritos',
+      recentOutfits: 'Outfits Recientes',
+      seeAll: 'Ver Todo',
+      noOutfits: 'No hay outfits',
+      noOutfitsMessage: 'Comienza creando tu primer outfit para verlo aquí',
+      loadingWardrobe: 'Cargando tu guardarropa...',
+    },
+    closet: {
+      title: 'Mi Closet',
+      subtitle: 'Administra tu guardarropa',
+      allGarments: 'Todas las Prendas',
+      noGarments: 'No hay prendas',
+      noGarmentsMessage: 'Comienza agregando ropa a tu closet',
+      addYourFirst: 'Agrega Tu Primera Prenda',
+    },
+    collections: {
+      title: 'Colecciones',
+      subtitle: 'Organiza tu guardarropa',
+      myCollections: 'Mis Colecciones',
+      noCollections: 'No hay colecciones',
+      noCollectionsMessage: 'Crea colecciones para organizar tu ropa',
+      createFirst: 'Crea Tu Primera Colección',
+    },
+    profile: {
+      title: 'Perfil',
+      settings: 'Configuración',
+      editProfile: 'Editar Perfil',
+      language: 'Idioma',
+      theme: 'Tema',
+      about: 'Acerca de',
+      privacy: 'Política de Privacidad',
+      terms: 'Términos de Servicio',
+    },
+    settings: {
+      title: 'Configuración',
+      language: 'Idioma',
+      chooseLanguage: 'Elegir Idioma',
+      english: 'Inglés',
+      spanish: 'Español',
+    },
+  },
+});
+
+// Configurar el locale por defecto
+i18n.locale = Localization.locale;
+i18n.enableFallback = true;
+i18n.defaultLocale = 'en';
+
+export default i18n;

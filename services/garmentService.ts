@@ -1,0 +1,326 @@
+/**
+ * Garment Service
+ * Servicio para gestionar prendas (garments)
+ */
+
+import { API_URL } from '@/lib/constants';
+import { tokenService } from './tokenService';
+import { fetchWithTimeout } from '@/utils/fetchUtils';
+import { sanitizeName, sanitizeBrand, sanitizeColor, sanitizeNotes, isInputSafe } from '@/utils/sanitize';
+import { validateImage } from '@/utils/imageValidation';
+import type { 
+  Garment, 
+  CreateGarmentDTO, 
+  UpdateGarmentDTO, 
+  ApiResponse 
+} from '@/types';
+
+/**
+ * Obtiene todas las prendas del usuario
+ */
+export const getGarments = async (userId: string, token?: string): Promise<ApiResponse<Garment[]>> => {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }    const response = await fetchWithTimeout(`${API_URL}/garments?userId=eq.${userId}`, {
+      method: 'GET',
+      headers,
+      timeout: 15000,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { error: `Error al cargar prendas (${response.status})` };
+    }
+
+    const result = await response.json();
+    
+    // Mapear la respuesta del backend al formato del frontend
+    const garments = (result.data || result || []).map((item: any) => ({
+      ...item,
+      image_url: item.imageUrl || item.image_url || item.image || '',
+    }));
+    
+    return { data: garments };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
+
+/**
+ * Obtiene una prenda por su ID
+ */
+export const getGarmentById = async (id: string, token?: string): Promise<ApiResponse<Garment>> => {
+  try {
+    const authToken = token || await tokenService.getAccessToken();
+    if (!authToken) {
+      return { error: 'No authentication token' };
+    }
+
+    const response = await fetchWithTimeout(`${API_URL}/garments?id=eq.${id}`, {
+      method: 'GET',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${authToken}`,
+      },
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      return { error: `Error al cargar prenda (${response.status})` };
+    }
+
+    const result = await response.json();
+    return { data: result.data || result };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
+
+/**
+ * Crea una nueva prenda
+ */
+export const createGarment = async (
+  userId: string,
+  garmentData: CreateGarmentDTO,
+  token?: string
+): Promise<ApiResponse<Garment>> => {
+  try {
+    // Importar utilidades de sanitización    
+    // Sanitizar todos los inputs del usuario
+    const sanitizedName = sanitizeName(garmentData.name, 30);
+    const sanitizedBrand = garmentData.brand ? sanitizeBrand(garmentData.brand) : undefined;
+    const sanitizedColor = garmentData.color ? sanitizeColor(garmentData.color) : undefined;
+    const sanitizedNotes = garmentData.notes ? sanitizeNotes(garmentData.notes) : undefined;
+    
+    // Validar que no haya intentos de ataque
+    const nameCheck = isInputSafe(sanitizedName);
+    if (!nameCheck.safe) {
+      return { error: 'Invalid name: potential security issue detected' };
+    }
+    
+    // Crear FormData para enviar la imagen
+    const formData = new FormData();
+    formData.append('name', sanitizedName);
+    formData.append('category', garmentData.category);
+    
+    // Convertir 'all-season' a 'all_season' para el backend
+    const seasonValue = garmentData.season === 'all-season' ? 'all_season' : garmentData.season;
+    formData.append('season', seasonValue);
+    
+    if (sanitizedColor) {
+      formData.append('color', sanitizedColor);
+    }
+    
+    if (sanitizedBrand) {
+      formData.append('brand', sanitizedBrand);
+    }
+    
+    if (sanitizedNotes) {
+      formData.append('notes', sanitizedNotes);
+    }
+    
+    // Agregar imagen si existe
+    if (garmentData.image_url) {
+      // Validar imagen (tipo y tamaño)
+      const { validateImageUri } = await import('@/utils/imageValidation');
+      const imageResult = await validateImageUri(garmentData.image_url);
+      
+      if (imageResult.error) {
+        return { error: imageResult.error };
+      }
+      
+      if (!imageResult.blob) {
+        return { error: 'Error al procesar la imagen' };
+      }
+      
+      formData.append('image', imageResult.blob, 'garment.jpg');
+    }
+    
+    const headers: Record<string, string> = {};
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }    const response = await fetchWithTimeout(`${API_URL}/garments`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      timeout: 30000, // 30 segundos (subida de imagen)
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { error: `Error al crear prenda (${response.status})` };
+    }
+
+    const result = await response.json();
+    
+    // Mapear la respuesta del backend al formato del frontend
+    const garment = result.data || result;
+    if (garment) {
+      garment.image_url = garment.imageUrl || garment.image_url || garment.image || '';
+    }
+    
+    return { data: garment };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Error desconocido' };
+  }
+};
+
+/**
+ * Actualiza una prenda existente
+ */
+export const updateGarment = async (
+  id: string,
+  updates: UpdateGarmentDTO,
+  token?: string
+): Promise<ApiResponse<Garment>> => {
+  try {
+    // Importar utilidades de sanitización    
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+    
+    // Preparar el body con los campos a actualizar (sanitizados)
+    const body: any = {};
+    
+    if (updates.name !== undefined) {
+      const sanitizedName = sanitizeName(updates.name, 30);
+      const nameCheck = isInputSafe(sanitizedName);
+      if (!nameCheck.safe) {
+        return { error: 'Invalid name: potential security issue detected' };
+      }
+      body.name = sanitizedName;
+    }
+    if (updates.category !== undefined) body.category = updates.category;
+    if (updates.brand !== undefined) body.brand = sanitizeBrand(updates.brand);
+    if (updates.color !== undefined) {
+      const sanitizedColor = sanitizeColor(updates.color);
+      if (sanitizedColor) body.color = sanitizedColor;
+    }
+    if (updates.notes !== undefined) body.notes = sanitizeNotes(updates.notes);
+    
+    // Convertir 'all-season' a 'all_season' para el backend
+    if (updates.season !== undefined) {
+      body.season = updates.season === 'all-season' ? 'all_season' : updates.season;
+    }
+    
+    // NO enviar imageUrl - el backend no permite actualizar la imagen
+    
+    const response = await fetchWithTimeout(`${API_URL}/garments/${id}`, {
+      method: 'PUT',
+      headers,
+      body: JSON.stringify(body),
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { error: `Error al actualizar prenda (${response.status})` };
+    }
+
+    const result = await response.json();
+    
+    // Mapear la respuesta del backend al formato del frontend
+    const garment = result.data || result;
+    if (garment) {
+      garment.image_url = garment.imageUrl || garment.image_url || garment.image || '';
+    }
+    
+    return { data: garment };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Error desconocido' };
+  }
+};
+
+/**
+ * Elimina una prenda
+ */
+export const deleteGarment = async (id: string, token?: string): Promise<ApiResponse<void>> => {
+  try {
+    const headers: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
+    
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }    const response = await fetchWithTimeout(`${API_URL}/garments?id=eq.${id}`, {
+      method: 'DELETE',
+      headers,
+      timeout: 10000,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      return { error: `Error al eliminar prenda (${response.status})` };
+    }
+
+    const result = await response.json();
+    
+    return { data: undefined };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
+
+/**
+ * Sube una imagen de prenda
+ * NOTA: Esta función ya no se usa - las imágenes se suben directamente en createGarment
+ * Mantenerla por compatibilidad
+ */
+export const uploadGarmentImage = async (
+  userId: string,
+  imageUri: string
+): Promise<ApiResponse<string>> => {
+  try {
+    const token = await tokenService.getAccessToken();
+    if (!token) {
+      return { error: 'No authentication token' };
+    }
+
+    // Validar imagen antes de subir
+    const validation = await validateImage(imageUri);
+    if (!validation.valid) {
+      return { error: validation.error || 'Invalid image' };
+    }
+
+    // Crear FormData para subir la imagen
+    const formData = new FormData();
+    const fileName = `garment-${userId}-${Date.now()}.jpg`;
+    
+    formData.append('image', {
+      uri: imageUri,
+      name: fileName,
+      type: 'image/jpeg',
+    } as any);
+
+    const response = await fetchWithTimeout(`${API_URL}/garments/upload`, {
+      method: 'POST',
+      headers: {
+        'Authorization': `Bearer ${token}`,
+      },
+      body: formData,
+      timeout: 30000,
+    });
+
+    if (!response.ok) {
+      return { error: `Error al subir imagen (${response.status})` };
+    }
+
+    const result = await response.json();
+    return { data: result.data?.url || result.url };
+  } catch (error) {
+    return { error: error instanceof Error ? error.message : 'Unknown error' };
+  }
+};
+
+
+
