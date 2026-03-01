@@ -11,7 +11,10 @@ const RAW_API_URL =
   process.env.REACT_APP_API_URL ||
   'https://closetly-be.vercel.app';
 
-export const API_URL = RAW_API_URL.replace(/\/+$/, '');
+const NORMALIZED_API_URL = RAW_API_URL.replace(/\/+$/, '');
+export const API_URL = /\/api$/i.test(NORMALIZED_API_URL)
+  ? NORMALIZED_API_URL
+  : `${NORMALIZED_API_URL}/api`;
 
 export const COLORS = {
   primary: '#62D9C7',
