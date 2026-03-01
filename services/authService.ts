@@ -73,15 +73,25 @@ export const register = async (credentials: RegisterCredentials): Promise<ApiRes
       return { error: 'Demasiados intentos de registro. Intenta más tarde.' };
     }
 
+    const normalizedFullName =
+      credentials.fullName?.trim() ||
+      credentials.username?.trim() ||
+      credentials.email.split('@')[0];
+
+    const payload = {
+      ...credentials,
+      fullName: normalizedFullName,
+    };
+
     const { fetchWithTimeout } = await import('@/utils/fetchUtils');
-    console.log('Registering user:', credentials.email);
+    console.log('Registering user:', payload.email);
     
     const response = await fetchWithTimeout(`${API_URL}/auth/register`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
       },
-      body: JSON.stringify(credentials),
+      body: JSON.stringify(payload),
       timeout: 10000,
     });
 
