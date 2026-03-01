@@ -4,16 +4,29 @@
     "slug": "closetly-virtualcloset",
     "version": "1.0.0",
     "orientation": "portrait",
+    "icon": "./assets/icon.png",
     "userInterfaceStyle": "light",
     "assetBundlePatterns": [
       "**/*"
     ],
+    "splash": {
+      "image": "./assets/splash.png",
+      "resizeMode": "contain",
+      "backgroundColor": "#62D9C7"
+    },
     "ios": {
       "supportsTablet": true,
       "bundleIdentifier": "com.closetly.app"
     },
     "android": {
-      "package": "com.closetly.app"
+      "package": "com.closetly.app",
+      "adaptiveIcon": {
+        "foregroundImage": "./assets/adaptive-icon.png",
+        "backgroundColor": "#62D9C7"
+      }
+    },
+    "web": {
+      "favicon": "./assets/favicon.png"
     },
     "plugins": [
       "expo-router",
