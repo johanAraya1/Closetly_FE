@@ -9,7 +9,7 @@ const RAW_API_URL =
   process.env.NEXT_PUBLIC_API_URL ||
   process.env.VITE_API_URL ||
   process.env.REACT_APP_API_URL ||
-  'https://virtualclosetbe-production.up.railway.app';
+  'https://closetly-be.vercel.app';
 
 export const API_URL = RAW_API_URL.replace(/\/+$/, '');
 
