@@ -3,12 +3,12 @@
  * Pantalla de perfil del usuario
  */
 
-import React from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Alert, StyleSheet } from 'react-native';
+import React, { useEffect, useMemo, useState } from 'react';
+import { View, Text, ScrollView, Image, TouchableOpacity, Alert, StyleSheet, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Button } from '@/components';
+import { Button, Input } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useOutfits } from '@/hooks/useOutfits';
@@ -18,15 +18,59 @@ import { COLORS } from '@/lib/constants';
 
 export default function ProfileScreen() {
   const router = useRouter();
-  const { profile, user, logout, isAdmin } = useAuth();
+  const { profile, user, logout, isAdmin, updateProfile, isLoading } = useAuth();
   const { garments } = useGarments();
   const { outfits } = useOutfits();
   const { collections } = useCollections();
   const { t } = useTranslation();
+  const [username, setUsername] = useState('');
+  const [fullName, setFullName] = useState('');
+  const [bio, setBio] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
+
+  const displayName = useMemo(() => {
+    const name =
+      profile?.username ||
+      profile?.full_name ||
+      user?.email?.split('@')[0] ||
+      t('auth.username');
+    return name?.trim() || t('auth.username');
+  }, [profile?.username, profile?.full_name, user?.email, t]);
+
+  useEffect(() => {
+    setUsername(profile?.username || '');
+    setFullName(profile?.full_name || '');
+    setBio(profile?.bio || '');
+    setIsPublic(Boolean(profile?.is_public));
+  }, [profile?.username, profile?.full_name, profile?.bio, profile?.is_public]);
 
   const handleLogout = async () => {
     await logout();
     router.replace('/(auth)/onboarding');
+  };
+
+  const handleSaveProfile = async () => {
+    if (!profile) return;
+    if (!username.trim()) {
+      Alert.alert('Error', 'El usuario es obligatorio.');
+      return;
+    }
+
+    setIsSaving(true);
+    const success = await updateProfile({
+      username: username.trim(),
+      full_name: fullName.trim() || undefined,
+      bio: bio.trim() || undefined,
+      is_public: isPublic,
+    });
+    setIsSaving(false);
+
+    if (success) {
+      Alert.alert('Éxito', 'Perfil actualizado correctamente.');
+    } else {
+      Alert.alert('Error', 'No se pudo actualizar el perfil.');
+    }
   };
 
   return (
@@ -41,15 +85,20 @@ export default function ProfileScreen() {
                 style={styles.avatar}
               />
             ) : (
-              <Text style={styles.avatarText}>
-                {profile?.username?.charAt(0).toUpperCase() || '?'}
-              </Text>
+              <View style={styles.avatarPlaceholder}>
+                <Ionicons name="shirt-outline" size={40} color="#FFFFFF" />
+                {displayName ? (
+                  <Text style={styles.avatarInitial}>
+                    {displayName.charAt(0).toUpperCase()}
+                  </Text>
+                ) : null}
+              </View>
             )}
           </View>
           <Text style={styles.username}>
-            {profile?.username || 'User'}
+            {displayName}
           </Text>
-          {profile?.full_name && (
+          {profile?.full_name && profile?.full_name !== displayName && (
             <Text style={styles.fullName}>{profile.full_name}</Text>
           )}
           {profile?.bio && (
@@ -93,6 +142,58 @@ export default function ProfileScreen() {
               </View>
             </View>
           </View>
+        </View>
+
+        {/* Edit Profile */}
+        <View style={styles.editSection}>
+          <Text style={styles.sectionTitle}>Editar Perfil</Text>
+          <Input
+            label="Usuario"
+            value={username}
+            onChangeText={setUsername}
+            placeholder="Tu usuario"
+            autoCapitalize="none"
+          />
+          <Input
+            label="Nombre completo"
+            value={fullName}
+            onChangeText={setFullName}
+            placeholder="Tu nombre"
+          />
+          <Input
+            label="Correo electrónico"
+            value={user?.email || ''}
+            editable={false}
+            selectTextOnFocus={false}
+          />
+          <Input
+            label="Bio"
+            value={bio}
+            onChangeText={setBio}
+            placeholder="Cuéntanos sobre ti..."
+            multiline
+            numberOfLines={3}
+          />
+          <View style={styles.privacyRow}>
+            <View>
+              <Text style={styles.privacyLabel}>Perfil público</Text>
+              <Text style={styles.privacyHint}>
+                Permite que otros usuarios vean tu perfil.
+              </Text>
+            </View>
+            <Switch
+              value={isPublic}
+              onValueChange={setIsPublic}
+              trackColor={{ false: '#E5E7EB', true: COLORS.primary + '80' }}
+              thumbColor={isPublic ? COLORS.primary : '#FFFFFF'}
+            />
+          </View>
+          <Button
+            title={isSaving || isLoading ? 'Guardando...' : 'Guardar cambios'}
+            onPress={handleSaveProfile}
+            loading={isSaving || isLoading}
+            fullWidth
+          />
         </View>
 
         {/* Actions */}
@@ -178,6 +279,17 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
   },
+  avatarPlaceholder: {
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+  },
+  avatarInitial: {
+    fontSize: 12,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    opacity: 0.9,
+  },
   avatar: {
     width: 96,
     height: 96,
@@ -218,6 +330,16 @@ const styles = StyleSheet.create({
     paddingHorizontal: 24,
     paddingVertical: 24,
   },
+  sectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  editSection: {
+    paddingHorizontal: 24,
+    paddingBottom: 24,
+  },
   statsCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -243,6 +365,26 @@ const styles = StyleSheet.create({
   actionsSection: {
     paddingHorizontal: 24,
     paddingBottom: 24,
+  },
+  privacyRow: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  privacyLabel: {
+    fontSize: 16,
+    color: '#111827',
+    fontWeight: '500',
+  },
+  privacyHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
   },
   actionItem: {
     backgroundColor: '#FFFFFF',

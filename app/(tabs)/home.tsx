@@ -3,8 +3,8 @@
  * Pantalla principal con resumen de outfits y accesos rápidos
  */
 
-import React, { useState, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl } from 'react-native';
+import React, { useState, useCallback, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -16,13 +16,39 @@ import { COLORS } from '@/lib/constants';
 
 export default function HomeScreen() {
   const router = useRouter();
-  const { profile, user } = useAuth();
+  const { profile, user, logout } = useAuth();
   const { outfits, isLoading, loadOutfits } = useOutfits();
   const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
 
   const favoriteOutfits = outfits.filter((o) => o.is_favorite);
   const recentOutfits = outfits.slice(0, 5);
+  const displayName = useMemo(() => {
+    const name =
+      profile?.username ||
+      profile?.full_name ||
+      user?.email?.split('@')[0] ||
+      t('auth.username');
+    return name?.trim() || t('auth.username');
+  }, [profile?.username, profile?.full_name, user?.email, t]);
+
+  const handleLogout = () => {
+    Alert.alert(
+      t('auth.logout'),
+      '¿Seguro que quieres cerrar sesión?',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        {
+          text: t('auth.logout'),
+          style: 'destructive',
+          onPress: async () => {
+            await logout();
+            router.replace('/(auth)/onboarding');
+          },
+        },
+      ]
+    );
+  };
 
   const onRefresh = useCallback(async () => {
     if (!user) return;
@@ -50,12 +76,23 @@ export default function HomeScreen() {
       >
         {/* Header */}
         <View style={styles.header}>
-          <Text style={styles.headerTitle}>
-            {t('home.title', { username: profile?.username || 'there' })}
-          </Text>
-          <Text style={styles.headerSubtitle}>
-            {t('home.subtitle')}
-          </Text>
+          <View style={styles.headerRow}>
+            <View style={styles.headerText}>
+              <Text style={styles.headerTitle}>
+                {t('home.title', { username: displayName })}
+              </Text>
+              <Text style={styles.headerSubtitle}>
+                {t('home.subtitle')}
+              </Text>
+            </View>
+            <TouchableOpacity
+              onPress={handleLogout}
+              style={styles.logoutButton}
+              accessibilityLabel={t('auth.logout')}
+            >
+              <Ionicons name="log-out-outline" size={20} color={COLORS.gray[700]} />
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* Quick Actions */}
@@ -163,6 +200,15 @@ const styles = StyleSheet.create({
     paddingBottom: 24,
     backgroundColor: '#FFFFFF',
   },
+  headerRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 12,
+  },
+  headerText: {
+    flex: 1,
+  },
   headerTitle: {
     fontSize: 24,
     fontWeight: 'bold',
@@ -172,6 +218,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
     marginTop: 4,
+  },
+  logoutButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
   },
   section: {
     paddingHorizontal: 24,
