@@ -4,14 +4,15 @@
  */
 
 import { useState } from 'react';
-import { Alert } from 'react-native';
 import { analyzeGarmentImage } from '@/services/aiService';
 import type { GarmentAnalysis } from '@/services/aiService';
 
 interface UseAIAnalysisReturn {
   isAnalyzing: boolean;
   analysis: GarmentAnalysis | null;
-  analyzeImage: (imageUri: string) => Promise<GarmentAnalysis | null>;
+  analyzeImage: (
+    imageUri: string
+  ) => Promise<{ analysis: GarmentAnalysis | null; error?: string }>;
   resetAnalysis: () => void;
 }
 
@@ -19,7 +20,9 @@ export const useAIAnalysis = (): UseAIAnalysisReturn => {
   const [isAnalyzing, setIsAnalyzing] = useState(false);
   const [analysis, setAnalysis] = useState<GarmentAnalysis | null>(null);
 
-  const analyzeImage = async (imageUri: string): Promise<GarmentAnalysis | null> => {
+  const analyzeImage = async (
+    imageUri: string
+  ): Promise<{ analysis: GarmentAnalysis | null; error?: string }> => {
     setIsAnalyzing(true);
     setAnalysis(null);
 
@@ -28,20 +31,18 @@ export const useAIAnalysis = (): UseAIAnalysisReturn => {
       setIsAnalyzing(false);
 
       if (result.error) {
-        Alert.alert('Error', result.error);
-        return null;
+        return { analysis: null, error: result.error };
       }
 
       if (result.data) {
         setAnalysis(result.data);
-        return result.data;
+        return { analysis: result.data };
       }
 
-      return null;
+      return { analysis: null };
     } catch (error) {
       setIsAnalyzing(false);
-      Alert.alert('Error', 'Failed to analyze image');
-      return null;
+      return { analysis: null, error: 'Failed to analyze image' };
     }
   };
 

@@ -50,6 +50,7 @@ export default function CreateGarmentScreen() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isFormEnabled, setIsFormEnabled] = useState(false);
+  const [aiDetected, setAiDetected] = useState(false);
 
   // Cargar datos de la prenda si estamos editando
   useEffect(() => {
@@ -89,32 +90,39 @@ export default function CreateGarmentScreen() {
     
     setLastAnalyzedUri(imageUri);
     setIsFormEnabled(false);
-    const analysis = await analyzeImage(imageUri);
+    setAiDetected(false);
+    const { analysis, error } = await analyzeImage(imageUri);
     
-    if (analysis && analysis.confidence > 0.7) {
-      // Auto-completar campos con alta confianza
+    if (analysis && analysis.confidence > 0.5) {
+      // Auto-completar campos con la detección de IA
       setName(analysis.name);
       setCategory(analysis.category);
       setColor(analysis.color);
       setSeasons([analysis.season]);
       if (analysis.brand) setBrand(analysis.brand);
       if (analysis.description) setNotes(analysis.description);
-      
+
       setIsFormEnabled(true);
-      
+      setAiDetected(true);
+
+      const highConfidence = analysis.confidence > 0.7;
       Alert.alert(
-        '✨ IA Detectó',
-        `${analysis.name}\n\nLa IA ha completado los campos automáticamente. Puedes editarlos si lo deseas.`,
+        highConfidence ? '✨ IA Detectó' : '🔍 IA Detectó (revisar)',
+        `${analysis.name}\n\n${highConfidence ? 'La IA ha completado los campos automáticamente. Puedes editarlos si lo deseas.' : 'La IA completó los campos pero con confianza media. Revisa que los datos sean correctos.'}`,
         [{ text: 'OK' }]
       );
     } else {
       // Si no se detectó con confianza, habilitar formulario para entrada manual
       setIsFormEnabled(true);
-      Alert.alert(
-        '⚠️ No se pudo detectar',
-        'La IA no pudo identificar la prenda con suficiente confianza. Por favor, completa los campos manualmente.',
-        [{ text: 'OK' }]
-      );
+      if (error) {
+        Alert.alert('Error de IA', error, [{ text: 'OK' }]);
+      } else {
+        Alert.alert(
+          '⚠️ No se pudo detectar',
+          'La IA no pudo identificar la prenda con suficiente confianza. Por favor, completa los campos manualmente.',
+          [{ text: 'OK' }]
+        );
+      }
     }
   };
 
@@ -287,7 +295,7 @@ export default function CreateGarmentScreen() {
                   <Text style={styles.aiAnalyzingText}>Analizando...</Text>
                 </View>
               )}
-              {lastAnalyzedUri && lastAnalyzedUri === imageUri && !isAnalyzing && !isEditMode && (
+              {aiDetected && lastAnalyzedUri === imageUri && !isAnalyzing && !isEditMode && (
                 <View style={styles.aiSuggestedBadge}>
                   <Ionicons name="checkmark-circle" size={12} color={COLORS.success} />
                   <Text style={styles.aiSuggestedText}>Detectado por IA</Text>
@@ -305,6 +313,7 @@ export default function CreateGarmentScreen() {
                   <TouchableOpacity
                     onPress={() => {
                       setLastAnalyzedUri(null);
+                      setAiDetected(false);
                       if (isEditMode) setEditImageUri(null);
                       pickImage();
                     }}
@@ -318,7 +327,10 @@ export default function CreateGarmentScreen() {
             ) : (
               <View style={styles.imagePickerRow}>
                 <TouchableOpacity
-                  onPress={pickImage}
+                  onPress={() => {
+                    setAiDetected(false);
+                    pickImage();
+                  }}
                   style={styles.imagePickerButton}
                   disabled={isAnalyzing}
                 >
@@ -326,7 +338,10 @@ export default function CreateGarmentScreen() {
                   <Text style={styles.imagePickerText}>Galería</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={capturePhoto}
+                  onPress={() => {
+                    setAiDetected(false);
+                    capturePhoto();
+                  }}
                   style={styles.imagePickerButton}
                   disabled={isAnalyzing}
                 >
@@ -504,6 +519,7 @@ export default function CreateGarmentScreen() {
               setNotes('');
               setEditImageUri(null);
               setLastAnalyzedUri(null);
+              setAiDetected(false);
               resetImage();
               setIsFormEnabled(false);
               setErrors({});
