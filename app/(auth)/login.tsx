@@ -4,14 +4,15 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import { View, Text, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, Modal } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/store/authStore';
 import { useTranslation } from '@/hooks/useTranslation';
-import { isValidEmail, isValidPassword, validationMessages } from '@/utils/validation';
+import { isValidEmail, validationMessages } from '@/utils/validation';
 
 export default function LoginScreen() {
   const router = useRouter();
@@ -20,6 +21,7 @@ export default function LoginScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
@@ -35,8 +37,6 @@ export default function LoginScreen() {
 
     if (!password) {
       newErrors.password = validationMessages.password.required;
-    } else if (!isValidPassword(password)) {
-      newErrors.password = validationMessages.password.tooShort;
     }
 
     setErrors(newErrors);
@@ -57,13 +57,14 @@ export default function LoginScreen() {
     if (success) {
       router.replace('/(tabs)/home');
     } else {
-      // Mapear errores comunes del backend
-      let message = error || 'Error al iniciar sesión';
-      if (error?.includes('401') || error?.includes('Unauthorized') || error?.includes('Invalid')) {
+      // Leer el error fresco del store (evita stale closure)
+      const currentError = useAuthStore.getState().error;
+      let message = currentError || 'Error al iniciar sesión';
+      if (currentError?.includes('401') || currentError?.includes('Unauthorized') || currentError?.includes('Invalid')) {
         message = 'Correo o contraseña incorrectos. Por favor, verifica tus credenciales.';
-      } else if (error?.includes('404') || error?.includes('not found')) {
+      } else if (currentError?.includes('404') || currentError?.includes('not found')) {
         message = 'No existe una cuenta con este correo. ¿Deseas crear una cuenta nueva?';
-      } else if (error?.includes('network') || error?.includes('fetch')) {
+      } else if (currentError?.includes('network') || currentError?.includes('fetch') || currentError?.includes('timeout')) {
         message = 'Error de conexión. Verifica tu internet e intenta nuevamente.';
       }
       setErrorMessage(message);
@@ -107,9 +108,18 @@ export default function LoginScreen() {
               setErrors({ ...errors, password: undefined });
             }}
             placeholder="••••••••"
-            secureTextEntry
+            secureTextEntry={!showPassword}
             error={errors.password}
             icon={<Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />}
+            rightIcon={
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color="#9CA3AF"
+                />
+              </TouchableOpacity>
+            }
           />
 
           <Button
