@@ -17,6 +17,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
 
 export default function ProfileScreen() {
+  const appLogo = require('../../assets/icon.png');
   const router = useRouter();
   const { profile, user, logout, isAdmin, updateProfile, isLoading } = useAuth();
   const { garments } = useGarments();
@@ -85,14 +86,7 @@ export default function ProfileScreen() {
                 style={styles.avatar}
               />
             ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Ionicons name="shirt-outline" size={40} color="#FFFFFF" />
-                {displayName ? (
-                  <Text style={styles.avatarInitial}>
-                    {displayName.charAt(0).toUpperCase()}
-                  </Text>
-                ) : null}
-              </View>
+              <Image source={appLogo} style={styles.appLogo} />
             )}
           </View>
           <Text style={styles.username}>
@@ -279,16 +273,10 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     marginBottom: 16,
   },
-  avatarPlaceholder: {
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 4,
-  },
-  avatarInitial: {
-    fontSize: 12,
-    color: '#FFFFFF',
-    fontWeight: '600',
-    opacity: 0.9,
+  appLogo: {
+    width: 72,
+    height: 72,
+    borderRadius: 16,
   },
   avatar: {
     width: 96,

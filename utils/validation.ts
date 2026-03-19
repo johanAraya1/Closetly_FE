@@ -23,6 +23,8 @@ export const isValidEmail = (email: string): boolean => {
 export const isValidPassword = (password: string): boolean => {
   // Mínimo 8 caracteres
   if (password.length < 8) return false;
+  // Máximo 16 caracteres
+  if (password.length > 16) return false;
   
   // Al menos una mayúscula
   if (!/[A-Z]/.test(password)) return false;
@@ -100,11 +102,13 @@ export const validationMessages = {
   password: {
     required: 'Password is required',
     tooShort: 'Password must be at least 8 characters',
+    tooLong: 'Password must be at most 16 characters',
     noUppercase: 'Password must contain at least one uppercase letter',
     noLowercase: 'Password must contain at least one lowercase letter',
     noNumber: 'Password must contain at least one number',
     noSpecial: 'Password must contain at least one special character (!@#$%^&*)',
     weak: 'Password is too weak. Please choose a stronger password.',
+    mismatch: 'Passwords do not match',
   },
   username: {
     required: 'Username is required',

@@ -3,13 +3,14 @@
  * Pantalla de registro
  */
 
-import React, { useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView, StyleSheet } from 'react-native';
+import React, { useMemo, useState } from 'react';
+import { View, Text, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, Modal } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/store/authStore';
 import { 
   isValidEmail, 
   isValidPassword, 
@@ -23,19 +24,39 @@ export default function RegisterScreen() {
 
   const [email, setEmail] = useState('');
   const [password, setPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<{ 
     email?: string; 
     password?: string; 
     username?: string;
+    confirmPassword?: string;
   }>({});
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [showSuccessModal, setShowSuccessModal] = useState(false);
 
+  const passwordCriteria = useMemo(() => {
+    const length = password.length >= 8 && password.length <= 16;
+    const uppercase = /[A-Z]/.test(password);
+    const lowercase = /[a-z]/.test(password);
+    const number = /[0-9]/.test(password);
+    const special = /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]/.test(password);
+    return {
+      length,
+      uppercase,
+      lowercase,
+      number,
+      special,
+      all: length && uppercase && lowercase && number && special,
+    };
+  }, [password]);
+
   const validate = () => {
-    const newErrors: { email?: string; password?: string; username?: string } = {};
+    const newErrors: { email?: string; password?: string; username?: string; confirmPassword?: string } = {};
 
     if (!email) {
       newErrors.email = validationMessages.email.required;
@@ -46,13 +67,35 @@ export default function RegisterScreen() {
     if (!password) {
       newErrors.password = validationMessages.password.required;
     } else if (!isValidPassword(password)) {
-      newErrors.password = validationMessages.password.tooShort;
+      if (password.length < 8) {
+        newErrors.password = validationMessages.password.tooShort;
+      } else if (password.length > 16) {
+        newErrors.password = validationMessages.password.tooLong;
+      } else if (!passwordCriteria.uppercase) {
+        newErrors.password = validationMessages.password.noUppercase;
+      } else if (!passwordCriteria.lowercase) {
+        newErrors.password = validationMessages.password.noLowercase;
+      } else if (!passwordCriteria.number) {
+        newErrors.password = validationMessages.password.noNumber;
+      } else if (!passwordCriteria.special) {
+        newErrors.password = validationMessages.password.noSpecial;
+      } else {
+        newErrors.password = validationMessages.password.weak;
+      }
     }
 
     if (!username) {
       newErrors.username = validationMessages.username.required;
     } else if (!isValidUsername(username)) {
       newErrors.username = validationMessages.username.invalid;
+    }
+
+    if (passwordCriteria.all) {
+      if (!confirmPassword) {
+        newErrors.confirmPassword = 'Confirma tu contraseña';
+      } else if (confirmPassword !== password) {
+        newErrors.confirmPassword = validationMessages.password.mismatch;
+      }
     }
 
     setErrors(newErrors);
@@ -77,13 +120,14 @@ export default function RegisterScreen() {
         router.replace('/(tabs)/home');
       }, 2000);
     } else {
-      // Mapear errores comunes del backend
-      let message = error || 'Error al crear la cuenta';
-      if (error?.includes('409') || error?.includes('already exists') || error?.includes('Conflict')) {
+      // Leer el error fresco del store (evita stale closure)
+      const currentError = useAuthStore.getState().error;
+      let message = currentError || 'Error al crear la cuenta';
+      if (currentError?.includes('409') || currentError?.includes('already exists') || currentError?.includes('Conflict')) {
         message = 'Este correo electrónico ya está registrado. Por favor, inicia sesión o usa otro correo.';
-      } else if (error?.includes('400')) {
+      } else if (currentError?.includes('400')) {
         message = 'Datos inválidos. Verifica que todos los campos sean correctos.';
-      } else if (error?.includes('network') || error?.includes('fetch')) {
+      } else if (currentError?.includes('network') || currentError?.includes('fetch') || currentError?.includes('timeout')) {
         message = 'Error de conexión. Verifica tu internet e intenta nuevamente.';
       }
       setErrorMessage(message);
@@ -148,10 +192,89 @@ export default function RegisterScreen() {
               setErrors({ ...errors, password: undefined });
             }}
             placeholder="••••••••"
-            secureTextEntry
+            secureTextEntry={!showPassword}
+            maxLength={16}
             error={errors.password}
             icon={<Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />}
+            rightIcon={
+              <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
+                <Ionicons
+                  name={showPassword ? 'eye-off-outline' : 'eye-outline'}
+                  size={20}
+                  color="#9CA3AF"
+                />
+              </TouchableOpacity>
+            }
           />
+
+          <View style={styles.passwordRules}>
+            <Text style={styles.rulesTitle}>La contraseña debe tener:</Text>
+            <View style={styles.ruleItem}>
+              <Ionicons
+                name={passwordCriteria.length ? 'checkmark-circle' : 'close-circle'}
+                size={16}
+                color={passwordCriteria.length ? '#10B981' : '#EF4444'}
+              />
+              <Text style={styles.ruleText}>8 a 16 caracteres</Text>
+            </View>
+            <View style={styles.ruleItem}>
+              <Ionicons
+                name={passwordCriteria.uppercase ? 'checkmark-circle' : 'close-circle'}
+                size={16}
+                color={passwordCriteria.uppercase ? '#10B981' : '#EF4444'}
+              />
+              <Text style={styles.ruleText}>Una letra mayúscula</Text>
+            </View>
+            <View style={styles.ruleItem}>
+              <Ionicons
+                name={passwordCriteria.lowercase ? 'checkmark-circle' : 'close-circle'}
+                size={16}
+                color={passwordCriteria.lowercase ? '#10B981' : '#EF4444'}
+              />
+              <Text style={styles.ruleText}>Una letra minúscula</Text>
+            </View>
+            <View style={styles.ruleItem}>
+              <Ionicons
+                name={passwordCriteria.number ? 'checkmark-circle' : 'close-circle'}
+                size={16}
+                color={passwordCriteria.number ? '#10B981' : '#EF4444'}
+              />
+              <Text style={styles.ruleText}>Un número</Text>
+            </View>
+            <View style={styles.ruleItem}>
+              <Ionicons
+                name={passwordCriteria.special ? 'checkmark-circle' : 'close-circle'}
+                size={16}
+                color={passwordCriteria.special ? '#10B981' : '#EF4444'}
+              />
+              <Text style={styles.ruleText}>Un caracter especial</Text>
+            </View>
+          </View>
+
+          {passwordCriteria.all && (
+            <Input
+              label="Confirmar contraseña"
+              value={confirmPassword}
+              onChangeText={(text) => {
+                setConfirmPassword(text);
+                setErrors({ ...errors, confirmPassword: undefined });
+              }}
+              placeholder="••••••••"
+              secureTextEntry={!showConfirmPassword}
+              maxLength={16}
+              error={errors.confirmPassword}
+              icon={<Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />}
+              rightIcon={
+                <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                  <Ionicons
+                    name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                    size={20}
+                    color="#9CA3AF"
+                  />
+                </TouchableOpacity>
+              }
+            />
+          )}
 
           <View style={styles.buttonContainer}>
             <Button
@@ -241,6 +364,30 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: 16,
+  },
+  passwordRules: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 16,
+  },
+  rulesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  ruleItem: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  ruleText: {
+    fontSize: 13,
+    color: '#374151',
   },
   footer: {
     flexDirection: 'row',
