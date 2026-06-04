@@ -14,6 +14,15 @@ import type {
 } from '@/types';
 
 /**
+ * Normaliza un outfit de la API (camelCase de BE) al formato del frontend (snake_case donde aplica)
+ * La BE serializa las entidades NestJS en camelCase, pero el FE usa is_favorite
+ */
+const normalizeOutfit = (outfit: any): any => ({
+  ...outfit,
+  is_favorite: outfit.isFavorite ?? outfit.is_favorite ?? false,
+});
+
+/**
  * Obtiene todos los outfits del usuario con sus prendas
  */
 export const getOutfits = async (userId: string): Promise<ApiResponse<Outfit[]>> => {
@@ -24,7 +33,7 @@ export const getOutfits = async (userId: string): Promise<ApiResponse<Outfit[]>>
     return outfitsResponse;
   }
   
-  const outfits = outfitsResponse.data;
+  const outfits = outfitsResponse.data.map(normalizeOutfit);
 
   // Recolectar todos los garmentIds ÚNICOS de todos los outfits
   const allGarmentIds = [...new Set(
@@ -74,7 +83,7 @@ export const getOutfitById = async (id: string): Promise<ApiResponse<Outfit>> =>
     return outfitResponse as ApiResponse<Outfit>;
   }
   
-  const outfit = outfitResponse.data[0];
+  const outfit = normalizeOutfit(outfitResponse.data[0]);
   
   // Si no tiene prendas, retornar tal cual
   if (!outfit.garmentIds || outfit.garmentIds.length === 0) {
@@ -137,7 +146,11 @@ export const createOutfit = async (
     garmentIds,
   };
 
-  return apiClient.post<Outfit>('/outfits', payload);
+  const result = await apiClient.post<any>('/outfits', payload);
+  
+  if (result.error) return result as ApiResponse<Outfit>;
+
+  return { data: normalizeOutfit(result.data) as Outfit };
 };
 
 /**
@@ -147,7 +160,9 @@ export const updateOutfit = async (
   id: string,
   updates: UpdateOutfitDTO
 ): Promise<ApiResponse<Outfit>> => {
-  return apiClient.put<Outfit>(`/outfits/${id}`, updates);
+  const result = await apiClient.put<any>(`/outfits/${id}`, updates);
+  if (result.error) return result as ApiResponse<Outfit>;
+  return { data: normalizeOutfit(result.data) as Outfit };
 };
 
 /**
@@ -164,7 +179,9 @@ export const toggleOutfitFavorite = async (
   id: string,
   isFavorite: boolean
 ): Promise<ApiResponse<Outfit>> => {
-  return apiClient.put<Outfit>(`/outfits/${id}/favorite`, { is_favorite: isFavorite }, { timeout: 10000 });
+  const result = await apiClient.put<any>(`/outfits/${id}/favorite`, { is_favorite: isFavorite }, { timeout: 10000 });
+  if (result.error) return result as ApiResponse<Outfit>;
+  return { data: normalizeOutfit(result.data) as Outfit };
 };
 
 
