@@ -15,6 +15,7 @@ import {
   Alert,
   ActivityIndicator,
   Dimensions,
+  Platform,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -284,14 +285,16 @@ export default function OutfitsScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Lista de outfits (SIEMPRE el mismo ScrollView para evitar conflictos DOM en web) */}
+      {/* Lista de outfits - sin RefreshControl en web para evitar DOM conflicts */}
       <ScrollView
         style={styles.list}
         contentContainerStyle={
           filteredAndSortedOutfits.length === 0 ? styles.emptyContainer : styles.listContent
         }
         showsVerticalScrollIndicator={false}
-        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+        {...(Platform.OS !== 'web' && {
+          refreshControl: <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />,
+        })}
       >
         {filteredAndSortedOutfits.length === 0 ? (
           <EmptyState
