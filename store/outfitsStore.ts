@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import type { Outfit, CreateOutfitDTO, UpdateOutfitDTO } from '@/types';
 import * as outfitService from '@/services/outfitService';
+import { useGarmentsStore } from '@/store/garmentsStore';
 
 interface OutfitsState {
   outfits: Outfit[];
@@ -75,8 +76,14 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => ({
     }
 
     if (result.data) {
+      // Poblar prendas desde el store de garments (ya cargadas)
+      const allGarments = useGarmentsStore.getState().garments;
+      const outfitGarments = allGarments.filter(
+        (g) => data.garmentIds?.includes(g.id)
+      );
+      
       set((state) => ({
-        outfits: [result.data!, ...state.outfits],
+        outfits: [{ ...result.data!, garments: outfitGarments }, ...state.outfits],
         isLoading: false,
       }));
       return result.data;
