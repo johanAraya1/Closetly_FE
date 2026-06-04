@@ -14,6 +14,7 @@ import {
   StyleSheet,
   Alert,
   ActivityIndicator,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -23,6 +24,10 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOutfits } from '@/hooks/useOutfits';
 import { SEASONS } from '@/lib/constants';
 import type { Outfit, GarmentSeason } from '@/types';
+
+const SCREEN_WIDTH = Dimensions.get('window').width;
+const SKELETON_CARD_WIDTH = SCREEN_WIDTH < 600 ? (SCREEN_WIDTH - 60) / 2 : (SCREEN_WIDTH - 80) / 3;
+const SKELETON_IMAGE_HEIGHT = 180;
 
 type SortOption = 'recent' | 'oldest' | 'name' | 'favorites';
 type FilterSeason = GarmentSeason | 'all';
@@ -148,9 +153,40 @@ export default function OutfitsScreen() {
   if (isLoading && outfits.length === 0) {
     return (
       <SafeAreaView style={styles.container}>
-        <View style={styles.loadingContainer}>
-          <ActivityIndicator size="large" color="#3B82F6" />
-          <Text style={styles.loadingText}>Cargando outfits...</Text>
+        {/* Header */}
+        <View style={styles.header}>
+          <View style={styles.titleContainer}>
+            <Text style={styles.title}>Mis Outfits</Text>
+            <Text style={styles.subtitle}>Cargando...</Text>
+          </View>
+        </View>
+
+        {/* Search skeleton */}
+        <View style={styles.searchContainer}>
+          <View style={[styles.skeletonBlock, { height: 44, borderRadius: 12 }]} />
+        </View>
+
+        {/* Filters skeleton */}
+        <View style={[styles.filtersContainer, { paddingHorizontal: 20, marginBottom: 12 }]}>
+          <View style={{ flexDirection: 'row', gap: 8 }}>
+            <View style={[styles.skeletonBlock, { width: 100, height: 34, borderRadius: 20 }]} />
+            <View style={[styles.skeletonBlock, { width: 100, height: 34, borderRadius: 20 }]} />
+          </View>
+        </View>
+
+        {/* Card skeletons */}
+        <View style={[styles.listContent, { padding: 20 }]}>
+          <View style={styles.gridContainer}>
+            {[1, 2, 3, 4].map((i) => (
+              <View key={i} style={[styles.cardSkeleton, { width: SKELETON_CARD_WIDTH }]}>
+                <View style={[styles.skeletonBlock, { height: SKELETON_IMAGE_HEIGHT, borderTopLeftRadius: 12, borderTopRightRadius: 12 }]} />
+                <View style={{ padding: 12 }}>
+                  <View style={[styles.skeletonBlock, { height: 14, width: '80%', marginBottom: 8 }]} />
+                  <View style={[styles.skeletonBlock, { height: 11, width: '50%' }]} />
+                </View>
+              </View>
+            ))}
+          </View>
         </View>
       </SafeAreaView>
     );
@@ -310,6 +346,19 @@ const styles = StyleSheet.create({
     marginTop: 12,
     fontSize: 16,
     color: '#6B7280',
+  },
+  skeletonBlock: {
+    backgroundColor: '#F3F4F6',
+  },
+  cardSkeleton: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.1,
+    shadowRadius: 3,
+    elevation: 2,
+    overflow: 'hidden',
   },
   header: {
     flexDirection: 'row',

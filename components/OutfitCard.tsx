@@ -3,8 +3,8 @@
  * Tarjeta para mostrar un outfit con carrusel de prendas
  */
 
-import React, { useState, useRef, useEffect } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions } from 'react-native';
+import React, { useState, useRef, useEffect, useCallback } from 'react';
+import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions, ActivityIndicator } from 'react-native';
 import { Ionicons } from '@expo/vector-icons';
 import type { Outfit } from '@/types';
 import { formatRelativeDate } from '@/utils/format';
@@ -12,6 +12,7 @@ import { COLORS } from '@/lib/constants';
 
 const IMAGE_HEIGHT = 180;
 const AUTO_SCROLL_INTERVAL = 3000; // 3 segundos
+const SKELETON_COLOR = '#F3F4F6';
 
 // Calcula el ancho del card basado en el tamaño de pantalla
 const getCardWidth = (screenWidth: number) => {
@@ -45,6 +46,11 @@ export const OutfitCard = React.memo<OutfitCardProps>(({
   const [currentIndex, setCurrentIndex] = useState(0);
   const scrollViewRef = useRef<ScrollView>(null);
   const autoScrollTimer = useRef<NodeJS.Timeout | null>(null);
+  const [loadedImages, setLoadedImages] = useState<Set<string>>(new Set());
+
+  const handleImageLoad = useCallback((garmentId: string) => {
+    setLoadedImages((prev) => new Set(prev).add(garmentId));
+  }, []);
 
   const handleScroll = (event: any) => {
     const scrollPosition = event.nativeEvent.contentOffset.x;
@@ -121,10 +127,16 @@ export const OutfitCard = React.memo<OutfitCardProps>(({
             >
               {outfit.garments!.map((garment) => (
                 <View key={garment.id} style={[styles.imageContainer, { width: cardWidth }]}>
+                  {!loadedImages.has(garment.id) && (
+                    <View style={styles.imagePlaceholder}>
+                      <ActivityIndicator size="small" color="#D1D5DB" />
+                    </View>
+                  )}
                   <Image
                     source={{ uri: garment.imageUrl }}
                     style={styles.garmentImage}
                     resizeMode="contain"
+                    onLoad={() => handleImageLoad(garment.id)}
                   />
                 </View>
               ))}
@@ -264,6 +276,13 @@ const styles = StyleSheet.create({
     width: '100%',
     height: '100%',
     backgroundColor: '#FFFFFF',
+  },
+  imagePlaceholder: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: SKELETON_COLOR,
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 1,
   },
   pagination: {
     position: 'absolute',
