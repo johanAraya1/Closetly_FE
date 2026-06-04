@@ -246,7 +246,7 @@ export const deleteGarment = async (id: string, token?: string): Promise<ApiResp
     
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-    }    const response = await fetchWithTimeout(`${API_URL}/garments?id=eq.${id}`, {
+    }    const response = await fetchWithTimeout(`${API_URL}/garments/${id}`, {
       method: 'DELETE',
       headers,
       timeout: 10000,
