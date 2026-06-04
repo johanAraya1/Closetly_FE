@@ -284,12 +284,16 @@ export default function OutfitsScreen() {
         </TouchableOpacity>
       </ScrollView>
 
-      {/* Lista de outfits */}
-      {filteredAndSortedOutfits.length === 0 ? (
-        <ScrollView
-          contentContainerStyle={styles.emptyContainer}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-        >
+      {/* Lista de outfits (SIEMPRE el mismo ScrollView para evitar conflictos DOM en web) */}
+      <ScrollView
+        style={styles.list}
+        contentContainerStyle={
+          filteredAndSortedOutfits.length === 0 ? styles.emptyContainer : styles.listContent
+        }
+        showsVerticalScrollIndicator={false}
+        refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
+      >
+        {filteredAndSortedOutfits.length === 0 ? (
           <EmptyState
             icon="shirt-outline"
             title={searchQuery || filterSeason !== 'all' || showFavoritesOnly ? 'No hay outfits' : 'No tienes outfits'}
@@ -301,14 +305,7 @@ export default function OutfitsScreen() {
             actionLabel={!searchQuery && filterSeason === 'all' && !showFavoritesOnly ? 'Crear Outfit' : undefined}
             onAction={!searchQuery && filterSeason === 'all' && !showFavoritesOnly ? handleCreateOutfit : undefined}
           />
-        </ScrollView>
-      ) : (
-        <ScrollView
-          style={styles.list}
-          contentContainerStyle={styles.listContent}
-          showsVerticalScrollIndicator={false}
-          refreshControl={<RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />}
-        >
+        ) : (
           <View style={styles.gridContainer}>
             {filteredAndSortedOutfits.map((outfit) => (
               <OutfitCard
@@ -319,8 +316,8 @@ export default function OutfitsScreen() {
               />
             ))}
           </View>
-        </ScrollView>
-      )}
+        )}
+      </ScrollView>
 
       {/* Error */}
       {error && (
