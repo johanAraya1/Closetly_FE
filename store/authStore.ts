@@ -243,6 +243,16 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         error: null,
         isInitialized: true,
       });
+
+      // Si el perfil está vacío, intentar refrescarlo del backend
+      if (!sessionData.profile?.username && sessionData.user?.id) {
+        const { getProfile } = await import('@/services/profileService');
+        const profileResult = await getProfile(sessionData.user.id);
+        if (profileResult.data) {
+          set({ profile: profileResult.data });
+          await tokenService.saveSessionData(sessionData.user, profileResult.data);
+        }
+      }
     } catch (error) {
       // Error al cargar sesión, limpiar todo
       await tokenService.clearAll();
