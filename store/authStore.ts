@@ -246,11 +246,24 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
       // Si el perfil está vacío, intentar refrescarlo del backend
       if (!sessionData.profile?.username && sessionData.user?.id) {
-        const { getProfile } = await import('@/services/profileService');
-        const profileResult = await getProfile(sessionData.user.id);
+        const { apiClient } = await import('@/utils/apiClient');
+        const profileResult = await apiClient.get('/users/me', { timeout: 10000 });
         if (profileResult.data) {
-          set({ profile: profileResult.data });
-          await tokenService.saveSessionData(sessionData.user, profileResult.data);
+          // Mapear camelCase del BE a snake_case que espera la FE
+          const beProfile: any = profileResult.data;
+          const mappedProfile = {
+            id: beProfile.id || beProfile.userId,
+            user_id: beProfile.userId || beProfile.id,
+            username: beProfile.username || null,
+            full_name: beProfile.fullName || beProfile.full_name || null,
+            bio: beProfile.bio || null,
+            avatar_url: beProfile.avatarUrl || beProfile.avatar_url || null,
+            is_public: beProfile.isPublic ?? beProfile.is_public ?? false,
+            created_at: beProfile.createdAt || beProfile.created_at || null,
+            updated_at: beProfile.updatedAt || beProfile.updated_at || null,
+          };
+          set({ profile: mappedProfile });
+          await tokenService.saveSessionData(sessionData.user, mappedProfile);
         }
       }
     } catch (error) {
