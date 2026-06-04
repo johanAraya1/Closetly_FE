@@ -79,10 +79,9 @@ export const takePhoto = async (): Promise<string | null> => {
       throw new Error('Permission to access camera was denied');
     }
 
-    // Abrir cámara
+    // Abrir cámara (sin editor de recorte para usar la foto completa)
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsEditing: false,
       quality: 1,
     });
 

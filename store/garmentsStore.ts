@@ -62,7 +62,7 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => ({
       brand: data.brand || null,
       color: data.color || null,
       season: data.season,
-      image_url: data.imageUri || '',
+      image_url: data.image_url || data.imageUrl || '',
       notes: data.notes || null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),

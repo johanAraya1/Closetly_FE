@@ -7,7 +7,7 @@ import { API_URL } from '@/lib/constants';
 import { tokenService } from './tokenService';
 import { fetchWithTimeout } from '@/utils/fetchUtils';
 import { sanitizeName, sanitizeBrand, sanitizeColor, sanitizeNotes, isInputSafe } from '@/utils/sanitize';
-import { validateImage } from '@/utils/imageValidation';
+import { Platform } from 'react-native';
 import type { 
   Garment, 
   CreateGarmentDTO, 
@@ -126,19 +126,13 @@ export const createGarment = async (
     
     // Agregar imagen si existe
     if (garmentData.image_url) {
-      // Validar imagen (tipo y tamaño)
-      const { validateImageUri } = await import('@/utils/imageValidation');
-      const imageResult = await validateImageUri(garmentData.image_url);
-      
-      if (imageResult.error) {
-        return { error: imageResult.error };
-      }
-      
-      if (!imageResult.blob) {
-        return { error: 'Error al procesar la imagen' };
-      }
-      
-      formData.append('image', imageResult.blob, 'garment.jpg');
+      // En React Native, FormData soporta referencias a archivos nativos
+      // No usamos fetch() porque no funciona con file:// URIs en RN
+      formData.append('image', {
+        uri: garmentData.image_url,
+        type: 'image/jpeg',
+        name: 'garment.jpg',
+      } as any);
     }
     
     const headers: Record<string, string> = {};
