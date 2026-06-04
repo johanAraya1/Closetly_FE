@@ -24,36 +24,48 @@ export const getOutfits = async (userId: string): Promise<ApiResponse<Outfit[]>>
     return outfitsResponse;
   }
   
-  // Para cada outfit, obtener sus prendas usando garmentIds
-  const outfitsWithGarments = await Promise.all(
-    outfitsResponse.data.map(async (outfit: any) => {
-      if (!outfit.garmentIds || outfit.garmentIds.length === 0) {
-        return { ...outfit, garments: [] };
-      }
-      
-      // Obtener cada prenda usando query params (sintaxis del backend)
-      const garmentPromises = outfit.garmentIds.map((garmentId: string) => 
-        apiClient.get<any[]>(`/garments?id=eq.${garmentId}`)
-      );
-      
-      const garmentResults = await Promise.all(garmentPromises);
-      const garments = garmentResults
-        .filter(result => result.data && !result.error && result.data.length > 0)
-        .map(result => result.data[0]); // Tomar el primer elemento del array
-      
-      return {
-        ...outfit,
-        garments,
-      };
-    })
+  const outfits = outfitsResponse.data;
+
+  // Recolectar todos los garmentIds ÚNICOS de todos los outfits
+  const allGarmentIds = [...new Set(
+    outfits.flatMap((o: any) => o.garmentIds || [])
+  )];
+
+  // Si no hay prendas que buscar, devolver tal cual
+  if (allGarmentIds.length === 0) {
+    return { data: outfits.map((o: any) => ({ ...o, garments: [] })) };
+  }
+
+  // UNA SOLA request batch para TODAS las prendas
+  const garmentsResponse = await apiClient.get<any[]>(
+    `/garments?id=in.(${allGarmentIds.join(',')})`
   );
+
+  if (!garmentsResponse.data || garmentsResponse.error) {
+    // Si falla la batch, devolver outfits sin prendas en vez de error total
+    console.warn('⚠️ No se pudieron cargar las prendas de los outfits:', garmentsResponse.error);
+    return { data: outfits.map((o: any) => ({ ...o, garments: [] })) };
+  }
+
+  // Indexar prendas por ID para lookup O(1)
+  const garmentsMap = new Map<string, any>(
+    garmentsResponse.data.map((g: any) => [g.id, g])
+  );
+
+  // Asignar prendas a cada outfit usando el mapa
+  const outfitsWithGarments = outfits.map((outfit: any) => ({
+    ...outfit,
+    garments: (outfit.garmentIds || []).map((id: string) => garmentsMap.get(id)).filter(Boolean),
+  }));
   
-  console.log('✅ Outfits con prendas completos');
+  console.log('✅ Outfits con prendas completos (batch)');
   
   return { data: outfitsWithGarments };
 };
 
-/*/
+/**
+ * Obtiene un outfit por ID con sus prendas
+ */
 export const getOutfitById = async (id: string): Promise<ApiResponse<Outfit>> => {
   // Obtener el outfit básico
   const outfitResponse = await apiClient.get<any[]>(`/outfits?id=eq.${id}`);
@@ -69,15 +81,24 @@ export const getOutfitById = async (id: string): Promise<ApiResponse<Outfit>> =>
     return { data: { ...outfit, garments: [] } };
   }
   
-  // Obtener cada prenda usando query params (sintaxis del backend)
-  const garmentPromises = outfit.garmentIds.map((garmentId: string) => 
-    apiClient.get<any[]>(`/garments?id=eq.${garmentId}`)
+  // UNA SOLA request batch para todas las prendas del outfit
+  const garmentsResponse = await apiClient.get<any[]>(
+    `/garments?id=in.(${outfit.garmentIds.join(',')})`
   );
-  
-  const garmentResults = await Promise.all(garmentPromises);
-  const garments = garmentResults
-    .filter(result => result.data && !result.error && result.data.length > 0)
-    .map(result => result.data[0]); // Tomar el primer elemento del array
+
+  if (!garmentsResponse.data || garmentsResponse.error) {
+    console.warn('⚠️ No se pudieron cargar las prendas del outfit:', garmentsResponse.error);
+    return { data: { ...outfit, garments: [] } };
+  }
+
+  // Indexar prendas por ID para lookup O(1)
+  const garmentsMap = new Map<string, any>(
+    garmentsResponse.data.map((g: any) => [g.id, g])
+  );
+
+  const garments = outfit.garmentIds
+    .map((id: string) => garmentsMap.get(id))
+    .filter(Boolean);
   
   return {
     data: {
