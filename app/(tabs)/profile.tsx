@@ -96,6 +96,10 @@ export default function ProfileScreen() {
           {profile?.full_name && profile?.full_name !== displayName && (
             <Text style={styles.fullName}>{profile.full_name}</Text>
           )}
+          <View style={styles.emailRow}>
+            <Ionicons name="mail-outline" size={14} color={COLORS.gray[400]} />
+            <Text style={styles.emailText}>{user?.email || ''}</Text>
+          </View>
           {profile?.bio && (
             <Text style={styles.bio}>
               {profile.bio}
@@ -301,6 +305,16 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#6B7280',
     marginTop: 4,
+  },
+  emailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginTop: 6,
+    gap: 4,
+  },
+  emailText: {
+    fontSize: 13,
+    color: '#9CA3AF',
   },
   bio: {
     fontSize: 14,
