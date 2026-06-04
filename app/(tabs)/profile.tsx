@@ -19,8 +19,8 @@ import { COLORS } from '@/lib/constants';
 export default function ProfileScreen() {
   const router = useRouter();
   const { profile, user, logout, isAdmin, updateProfile, isLoading } = useAuth();
-  const { garments } = useGarments();
-  const { outfits } = useOutfits();
+  const { garments } = useGarments(true);
+  const { outfits } = useOutfits(true);
   const { collections } = useCollections();
   const { t } = useTranslation();
   const [username, setUsername] = useState('');
