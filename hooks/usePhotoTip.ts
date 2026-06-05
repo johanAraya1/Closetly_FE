@@ -9,7 +9,7 @@ import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from './useTranslation';
 
-const PHOTO_TIP_KEY = '@photo_tip_count';
+const PHOTO_TIP_KEY = '@photo_tip_count_v2';
 const MAX_TIPS = 3;
 
 export const usePhotoTip = () => {
