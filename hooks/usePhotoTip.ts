@@ -9,7 +9,7 @@ import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from './useTranslation';
 import type { ModalType } from '@/components/Modal';
 
-const PHOTO_TIP_KEY = '@photo_tip_count_v2';
+const PHOTO_TIP_KEY = '@photo_tip_count_v3';
 const MAX_TIPS = 3;
 
 export const usePhotoTip = () => {
