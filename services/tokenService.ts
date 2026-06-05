@@ -75,13 +75,11 @@ export const tokenService = {
     const expiryTime = Date.now() + ACCESS_TOKEN_DURATION;
     
     try {
-      console.log('Saving tokens to storage...');
       await Promise.all([
         storage.setItem(ACCESS_TOKEN_KEY, accessToken),
         storage.setItem(REFRESH_TOKEN_KEY, refreshToken || accessToken),
         storage.setItem(TOKEN_EXPIRY_KEY, expiryTime.toString()),
       ]);
-      console.log('Tokens saved successfully');
     } catch (error) {
       console.error('Error saving tokens:', error);
       throw new Error('Failed to save authentication tokens');
@@ -98,12 +96,10 @@ export const tokenService = {
     }
     
     try {
-      console.log('Saving session data...');
       await Promise.all([
         storage.setItem(USER_KEY, JSON.stringify(user)),
         storage.setItem(PROFILE_KEY, JSON.stringify(profile || {})),
       ]);
-      console.log('Session data saved successfully');
     } catch (error) {
       console.error('Error saving session data:', error);
       throw new Error('Failed to save session data');
