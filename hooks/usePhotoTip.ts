@@ -1,10 +1,11 @@
 /**
  * usePhotoTip Hook
  * Muestra un tip sobre cómo tomar buenas fotos, máximo 3 veces por dispositivo.
- * Usa el Modal de la app para una experiencia consistente en web y mobile.
+ * En mobile usa Alert.alert nativo (confiable). En web usa Modal de la app.
  */
 
 import { useState, useCallback, useRef } from 'react';
+import { Alert, Platform } from 'react-native';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from './useTranslation';
 import type { ModalType } from '@/components/Modal';
@@ -17,6 +18,8 @@ export const usePhotoTip = () => {
   const lastShownRef = useRef(0);
   const onProceedRef = useRef<(() => void) | undefined>(undefined);
 
+  // Solo para web: estado del Modal
+  const isWeb = Platform.OS === 'web';
   const [tipVisible, setTipVisible] = useState(false);
   const [tipTitle, setTipTitle] = useState('');
   const [tipMessage, setTipMessage] = useState('');
@@ -43,20 +46,32 @@ export const usePhotoTip = () => {
       const newCount = count + 1;
       await AsyncStorage.setItem(PHOTO_TIP_KEY, String(newCount));
 
-      // Guardar el callback y mostrar el modal
-      onProceedRef.current = onProceed;
-      setTipTitle(t('garments.create.photoTipTitle'));
-      setTipMessage(t('garments.create.photoTipMessage'));
-      setTipVisible(true);
+      if (isWeb) {
+        // Web: guardar callback y mostrar Modal de la app
+        onProceedRef.current = onProceed;
+        setTipTitle(t('garments.create.photoTipTitle'));
+        setTipMessage(t('garments.create.photoTipMessage'));
+        setTipVisible(true);
+      } else {
+        // Mobile: Alert.alert nativo (soporta callbacks correctamente)
+        Alert.alert(
+          t('garments.create.photoTipTitle'),
+          t('garments.create.photoTipMessage'),
+          [
+            {
+              text: t('garments.create.photoTipGotIt'),
+              onPress: () => onProceed?.(),
+            },
+          ],
+        );
+      }
     } catch {
-      // Si falla AsyncStorage, no romper el flujo
       onProceed?.();
     }
-  }, [t]);
+  }, [t, isWeb]);
 
   const dismissTip = useCallback(() => {
     setTipVisible(false);
-    // Ejecutar la acción pendiente después de cerrar el modal
     const proceed = onProceedRef.current;
     onProceedRef.current = undefined;
     proceed?.();
