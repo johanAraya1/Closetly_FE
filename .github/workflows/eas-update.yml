@@ -1,4 +1,4 @@
-name: EAS Update (main -> preview)
+name: EAS Update (main -> preview + production)
 
 on:
   push:
@@ -7,12 +7,15 @@ on:
   workflow_dispatch:
 
 concurrency:
-  group: eas-update-preview
-  cancel-in-progress: true
+  group: eas-update-${{ github.sha }}
+  cancel-in-progress: false
 
 jobs:
   publish-update:
     runs-on: ubuntu-latest
+    strategy:
+      matrix:
+        channel: [preview, production]
     steps:
       - name: Check EXPO_TOKEN secret
         run: |
@@ -39,7 +42,7 @@ jobs:
       - name: Install dependencies
         run: npm ci
 
-      - name: Publish OTA update to preview channel
+      - name: Publish OTA update to ${{ matrix.channel }}
         run: >
-          npx eas-cli update --channel preview --platform all
+          npx eas-cli update --channel ${{ matrix.channel }} --platform all
           --message "main:${{ github.sha }}" --non-interactive
