@@ -32,6 +32,7 @@ export const getOutfits = async (
   userId: string,
   limit?: number,
   offset?: number,
+  signal?: AbortSignal,
 ): Promise<ApiResponse<Outfit[]> & { total?: number; hasMore?: boolean }> => {
   // Obtener los outfits básicos (con fetchWithTimeout para acceder a campos paginados)
   const token = await tokenService.getAccessToken();
@@ -51,6 +52,7 @@ export const getOutfits = async (
     method: 'GET',
     headers,
     timeout: 15000,
+    signal,
   });
 
   if (!response.ok) {
@@ -90,7 +92,8 @@ export const getOutfits = async (
 
   // UNA SOLA request batch para TODAS las prendas
   const garmentsResponse = await apiClient.get<any[]>(
-    `/garments?id=in.(${allGarmentIds.join(',')})`
+    `/garments?id=in.(${allGarmentIds.join(',')})`,
+    { signal }
   );
 
   if (!garmentsResponse.data || garmentsResponse.error) {
@@ -116,9 +119,9 @@ export const getOutfits = async (
 /**
  * Obtiene un outfit por ID con sus prendas
  */
-export const getOutfitById = async (id: string): Promise<ApiResponse<Outfit>> => {
+export const getOutfitById = async (id: string, signal?: AbortSignal): Promise<ApiResponse<Outfit>> => {
   // Obtener el outfit básico
-  const outfitResponse = await apiClient.get<any[]>(`/outfits?id=eq.${id}`);
+  const outfitResponse = await apiClient.get<any[]>(`/outfits?id=eq.${id}`, { signal });
   
   if (!outfitResponse.data || !outfitResponse.data[0] || outfitResponse.error) {
     return outfitResponse as ApiResponse<Outfit>;
@@ -133,7 +136,8 @@ export const getOutfitById = async (id: string): Promise<ApiResponse<Outfit>> =>
   
   // UNA SOLA request batch para todas las prendas del outfit
   const garmentsResponse = await apiClient.get<any[]>(
-    `/garments?id=in.(${outfit.garmentIds.join(',')})`
+    `/garments?id=in.(${outfit.garmentIds.join(',')})`,
+    { signal }
   );
 
   if (!garmentsResponse.data || garmentsResponse.error) {

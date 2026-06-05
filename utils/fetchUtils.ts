@@ -5,20 +5,30 @@
 
 interface FetchWithTimeoutOptions extends RequestInit {
   timeout?: number; // milisegundos
+  signal?: AbortSignal; // señal externa para cancelación
 }
 
 /**
- * Fetch con timeout automático
+ * Fetch con timeout automático y soporte para cancelación externa
  * Previene requests que se cuelgan indefinidamente
  */
 export const fetchWithTimeout = async (
   url: string,
   options: FetchWithTimeoutOptions = {}
 ): Promise<Response> => {
-  const { timeout = 10000, ...fetchOptions } = options; // Default 10 segundos
+  const { timeout = 10000, signal: externalSignal, ...fetchOptions } = options; // Default 10 segundos
 
   const controller = new AbortController();
   const timeoutId = setTimeout(() => controller.abort(), timeout);
+
+  // Si hay una señal externa, abortar el composite cuando ella se aborte
+  if (externalSignal) {
+    if (externalSignal.aborted) {
+      controller.abort();
+    } else {
+      externalSignal.addEventListener('abort', () => controller.abort(), { once: true });
+    }
+  }
 
   try {
     const response = await fetch(url, {
@@ -32,6 +42,9 @@ export const fetchWithTimeout = async (
     clearTimeout(timeoutId);
     
     if (error.name === 'AbortError') {
+      if (externalSignal?.aborted) {
+        throw error; // cancelación externa, relanzar tal cual
+      }
       throw new Error('Request timeout - el servidor no respondió a tiempo');
     }
     

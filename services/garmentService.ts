@@ -23,6 +23,7 @@ export const getGarments = async (
   token?: string,
   limit?: number,
   offset?: number,
+  signal?: AbortSignal,
 ): Promise<ApiResponse<Garment[]> & { total?: number; hasMore?: boolean }> => {
   try {
     const headers: Record<string, string> = {
@@ -41,6 +42,7 @@ export const getGarments = async (
       method: 'GET',
       headers,
       timeout: 15000,
+      signal,
     });
 
     if (!response.ok) {
@@ -75,7 +77,7 @@ export const getGarments = async (
 /**
  * Obtiene una prenda por su ID
  */
-export const getGarmentById = async (id: string, token?: string): Promise<ApiResponse<Garment>> => {
+export const getGarmentById = async (id: string, token?: string, signal?: AbortSignal): Promise<ApiResponse<Garment>> => {
   try {
     const authToken = token || await tokenService.getAccessToken();
     if (!authToken) {
@@ -89,6 +91,7 @@ export const getGarmentById = async (id: string, token?: string): Promise<ApiRes
         'Authorization': `Bearer ${authToken}`,
       },
       timeout: 10000,
+      signal,
     });
 
     if (!response.ok) {

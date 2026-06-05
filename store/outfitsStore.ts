@@ -30,6 +30,7 @@ interface OutfitsState {
   toggleFavorite: (id: string, isFavorite: boolean) => Promise<boolean>;
   clearError: () => void;
   resetStore: () => void;
+  cancelRequests: () => void;
 }
 
 const initialState = {
@@ -43,69 +44,89 @@ const initialState = {
   error: null,
 };
 
-export const useOutfitsStore = create<OutfitsState>((set, get) => ({
-  ...initialState,
+export const useOutfitsStore = create<OutfitsState>((set, get) => {
+  let _abortController: AbortController | null = null;
 
-  loadOutfits: async (userId: string) => {
-    set({ isLoading: true, error: null, page: 0, hasMore: false });
+  const abortPrevious = (): AbortSignal => {
+    _abortController?.abort();
+    _abortController = new AbortController();
+    return _abortController.signal;
+  };
 
-    const result = await outfitService.getOutfits(userId, DEFAULT_PAGE_LIMIT, 0);
+  return {
+    ...initialState,
 
-    if (result.error) {
-      set({ isLoading: false, error: result.error });
-      return;
-    }
+    cancelRequests: () => {
+      _abortController?.abort();
+      _abortController = null;
+    },
 
-    if (result.data) {
-      set({
-        outfits: result.data,
-        isLoading: false,
-        total: result.total ?? result.data.length,
-        hasMore: result.hasMore ?? false,
-        page: 1,
-      });
-    }
-  },
+    loadOutfits: async (userId: string) => {
+      const signal = abortPrevious();
+      set({ isLoading: true, error: null, page: 0, hasMore: false });
 
-  loadMoreOutfits: async (userId: string) => {
-    const { isLoadingMore, hasMore, page } = get();
-    if (isLoadingMore || !hasMore) return;
+      const result = await outfitService.getOutfits(userId, DEFAULT_PAGE_LIMIT, 0, signal);
 
-    set({ isLoadingMore: true });
+      if (signal.aborted) return;
+      if (result.error) {
+        set({ isLoading: false, error: result.error });
+        return;
+      }
 
-    const offset = page * DEFAULT_PAGE_LIMIT;
-    const result = await outfitService.getOutfits(userId, DEFAULT_PAGE_LIMIT, offset);
+      if (result.data) {
+        set({
+          outfits: result.data,
+          isLoading: false,
+          total: result.total ?? result.data.length,
+          hasMore: result.hasMore ?? false,
+          page: 1,
+        });
+      }
+    },
 
-    if (result.error) {
-      set({ isLoadingMore: false, error: result.error });
-      return;
-    }
+    loadMoreOutfits: async (userId: string) => {
+      const { isLoadingMore, hasMore, page } = get();
+      if (isLoadingMore || !hasMore) return;
 
-    if (result.data) {
-      set((state) => ({
-        outfits: [...state.outfits, ...result.data!],
-        isLoadingMore: false,
-        total: result.total ?? state.total,
-        hasMore: result.hasMore ?? false,
-        page: state.page + 1,
-      }));
-    }
-  },
+      const signal = abortPrevious();
+      set({ isLoadingMore: true });
 
-  loadOutfitById: async (id: string) => {
-    set({ isLoading: true, error: null });
-    
-    const result = await outfitService.getOutfitById(id);
-    
-    if (result.error) {
-      set({ isLoading: false, error: result.error });
-      return;
-    }
+      const offset = page * DEFAULT_PAGE_LIMIT;
+      const result = await outfitService.getOutfits(userId, DEFAULT_PAGE_LIMIT, offset, signal);
 
-    if (result.data) {
-      set({ currentOutfit: result.data, isLoading: false });
-    }
-  },
+      if (signal.aborted) return;
+      if (result.error) {
+        set({ isLoadingMore: false, error: result.error });
+        return;
+      }
+
+      if (result.data) {
+        set((state) => ({
+          outfits: [...state.outfits, ...result.data!],
+          isLoadingMore: false,
+          total: result.total ?? state.total,
+          hasMore: result.hasMore ?? false,
+          page: state.page + 1,
+        }));
+      }
+    },
+
+    loadOutfitById: async (id: string) => {
+      const signal = abortPrevious();
+      set({ isLoading: true, error: null });
+      
+      const result = await outfitService.getOutfitById(id, signal);
+      
+      if (signal.aborted) return;
+      if (result.error) {
+        set({ isLoading: false, error: result.error });
+        return;
+      }
+
+      if (result.data) {
+        set({ currentOutfit: result.data, isLoading: false });
+      }
+    },
 
   createOutfit: async (userId: string, data: CreateOutfitDTO) => {
     set({ isLoading: true, error: null });
@@ -220,4 +241,5 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => ({
   clearError: () => set({ error: null }),
   
   resetStore: () => set(initialState),
-}));
+  };
+});

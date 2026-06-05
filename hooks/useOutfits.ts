@@ -1,6 +1,7 @@
 /**
  * useOutfits Hook
  * Hook personalizado para manejar outfits
+ * Cancela requests en vuelo al desmontar para evitar setState tras unmount
  */
 
 import { useEffect, useRef } from 'react';
@@ -27,6 +28,7 @@ export const useOutfits = (autoLoad: boolean = false) => {
     toggleFavorite,
     clearError,
     resetStore,
+    cancelRequests,
   } = useOutfitsStore();
 
   useEffect(() => {
@@ -34,6 +36,10 @@ export const useOutfits = (autoLoad: boolean = false) => {
       loadOutfits(user.id);
       hasLoadedRef.current = true;
     }
+
+    return () => {
+      cancelRequests();
+    };
   }, [user?.id, autoLoad]);
 
   return {

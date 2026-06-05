@@ -1,6 +1,7 @@
 /**
  * useGarments Hook
  * Hook personalizado para manejar prendas
+ * Cancela requests en vuelo al desmontar para evitar setState tras unmount
  */
 
 import { useEffect } from 'react';
@@ -26,12 +27,17 @@ export const useGarments = (autoLoad: boolean = false) => {
     deleteGarment,
     clearError,
     resetStore,
+    cancelRequests,
   } = useGarmentsStore();
 
   useEffect(() => {
     if (autoLoad && user && token) {
       loadGarments(user.id, token);
     }
+
+    return () => {
+      cancelRequests();
+    };
   }, [user, token, autoLoad]);
 
   return {

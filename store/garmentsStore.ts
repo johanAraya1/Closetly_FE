@@ -27,6 +27,7 @@ interface GarmentsState {
   deleteGarment: (id: string, token?: string) => Promise<boolean>;
   clearError: () => void;
   resetStore: () => void;
+  cancelRequests: () => void;
 }
 
 const initialState = {
@@ -39,54 +40,72 @@ const initialState = {
   error: null,
 };
 
-export const useGarmentsStore = create<GarmentsState>((set, get) => ({
-  ...initialState,
+export const useGarmentsStore = create<GarmentsState>((set, get) => {
+  let _abortController: AbortController | null = null;
 
-  loadGarments: async (userId: string, token?: string) => {
-    set({ isLoading: true, error: null, page: 0, hasMore: false });
-    
-    const result = await garmentService.getGarments(userId, token, DEFAULT_PAGE_LIMIT, 0);
-    
-    if (result.error) {
-      set({ isLoading: false, error: result.error });
-      return;
-    }
+  const abortPrevious = (): AbortSignal => {
+    _abortController?.abort();
+    _abortController = new AbortController();
+    return _abortController.signal;
+  };
 
-    if (result.data) {
-      set({
-        garments: result.data,
-        isLoading: false,
-        total: result.total ?? result.data.length,
-        hasMore: result.hasMore ?? false,
-        page: 1,
-      });
-    }
-  },
+  return {
+    ...initialState,
 
-  loadMoreGarments: async (userId: string, token?: string) => {
-    const { isLoadingMore, hasMore, page } = get();
-    if (isLoadingMore || !hasMore) return;
+    cancelRequests: () => {
+      _abortController?.abort();
+      _abortController = null;
+    },
 
-    set({ isLoadingMore: true });
+    loadGarments: async (userId: string, token?: string) => {
+      const signal = abortPrevious();
+      set({ isLoading: true, error: null, page: 0, hasMore: false });
+      
+      const result = await garmentService.getGarments(userId, token, DEFAULT_PAGE_LIMIT, 0, signal);
+      
+      if (signal.aborted) return;
+      if (result.error) {
+        set({ isLoading: false, error: result.error });
+        return;
+      }
 
-    const offset = page * DEFAULT_PAGE_LIMIT;
-    const result = await garmentService.getGarments(userId, token, DEFAULT_PAGE_LIMIT, offset);
+      if (result.data) {
+        set({
+          garments: result.data,
+          isLoading: false,
+          total: result.total ?? result.data.length,
+          hasMore: result.hasMore ?? false,
+          page: 1,
+        });
+      }
+    },
 
-    if (result.error) {
-      set({ isLoadingMore: false, error: result.error });
-      return;
-    }
+    loadMoreGarments: async (userId: string, token?: string) => {
+      const { isLoadingMore, hasMore, page } = get();
+      if (isLoadingMore || !hasMore) return;
 
-    if (result.data) {
-      set((state) => ({
-        garments: [...state.garments, ...result.data!],
-        isLoadingMore: false,
-        total: result.total ?? state.total,
-        hasMore: result.hasMore ?? false,
-        page: state.page + 1,
-      }));
-    }
-  },
+      const signal = abortPrevious();
+      set({ isLoadingMore: true });
+
+      const offset = page * DEFAULT_PAGE_LIMIT;
+      const result = await garmentService.getGarments(userId, token, DEFAULT_PAGE_LIMIT, offset, signal);
+
+      if (signal.aborted) return;
+      if (result.error) {
+        set({ isLoadingMore: false, error: result.error });
+        return;
+      }
+
+      if (result.data) {
+        set((state) => ({
+          garments: [...state.garments, ...result.data!],
+          isLoadingMore: false,
+          total: result.total ?? state.total,
+          hasMore: result.hasMore ?? false,
+          page: state.page + 1,
+        }));
+      }
+    },
 
   getGarmentById: (id: string) => {
     const { garments } = get();
@@ -199,4 +218,5 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => ({
   clearError: () => set({ error: null }),
   
   resetStore: () => set(initialState),
-}));
+  };
+});

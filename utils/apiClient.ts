@@ -13,6 +13,7 @@ interface ApiRequestOptions extends RequestInit {
   timeout?: number;
   requiresAuth?: boolean;
   token?: string; // Token opcional para casos especiales
+  signal?: AbortSignal; // Señal externa para cancelación
   maxRetries?: number; // Número máximo de reintentos
   retryDelay?: number; // Delay inicial entre reintentos (ms)
 }
