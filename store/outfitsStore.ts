@@ -4,7 +4,7 @@
  */
 
 import { create } from 'zustand';
-import type { Outfit, CreateOutfitDTO, UpdateOutfitDTO } from '@/types';
+import type { Outfit, Garment, CreateOutfitDTO, UpdateOutfitDTO } from '@/types';
 import * as outfitService from '@/services/outfitService';
 import { useGarmentsStore } from '@/store/garmentsStore';
 
@@ -24,7 +24,7 @@ interface OutfitsState {
   loadOutfits: (userId: string) => Promise<void>;
   loadMoreOutfits: (userId: string) => Promise<void>;
   loadOutfitById: (id: string) => Promise<void>;
-  createOutfit: (userId: string, data: CreateOutfitDTO) => Promise<Outfit | null>;
+  createOutfit: (userId: string, data: CreateOutfitDTO, garments?: Garment[]) => Promise<Outfit | null>;
   updateOutfit: (id: string, updates: UpdateOutfitDTO) => Promise<boolean>;
   deleteOutfit: (id: string) => Promise<boolean>;
   toggleFavorite: (id: string, isFavorite: boolean) => Promise<boolean>;
@@ -128,7 +128,7 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
       }
     },
 
-  createOutfit: async (userId: string, data: CreateOutfitDTO) => {
+  createOutfit: async (userId: string, data: CreateOutfitDTO, garments?: Garment[]) => {
     set({ isLoading: true, error: null });
     
     const result = await outfitService.createOutfit(userId, data);
@@ -139,11 +139,13 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
     }
 
     if (result.data) {
-      // Poblar prendas desde el store de garments (ya cargadas)
-      const allGarments = useGarmentsStore.getState().garments;
-      const outfitGarments = allGarments.filter(
-        (g) => data.garmentIds?.includes(g.id)
-      );
+      // Usar las prendas pasadas desde la pantalla si están disponibles
+      // (evita race condition con el store de garments)
+      const outfitGarments = garments
+        ? garments
+        : useGarmentsStore.getState().garments.filter(
+            (g) => data.garmentIds?.includes(g.id)
+          );
       
       set((state) => ({
         outfits: [{ ...result.data!, garments: outfitGarments }, ...state.outfits],

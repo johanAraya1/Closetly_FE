@@ -118,7 +118,7 @@ export default function CreateOutfitScreen() {
       occasion: occasion.trim() || undefined,
       season,
       garmentIds: selectedGarments.map((g) => g.id),
-    });
+    }, selectedGarments);
 
     setIsLoading(false);
 
