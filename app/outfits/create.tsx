@@ -355,18 +355,19 @@ export default function CreateOutfitScreen() {
             </View>
           </View>
 
-          {/* Botón */}
-          <View style={styles.buttonContainer}>
-            <Button
-              title={t('outfits.createOutfit')}
-              onPress={handleCreate}
-              loading={isLoading}
-              disabled={!isFormComplete || isLoading}
-              fullWidth
-            />
-          </View>
         </View>
       </ScrollView>
+
+      {/* Botón sticky — siempre visible al fondo */}
+      <View style={styles.stickyButtonContainer}>
+        <Button
+          title={t('outfits.createOutfit')}
+          onPress={handleCreate}
+          loading={isLoading}
+          disabled={!isFormComplete || isLoading}
+          fullWidth
+        />
+      </View>
 
       {/* Modal de Éxito */}
       <Modal
@@ -426,7 +427,7 @@ const styles = StyleSheet.create({
     flex: 1,
   },
   scrollContent: {
-    paddingBottom: 40,
+    paddingBottom: 100,
   },
   formContainer: {
     padding: 20,
@@ -646,7 +647,16 @@ const styles = StyleSheet.create({
     marginTop: -8,
     marginBottom: 8,
   },
-  buttonContainer: {
-    marginTop: 8,
+  stickyButtonContainer: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });
