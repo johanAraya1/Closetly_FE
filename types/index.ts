@@ -75,6 +75,7 @@ export interface Garment {
   category: GarmentCategory;
   brand?: string;
   color?: string;
+  size?: string;
   season?: GarmentSeason | GarmentSeason[];
   style?: GarmentStyle;
   imageUrl: string;
@@ -88,6 +89,7 @@ export interface CreateGarmentDTO {
   category: GarmentCategory;
   brand?: string;
   color?: string;
+  size?: string;
   season?: GarmentSeason | GarmentSeason[];
   style?: GarmentStyle;
   imageUrl: string;
@@ -99,6 +101,7 @@ export interface UpdateGarmentDTO {
   category?: GarmentCategory;
   brand?: string;
   color?: string;
+  size?: string;
   season?: GarmentSeason | GarmentSeason[];
   style?: GarmentStyle;
   imageUrl?: string;

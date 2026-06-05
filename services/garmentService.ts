@@ -120,6 +120,10 @@ export const createGarment = async (
       formData.append('brand', sanitizedBrand);
     }
     
+    if (garmentData.size) {
+      formData.append('size', garmentData.size);
+    }
+    
     if (sanitizedNotes) {
       formData.append('notes', sanitizedNotes);
     }
@@ -209,6 +213,7 @@ export const updateGarment = async (
       const sanitizedColor = sanitizeColor(updates.color);
       if (sanitizedColor) body.color = sanitizedColor;
     }
+    if (updates.size !== undefined) body.size = updates.size;
     if (updates.notes !== undefined) body.notes = sanitizeNotes(updates.notes);
     
     // Convertir 'all-season' a 'all_season' para el backend
