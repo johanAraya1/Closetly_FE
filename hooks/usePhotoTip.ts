@@ -1,13 +1,13 @@
 /**
  * usePhotoTip Hook
  * Muestra un tip sobre cómo tomar buenas fotos, máximo 3 veces por dispositivo.
- * Persiste con AsyncStorage, funciona en RN y web.
+ * Usa el Modal de la app para una experiencia consistente en web y mobile.
  */
 
-import { useCallback, useRef } from 'react';
-import { Alert, Platform } from 'react-native';
+import { useState, useCallback, useRef } from 'react';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { useTranslation } from './useTranslation';
+import type { ModalType } from '@/components/Modal';
 
 const PHOTO_TIP_KEY = '@photo_tip_count_v2';
 const MAX_TIPS = 3;
@@ -15,9 +15,15 @@ const MAX_TIPS = 3;
 export const usePhotoTip = () => {
   const { t } = useTranslation();
   const lastShownRef = useRef(0);
+  const onProceedRef = useRef<(() => void) | undefined>(undefined);
+
+  const [tipVisible, setTipVisible] = useState(false);
+  const [tipTitle, setTipTitle] = useState('');
+  const [tipMessage, setTipMessage] = useState('');
+  const [tipType] = useState<ModalType>('info');
 
   const showTip = useCallback(async (onProceed?: () => void) => {
-    // Debounce: evitar mostrar el tip dos veces seguidas
+    // Debounce
     const now = Date.now();
     if (now - lastShownRef.current < 2000) {
       onProceed?.();
@@ -30,7 +36,6 @@ export const usePhotoTip = () => {
       const count = stored ? parseInt(stored, 10) : 0;
 
       if (count >= MAX_TIPS) {
-        // Ya se mostró el máximo de veces, continuar sin tip
         onProceed?.();
         return;
       }
@@ -38,29 +43,31 @@ export const usePhotoTip = () => {
       const newCount = count + 1;
       await AsyncStorage.setItem(PHOTO_TIP_KEY, String(newCount));
 
-      if (Platform.OS === 'web') {
-        // En web, window.alert es bloqueante. El callback de Alert.alert
-        // no se ejecuta porque react-native-web usa window.alert nativo.
-        alert(`${t('garments.create.photoTipTitle')}\n\n${t('garments.create.photoTipMessage')}`);
-        onProceed?.();
-      } else {
-        // En mobile, Alert.alert es asíncrono y respeta los botones.
-        Alert.alert(
-          t('garments.create.photoTipTitle'),
-          t('garments.create.photoTipMessage'),
-          [
-            {
-              text: t('garments.create.photoTipGotIt'),
-              onPress: () => onProceed?.(),
-            },
-          ],
-        );
-      }
+      // Guardar el callback y mostrar el modal
+      onProceedRef.current = onProceed;
+      setTipTitle(t('garments.create.photoTipTitle'));
+      setTipMessage(t('garments.create.photoTipMessage'));
+      setTipVisible(true);
     } catch {
       // Si falla AsyncStorage, no romper el flujo
       onProceed?.();
     }
   }, [t]);
 
-  return { showTip };
+  const dismissTip = useCallback(() => {
+    setTipVisible(false);
+    // Ejecutar la acción pendiente después de cerrar el modal
+    const proceed = onProceedRef.current;
+    onProceedRef.current = undefined;
+    proceed?.();
+  }, []);
+
+  return {
+    showTip,
+    dismissTip,
+    tipVisible,
+    tipTitle,
+    tipMessage,
+    tipType,
+  };
 };

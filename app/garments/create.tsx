@@ -53,7 +53,7 @@ export default function CreateGarmentScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isFormEnabled, setIsFormEnabled] = useState(false);
   const [aiDetected, setAiDetected] = useState(false);
-  const { showTip } = usePhotoTip();
+  const { showTip, dismissTip, tipVisible, tipTitle, tipMessage, tipType } = usePhotoTip();
 
   // Cargar datos de la prenda si estamos editando
   useEffect(() => {
@@ -571,6 +571,22 @@ export default function CreateGarmentScreen() {
           {
             text: t('garments.create.incompleteGotIt'),
             onPress: () => setShowErrorModal(false),
+            variant: 'primary',
+          },
+        ]}
+      />
+
+      {/* Modal del Tip de Foto (máximo 3 veces) */}
+      <Modal
+        visible={tipVisible}
+        type={tipType}
+        title={tipTitle}
+        message={tipMessage}
+        closeOnBackdrop={false}
+        actions={[
+          {
+            text: t('garments.create.photoTipGotIt'),
+            onPress: dismissTip,
             variant: 'primary',
           },
         ]}
