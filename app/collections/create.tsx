@@ -15,12 +15,14 @@ import { useOutfits } from '@/hooks/useOutfits';
 import { useCollectionsStore } from '@/store/collectionsStore';
 import { COLORS } from '@/lib/constants';
 import { validationMessages } from '@/utils/validation';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function CreateCollectionScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { createCollection, error } = useCollections();
   const { outfits, isLoading: loadingOutfits } = useOutfits(true);
+  const { t } = useTranslation();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -101,7 +103,7 @@ export default function CreateCollectionScreen() {
     } else {
       // Obtener el error actualizado del store
       const currentError = useCollectionsStore.getState().error;
-      setErrorMessage(currentError || 'Failed to create collection. Please try again.');
+      setErrorMessage(currentError || t('collections.create.errorFallback'));
       setShowErrorModal(true);
     }
   };
@@ -117,7 +119,7 @@ export default function CreateCollectionScreen() {
   };
 
   if (loadingOutfits) {
-    return <Loading message="Loading outfits..." />;
+    return <Loading message={t('collections.create.loadingOutfits')} />;
   }
 
   return (
@@ -126,23 +128,23 @@ export default function CreateCollectionScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color={COLORS.gray[900]} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Create Collection</Text>
+        <Text style={styles.headerTitle}>{t('collections.create.title')}</Text>
       </View>
 
       <ScrollView style={styles.scrollView} contentContainerStyle={styles.scrollContent}>
         <Input
-          label="Collection Name *"
+          label={t('collections.create.name')}
           value={name}
           onChangeText={setName}
-          placeholder="e.g., Summer Vibes"
+          placeholder={t('collections.create.namePlaceholder')}
           error={errors.name}
         />
 
         <Input
-          label="Description"
+          label={t('collections.create.description')}
           value={description}
           onChangeText={setDescription}
-          placeholder="Describe this collection..."
+          placeholder={t('collections.create.descriptionPlaceholder')}
           multiline
           numberOfLines={3}
         />
@@ -159,12 +161,12 @@ export default function CreateCollectionScreen() {
             />
             <View style={styles.privacyText}>
               <Text style={styles.privacyLabel}>
-                {isPublic ? 'Public' : 'Private'}
+                {isPublic ? t('collections.public') : t('collections.create.private')}
               </Text>
               <Text style={styles.privacyDescription}>
                 {isPublic
-                  ? 'Anyone can see this collection'
-                  : 'Only you can see this collection'}
+                  ? t('collections.create.publicDescription')
+                  : t('collections.create.privateDescription')}
               </Text>
             </View>
           </View>
@@ -175,14 +177,14 @@ export default function CreateCollectionScreen() {
 
         {/* Sección de selección de outfits */}
         <View style={styles.section}>
-          <Text style={styles.sectionTitle}>Select Outfits ({selectedOutfits.length})</Text>
-          <Text style={styles.sectionSubtitle}>Choose outfits to include in this collection</Text>
+          <Text style={styles.sectionTitle}>{t('collections.create.selectOutfits', { count: selectedOutfits.length })}</Text>
+          <Text style={styles.sectionSubtitle}>{t('collections.create.selectOutfitsSubtitle')}</Text>
           
           {outfits.length === 0 ? (
             <View style={styles.emptyOutfits}>
               <Ionicons name="shirt-outline" size={40} color="#D1D5DB" />
-              <Text style={styles.emptyText}>No outfits available</Text>
-              <Text style={styles.emptySubtext}>Create some outfits first</Text>
+              <Text style={styles.emptyText}>{t('collections.create.noOutfits')}</Text>
+              <Text style={styles.emptySubtext}>{t('collections.create.noOutfitsSubtext')}</Text>
             </View>
           ) : (
             <View style={styles.outfitsGrid}>
@@ -267,7 +269,7 @@ export default function CreateCollectionScreen() {
                     <View style={styles.outfitInfo}>
                       <Text style={styles.outfitName} numberOfLines={1}>{outfit.name}</Text>
                       <Text style={styles.outfitGarments}>
-                        {outfit.garments?.length || 0} garment{outfit.garments?.length !== 1 ? 's' : ''}
+                        {t('collections.create.garmentCount', { count: outfit.garments?.length || 0 })}
                       </Text>
                     </View>
                   </TouchableOpacity>
@@ -280,11 +282,11 @@ export default function CreateCollectionScreen() {
         <View style={styles.createButtonContainer}>
           {selectedOutfits.length < 2 && (
             <Text style={styles.minOutfitsText}>
-              Select at least 2 outfits ({selectedOutfits.length}/2)
+              {t('collections.create.minOutfits', { count: selectedOutfits.length })}
             </Text>
           )}
           <Button
-            title="Create Collection"
+            title={t('collections.create.button')}
             onPress={handleCreate}
             loading={isLoading}
             disabled={!isValidForm}
@@ -297,16 +299,16 @@ export default function CreateCollectionScreen() {
       <Modal
         visible={showSuccessModal}
         type="success"
-        title="Collection Created!"
-        message="Your collection has been created successfully. Would you like to create another one?"
+        title={t('collections.create.successTitle')}
+        message={t('collections.create.successMessage')}
         actions={[
           {
-            text: 'Create Another',
+            text: t('collections.create.createAnother'),
             onPress: handleCreateAnother,
             variant: 'primary',
           },
           {
-            text: 'Go to Collections',
+            text: t('collections.create.goToCollections'),
             onPress: handleGoToCollections,
             variant: 'secondary',
           },
@@ -318,11 +320,11 @@ export default function CreateCollectionScreen() {
       <Modal
         visible={showErrorModal}
         type="error"
-        title="Error"
+        title={t('common.error')}
         message={errorMessage}
         actions={[
           {
-            text: 'OK',
+            text: t('common.ok'),
             onPress: () => setShowErrorModal(false),
             variant: 'primary',
           },

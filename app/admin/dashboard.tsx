@@ -10,17 +10,19 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { AdminRoute } from '@/components';
 import { useAdmin } from '@/hooks/useAdmin';
+import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
 
 export default function AdminDashboardScreen() {
   const router = useRouter();
   const { user } = useAdmin();
+  const { t } = useTranslation();
 
   const stats = [
-    { icon: 'people', label: 'Usuarios', value: '1,234', color: COLORS.primary },
-    { icon: 'shirt', label: 'Prendas', value: '5,678', color: COLORS.secondary },
-    { icon: 'albums', label: 'Outfits', value: '2,345', color: COLORS.success },
-    { icon: 'folder', label: 'Colecciones', value: '890', color: COLORS.warning },
+    { icon: 'people', label: t('admin.statsUsers'), value: '1,234', color: COLORS.primary },
+    { icon: 'shirt', label: t('admin.statsGarments'), value: '5,678', color: COLORS.secondary },
+    { icon: 'albums', label: t('admin.statsOutfits'), value: '2,345', color: COLORS.success },
+    { icon: 'folder', label: t('admin.statsCollections'), value: '890', color: COLORS.warning },
   ];
 
   return (
@@ -31,14 +33,14 @@ export default function AdminDashboardScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color={COLORS.gray[900]} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Admin Dashboard</Text>
+          <Text style={styles.headerTitle}>{t('admin.dashboard')}</Text>
           <View style={{ width: 24 }} />
         </View>
 
         <ScrollView style={styles.scrollView}>
           {/* Welcome */}
           <View style={styles.welcome}>
-            <Text style={styles.welcomeTitle}>Bienvenido, Admin</Text>
+            <Text style={styles.welcomeTitle}>{t('admin.welcome')}</Text>
             <Text style={styles.welcomeSubtitle}>{user?.email}</Text>
           </View>
 
@@ -57,13 +59,13 @@ export default function AdminDashboardScreen() {
 
           {/* Quick Actions */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Acciones Rápidas</Text>
+            <Text style={styles.sectionTitle}>{t('admin.quickActions')}</Text>
 
             <TouchableOpacity style={styles.actionCard}>
               <Ionicons name="person-add" size={24} color={COLORS.primary} />
               <View style={styles.actionContent}>
-                <Text style={styles.actionTitle}>Nuevo Usuario</Text>
-                <Text style={styles.actionSubtitle}>Crear cuenta de usuario</Text>
+                <Text style={styles.actionTitle}>{t('admin.newUser')}</Text>
+                <Text style={styles.actionSubtitle}>{t('admin.newUserSubtitle')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.gray[400]} />
             </TouchableOpacity>
@@ -71,8 +73,8 @@ export default function AdminDashboardScreen() {
             <TouchableOpacity style={styles.actionCard}>
               <Ionicons name="analytics" size={24} color={COLORS.success} />
               <View style={styles.actionContent}>
-                <Text style={styles.actionTitle}>Ver Reportes</Text>
-                <Text style={styles.actionSubtitle}>Estadísticas y métricas</Text>
+                <Text style={styles.actionTitle}>{t('admin.viewReports')}</Text>
+                <Text style={styles.actionSubtitle}>{t('admin.viewReportsSubtitle')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.gray[400]} />
             </TouchableOpacity>
@@ -80,8 +82,8 @@ export default function AdminDashboardScreen() {
             <TouchableOpacity style={styles.actionCard}>
               <Ionicons name="notifications" size={24} color={COLORS.warning} />
               <View style={styles.actionContent}>
-                <Text style={styles.actionTitle}>Enviar Notificación</Text>
-                <Text style={styles.actionSubtitle}>Notificar a usuarios</Text>
+                <Text style={styles.actionTitle}>{t('admin.sendNotification')}</Text>
+                <Text style={styles.actionSubtitle}>{t('admin.sendNotificationSubtitle')}</Text>
               </View>
               <Ionicons name="chevron-forward" size={20} color={COLORS.gray[400]} />
             </TouchableOpacity>
@@ -89,9 +91,9 @@ export default function AdminDashboardScreen() {
 
           {/* Recent Activity */}
           <View style={styles.section}>
-            <Text style={styles.sectionTitle}>Actividad Reciente</Text>
+            <Text style={styles.sectionTitle}>{t('admin.recentActivity')}</Text>
             <View style={styles.activityCard}>
-              <Text style={styles.activityText}>No hay actividad reciente</Text>
+              <Text style={styles.activityText}>{t('admin.noActivity')}</Text>
             </View>
           </View>
         </ScrollView>

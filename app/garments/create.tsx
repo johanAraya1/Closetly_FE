@@ -13,14 +13,15 @@ import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { useAIAnalysis } from '@/hooks/useAIAnalysis';
+import { useTranslation } from '@/hooks/useTranslation';
 import { useAuthStore } from '@/store/authStore';
 import { GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES, COLORS } from '@/lib/constants';
-import { validationMessages } from '@/utils/validation';
 import type { GarmentCategory, GarmentSeason, GarmentStyle } from '@/types';
 
 export default function CreateGarmentScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
+  const { t } = useTranslation();
   const { user } = useAuth();
   const token = useAuthStore((state) => state.token);
   const { createGarment, getGarmentById, updateGarment } = useGarments();
@@ -107,20 +108,20 @@ export default function CreateGarmentScreen() {
 
       const highConfidence = analysis.confidence > 0.7;
       Alert.alert(
-        highConfidence ? '✨ IA Detectó' : '🔍 IA Detectó (revisar)',
-        `${analysis.name}\n\n${highConfidence ? 'La IA ha completado los campos automáticamente. Puedes editarlos si lo deseas.' : 'La IA completó los campos pero con confianza media. Revisa que los datos sean correctos.'}`,
-        [{ text: 'OK' }]
+        highConfidence ? t('garments.create.aiDetectedHigh') : t('garments.create.aiDetectedMedium'),
+        `${analysis.name}\n\n${highConfidence ? t('garments.create.aiDetectedHighMessage') : t('garments.create.aiDetectedMediumMessage')}`,
+        [{ text: t('garments.create.incompleteGotIt') }]
       );
     } else {
       // Si no se detectó con confianza, habilitar formulario para entrada manual
       setIsFormEnabled(true);
       if (error) {
-        Alert.alert('Error de IA', error, [{ text: 'OK' }]);
+        Alert.alert(t('garments.create.aiErrorTitle'), error, [{ text: t('garments.create.incompleteGotIt') }]);
       } else {
         Alert.alert(
-          '⚠️ No se pudo detectar',
-          'La IA no pudo identificar la prenda con suficiente confianza. Por favor, completa los campos manualmente.',
-          [{ text: 'OK' }]
+          t('garments.create.aiNotDetectedTitle'),
+          t('garments.create.aiNotDetectedMessage'),
+          [{ text: t('garments.create.incompleteGotIt') }]
         );
       }
     }
@@ -136,23 +137,23 @@ export default function CreateGarmentScreen() {
     } = {};
 
     if (!name.trim()) {
-      newErrors.name = validationMessages.garment.nameRequired;
+      newErrors.name = t('garments.create.errorNameRequired');
     }
 
     if (!imageUri && !editImageUri) {
-      newErrors.image = validationMessages.garment.imageRequired;
+      newErrors.image = t('garments.create.errorImageRequired');
     }
 
     if (!brand.trim()) {
-      newErrors.brand = 'La marca es obligatoria';
+      newErrors.brand = t('garments.create.errorBrandRequired');
     }
 
     if (!color.trim()) {
-      newErrors.color = 'El color es obligatorio';
+      newErrors.color = t('garments.create.errorColorRequired');
     }
 
     if (seasons.length === 0) {
-      newErrors.season = 'Debes seleccionar al menos una temporada';
+      newErrors.season = t('garments.create.errorSeasonRequired');
     }
 
     setErrors(newErrors);
@@ -201,9 +202,9 @@ export default function CreateGarmentScreen() {
   const handleCreate = useCallback(async () => {
     if (!validate() || !user) {
       Alert.alert(
-        'Campos Incompletos',
-        'Por favor completa todos los campos obligatorios (Nombre, Foto, Marca, Color y Temporada) para agregar la prenda al closet.',
-        [{ text: 'Entendido' }]
+        t('garments.create.incompleteTitle'),
+        t('garments.create.incompleteMessage'),
+        [{ text: t('garments.create.incompleteGotIt') }]
       );
       return;
     }
@@ -236,7 +237,7 @@ export default function CreateGarmentScreen() {
         if (success) {
           setShowEditSuccessModal(true);
         } else {
-          setErrorMessage('No se pudo actualizar la prenda. Por favor, intenta nuevamente.');
+          setErrorMessage(t('garments.create.errorUpdateFailed'));
           setShowErrorModal(true);
         }
       } else {
@@ -257,15 +258,15 @@ export default function CreateGarmentScreen() {
         if (garment) {
           setShowSuccessModal(true);
         } else {
-          setErrorMessage('No se pudo crear la prenda. Verifica que todos los datos sean correctos.');
+          setErrorMessage(t('garments.create.errorCreateFailed'));
           setShowErrorModal(true);
         }
       }
     } catch (error) {
       setIsLoading(false);
       console.error('Error creating/updating garment:', error);
-      const errorMsg = error instanceof Error ? error.message : 'Error desconocido';
-      setErrorMessage(`Error al ${isEditMode ? 'actualizar' : 'crear'} la prenda: ${errorMsg}`);
+      const errorMsg = error instanceof Error ? error.message : t('garments.create.errorGeneric');
+      setErrorMessage(`${t('garments.create.errorGeneric')}: ${errorMsg}`);
       setShowErrorModal(true);
     }
   }, [validate, user, isEditMode, id, name, category, brand, color, seasons, style, notes, imageUri, editImageUri, token, createGarment, updateGarment, router]);
@@ -277,7 +278,7 @@ export default function CreateGarmentScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{isEditMode ? 'Editar Prenda' : 'Agregar Prenda'}</Text>
+        <Text style={styles.headerTitle}>{isEditMode ? t('garments.create.editTitle') : t('garments.create.title')}</Text>
       </View>
 
       <ScrollView 
@@ -288,17 +289,17 @@ export default function CreateGarmentScreen() {
           {/* Image Picker */}
           <View style={styles.section}>
             <View style={styles.labelRow}>
-              <Text style={styles.label}>Foto</Text>
+              <Text style={styles.label}>{t('garments.create.photo')}</Text>
               {isAnalyzing && (
                 <View style={styles.aiAnalyzingBadge}>
                   <Ionicons name="sparkles" size={12} color={COLORS.secondary} />
-                  <Text style={styles.aiAnalyzingText}>Analizando...</Text>
+                  <Text style={styles.aiAnalyzingText}>{t('garments.create.aiAnalyzing')}</Text>
                 </View>
               )}
               {aiDetected && lastAnalyzedUri === imageUri && !isAnalyzing && !isEditMode && (
                 <View style={styles.aiSuggestedBadge}>
                   <Ionicons name="checkmark-circle" size={12} color={COLORS.success} />
-                  <Text style={styles.aiSuggestedText}>Detectado por IA</Text>
+                  <Text style={styles.aiSuggestedText}>{t('garments.create.aiDetectedByAI')}</Text>
                 </View>
               )}
             </View>
@@ -335,7 +336,7 @@ export default function CreateGarmentScreen() {
                   disabled={isAnalyzing}
                 >
                   <Ionicons name="images-outline" size={32} color="#9CA3AF" />
-                  <Text style={styles.imagePickerText}>Galería</Text>
+                  <Text style={styles.imagePickerText}>{t('garments.create.chooseFromGallery')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
                   onPress={() => {
@@ -346,7 +347,7 @@ export default function CreateGarmentScreen() {
                   disabled={isAnalyzing}
                 >
                   <Ionicons name="camera-outline" size={32} color="#9CA3AF" />
-                  <Text style={styles.imagePickerText}>Cámara</Text>
+                  <Text style={styles.imagePickerText}>{t('garments.create.takePhoto')}</Text>
                 </TouchableOpacity>
               </View>
             )}
@@ -357,7 +358,7 @@ export default function CreateGarmentScreen() {
             <View style={styles.infoMessage}>
               <Ionicons name="information-circle" size={20} color={COLORS.secondary} />
               <Text style={styles.infoMessageText}>
-                {isAnalyzing ? 'Analizando imagen con IA...' : 'Esperando detección de IA...'}
+                {isAnalyzing ? t('garments.create.aiInfoAnalyzing') : t('garments.create.aiInfoWaiting')}
               </Text>
             </View>
           )}
@@ -366,20 +367,20 @@ export default function CreateGarmentScreen() {
           {((imageUri && isFormEnabled) || isEditMode) && (
             <>
               <Input
-                label="Nombre *"
+                label={t('garments.create.name')}
                 value={name}
                 onChangeText={(text) => {
                   if (text.length <= 30) {
                     setName(text);
                   }
                 }}
-                placeholder="ej., Chaqueta de Mezclilla Azul"
+                placeholder={t('garments.create.namePlaceholder')}
                 error={errors.name}
                 maxLength={30}
               />
 
               <View style={styles.section}>
-                <Text style={styles.label}>Categoría *</Text>
+                <Text style={styles.label}>{t('garments.create.category')}</Text>
                 <View style={styles.chipContainer}>
                   {GARMENT_CATEGORIES.map((cat) => (
                     <TouchableOpacity
@@ -391,7 +392,7 @@ export default function CreateGarmentScreen() {
                       ]}
                     >
                       <Text style={category === cat.value ? styles.chipTextActive : styles.chipTextInactive}>
-                        {cat.label}
+                        {t('garments.category.' + cat.value)}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -399,29 +400,29 @@ export default function CreateGarmentScreen() {
               </View>
 
               <Input
-                label="Marca *"
+                label={t('garments.create.brand')}
                 value={brand}
                 onChangeText={(text) => {
                   setBrand(text);
                   setErrors({ ...errors, brand: undefined });
                 }}
-                placeholder="ej., Levi's"
+                placeholder={t('garments.create.brandPlaceholder')}
                 error={errors.brand}
               />
 
               <Input
-                label="Color *"
+                label={t('garments.create.color')}
                 value={color}
                 onChangeText={(text) => {
                   setColor(text);
                   setErrors({ ...errors, color: undefined });
                 }}
-                placeholder="ej., Azul"
+                placeholder={t('garments.create.colorPlaceholder')}
                 error={errors.color}
               />
 
               <View style={styles.section}>
-                <Text style={styles.label}>Temporada *</Text>
+                <Text style={styles.label}>{t('garments.create.season')}</Text>
                 <View style={styles.chipContainer}>
                   {SEASONS.map((s) => {
                     const isAllSeason = s.value === 'all-season';
@@ -446,7 +447,7 @@ export default function CreateGarmentScreen() {
                           isSelected ? styles.chipTextActive : styles.chipTextInactive,
                           isDisabled && styles.chipTextDisabled,
                         ]}>
-                          {s.label}
+                          {t('garments.season.' + s.value)}
                         </Text>
                       </TouchableOpacity>
                     );
@@ -456,7 +457,7 @@ export default function CreateGarmentScreen() {
               </View>
 
               <View style={styles.section}>
-                <Text style={styles.label}>Estilo</Text>
+                <Text style={styles.label}>{t('garments.create.style')}</Text>
                 <View style={styles.chipContainer}>
                   {GARMENT_STYLES.map((st) => (
                     <TouchableOpacity
@@ -468,7 +469,7 @@ export default function CreateGarmentScreen() {
                       ]}
                     >
                       <Text style={style === st.value ? styles.chipTextActive : styles.chipTextInactive}>
-                        {st.label}
+                        {t('garments.style.' + st.value)}
                       </Text>
                     </TouchableOpacity>
                   ))}
@@ -476,17 +477,17 @@ export default function CreateGarmentScreen() {
               </View>
 
               <Input
-                label="Notas"
+                label={t('garments.create.notes')}
                 value={notes}
                 onChangeText={setNotes}
-                placeholder="Agrega detalles adicionales..."
+                placeholder={t('garments.create.notesPlaceholder')}
                 multiline
                 numberOfLines={3}
               />
 
               <View style={styles.buttonContainer}>
                 <Button
-                  title={isEditMode ? "Guardar Cambios" : "Agregar al Closet"}
+                  title={isEditMode ? t('garments.create.saveChanges') : t('garments.create.addToCloset')}
                   onPress={handleCreate}
                   loading={isLoading || isUploading}
                   disabled={!isFormComplete || isLoading || isUploading}
@@ -502,11 +503,11 @@ export default function CreateGarmentScreen() {
       <Modal
         visible={showSuccessModal}
         type="success"
-        title="¡Prenda Agregada!"
-        message="Tu prenda se ha agregado exitosamente al closet. ¿Deseas agregar otra prenda?"
+        title={t('garments.create.successTitle')}
+        message={t('garments.create.successMessage')}
         actions={[
           {
-            text: 'Sí, agregar otra',
+            text: t('garments.create.successAddAnother'),
             onPress: () => {
               setShowSuccessModal(false);
               // Limpiar formulario
@@ -527,7 +528,7 @@ export default function CreateGarmentScreen() {
             variant: 'primary',
           },
           {
-            text: 'No, ver mi closet',
+            text: t('garments.create.successViewCloset'),
             onPress: () => {
               setShowSuccessModal(false);
               router.push('/(tabs)/closet');
@@ -542,11 +543,11 @@ export default function CreateGarmentScreen() {
       <Modal
         visible={showEditSuccessModal}
         type="success"
-        title="¡Prenda Actualizada!"
-        message="Tu prenda se ha actualizado exitosamente."
+        title={t('garments.create.editSuccessTitle')}
+        message={t('garments.create.editSuccessMessage')}
         actions={[
           {
-            text: 'Ver mi closet',
+            text: t('garments.create.successViewClosetAlt'),
             onPress: () => {
               setShowEditSuccessModal(false);
               router.push('/(tabs)/closet');
@@ -561,12 +562,12 @@ export default function CreateGarmentScreen() {
       <Modal
         visible={showErrorModal}
         type="error"
-        title="Error"
+        title={t('garments.create.errorTitle')}
         message={errorMessage}
         onClose={() => setShowErrorModal(false)}
         actions={[
           {
-            text: 'Entendido',
+            text: t('garments.create.incompleteGotIt'),
             onPress: () => setShowErrorModal(false),
             variant: 'primary',
           },

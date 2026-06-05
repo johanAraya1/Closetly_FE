@@ -12,6 +12,7 @@ import { OutfitCard, Loading, EmptyState } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { useCollections } from '@/hooks/useCollections';
 import { COLORS } from '@/lib/constants';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { Collection } from '@/types';
 
 export default function CollectionDetailScreen() {
@@ -20,6 +21,7 @@ export default function CollectionDetailScreen() {
   const { user } = useAuth();
   const { loadCollectionById, currentCollection, isLoading: storeLoading } = useCollections(false);
   const [error, setError] = useState(false);
+  const { t } = useTranslation();
 
   useEffect(() => {
     loadCollection();
@@ -36,7 +38,7 @@ export default function CollectionDetailScreen() {
   };
 
   if (storeLoading) {
-    return <Loading message="Loading collection..." />;
+    return <Loading message={t('collections.loading')} />;
   }
 
   if (error || !currentCollection) {
@@ -49,8 +51,8 @@ export default function CollectionDetailScreen() {
         </View>
         <EmptyState
           icon="alert-circle-outline"
-          title="Collection not found"
-          message="This collection might have been deleted"
+          title={t('collections.notFound')}
+          message={t('collections.notFoundMessage')}
         />
       </SafeAreaView>
     );
@@ -67,7 +69,7 @@ export default function CollectionDetailScreen() {
           {currentCollection.isPublic && (
             <View style={styles.publicBadge}>
               <Ionicons name="globe-outline" size={16} color={COLORS.primary} />
-              <Text style={styles.publicText}>Public</Text>
+              <Text style={styles.publicText}>{t('collections.public')}</Text>
             </View>
           )}
           <TouchableOpacity style={styles.iconButton}>
@@ -87,7 +89,7 @@ export default function CollectionDetailScreen() {
             <View style={styles.stat}>
               <Ionicons name="shirt-outline" size={20} color="#6B7280" />
               <Text style={styles.statText}>
-                {currentCollection.outfits?.length || 0} outfit{currentCollection.outfits?.length !== 1 ? 's' : ''}
+                {t('collections.outfitCount', { count: currentCollection.outfits?.length || 0 })}
               </Text>
             </View>
           </View>
@@ -96,7 +98,7 @@ export default function CollectionDetailScreen() {
         {/* Outfits Grid */}
         {currentCollection.outfits && currentCollection.outfits.length > 0 ? (
           <View style={styles.outfitsSection}>
-            <Text style={styles.sectionTitle}>Outfits</Text>
+            <Text style={styles.sectionTitle}>{t('collections.outfitsSection')}</Text>
             <View style={styles.outfitsGrid}>
               {currentCollection.outfits.map((outfit) => (
                 <View key={outfit.id} style={styles.outfitCardWrapper}>
@@ -114,12 +116,12 @@ export default function CollectionDetailScreen() {
         ) : (
           <EmptyState
             icon="shirt-outline"
-            title="No outfits yet"
-            message="Add outfits to this collection"
-            actionLabel="Add Outfits"
+            title={t('collections.noOutfits')}
+            message={t('collections.addOutfitsMessage')}
+            actionLabel={t('collections.addOutfits')}
             onAction={() => {
               // TODO: Navigate to add outfits screen
-              Alert.alert('Coming soon', 'Add outfits feature coming soon!');
+              Alert.alert(t('collections.addOutfitsComingSoon'), t('collections.addOutfitsComingSoonMessage'));
             }}
           />
         )}

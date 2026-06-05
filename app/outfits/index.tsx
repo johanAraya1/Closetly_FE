@@ -25,6 +25,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOutfits } from '@/hooks/useOutfits';
 import { SEASONS } from '@/lib/constants';
 import type { Outfit, GarmentSeason } from '@/types';
+import { useTranslation } from '@/hooks/useTranslation';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const SKELETON_CARD_WIDTH = SCREEN_WIDTH < 600 ? (SCREEN_WIDTH - 60) / 2 : (SCREEN_WIDTH - 80) / 3;
@@ -37,6 +38,7 @@ export default function OutfitsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { outfits, isLoading, error, loadOutfits, deleteOutfit, toggleFavorite } = useOutfits(true);
+  const { t } = useTranslation();
 
   const [searchQuery, setSearchQuery] = useState('');
   const [sortBy, setSortBy] = useState<SortOption>('recent');
@@ -103,7 +105,7 @@ export default function OutfitsScreen() {
       try {
         await toggleFavorite(outfit.id, !outfit.is_favorite);
       } catch (err) {
-        Alert.alert('Error', 'No se pudo actualizar el favorito');
+        Alert.alert(t('common.error'), t('outfits.errorFavorite'));
       }
     },
     [user?.id]
@@ -113,20 +115,20 @@ export default function OutfitsScreen() {
   const handleDeleteOutfit = useCallback(
     (outfit: Outfit) => {
       Alert.alert(
-        'Eliminar Outfit',
-        `¿Estás seguro de que deseas eliminar "${outfit.name}"?`,
+        t('outfits.deleteTitle'),
+        t('outfits.deleteConfirm', { name: outfit.name }),
         [
-          { text: 'Cancelar', style: 'cancel' },
+          { text: t('common.cancel'), style: 'cancel' },
           {
-            text: 'Eliminar',
+            text: t('common.delete'),
             style: 'destructive',
             onPress: async () => {
               if (!user?.id) return;
               try {
                 await deleteOutfit(outfit.id);
-                Alert.alert('Éxito', 'Outfit eliminado correctamente');
+                Alert.alert(t('common.success'), t('outfits.deletedSuccess'));
               } catch (err) {
-                Alert.alert('Error', 'No se pudo eliminar el outfit');
+                Alert.alert(t('common.error'), t('outfits.errorDelete'));
               }
             },
           },
@@ -139,9 +141,7 @@ export default function OutfitsScreen() {
   // Navegar a detalle del outfit
   const handleOutfitPress = useCallback(
     (outfit: Outfit) => {
-      // TODO: Crear pantalla de detalle de outfit
-      // router.push(`/outfits/${outfit.id}`);
-      Alert.alert('Detalle de Outfit', `Ver detalles de "${outfit.name}" (próximamente)`);
+      Alert.alert(t('outfits.detailTitle'), t('outfits.comingSoon', { name: outfit.name }));
     },
     []
   );
@@ -157,8 +157,8 @@ export default function OutfitsScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.titleContainer}>
-            <Text style={styles.title}>Mis Outfits</Text>
-            <Text style={styles.subtitle}>Cargando...</Text>
+            <Text style={styles.title}>{t('outfits.title')}</Text>
+            <Text style={styles.subtitle}>{t('outfits.loading')}</Text>
           </View>
         </View>
 
@@ -198,9 +198,9 @@ export default function OutfitsScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View style={styles.titleContainer}>
-          <Text style={styles.title}>Mis Outfits</Text>
+          <Text style={styles.title}>{t('outfits.title')}</Text>
           <Text style={styles.subtitle}>
-            {filteredAndSortedOutfits.length} outfit{filteredAndSortedOutfits.length !== 1 ? 's' : ''}
+            {t('outfits.outfitCount', { count: filteredAndSortedOutfits.length })}
           </Text>
         </View>
         <TouchableOpacity style={styles.addButton} onPress={handleCreateOutfit}>
@@ -213,7 +213,7 @@ export default function OutfitsScreen() {
         <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar por nombre, ocasión..."
+          placeholder={t('outfits.searchPlaceholder')}
           placeholderTextColor="#9CA3AF"
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -243,7 +243,7 @@ export default function OutfitsScreen() {
             color={showFavoritesOnly ? 'white' : '#6B7280'}
           />
           <Text style={[styles.filterChipText, showFavoritesOnly && styles.filterChipTextActive]}>
-            Favoritos
+            {t('outfits.favorites')}
           </Text>
         </TouchableOpacity>
 
@@ -260,7 +260,7 @@ export default function OutfitsScreen() {
           <Ionicons name="partly-sunny-outline" size={16} color={filterSeason !== 'all' ? 'white' : '#6B7280'} />
           <Text style={[styles.filterChipText, filterSeason !== 'all' && styles.filterChipTextActive]}>
             {filterSeason === 'all'
-              ? 'Todas'
+              ? t('outfits.all')
               : SEASONS.find((s) => s.value === filterSeason)?.label || filterSeason}
           </Text>
         </TouchableOpacity>
@@ -277,10 +277,10 @@ export default function OutfitsScreen() {
         >
           <Ionicons name="swap-vertical" size={16} color="#6B7280" />
           <Text style={styles.filterChipText}>
-            {sortBy === 'recent' && 'Más reciente'}
-            {sortBy === 'oldest' && 'Más antiguo'}
-            {sortBy === 'name' && 'Nombre'}
-            {sortBy === 'favorites' && 'Favoritos primero'}
+            {sortBy === 'recent' && t('outfits.mostRecent')}
+            {sortBy === 'oldest' && t('outfits.oldest')}
+            {sortBy === 'name' && t('outfits.name')}
+            {sortBy === 'favorites' && t('outfits.favoritesFirst')}
           </Text>
         </TouchableOpacity>
       </ScrollView>
@@ -299,13 +299,13 @@ export default function OutfitsScreen() {
         {filteredAndSortedOutfits.length === 0 ? (
           <EmptyState
             icon="shirt-outline"
-            title={searchQuery || filterSeason !== 'all' || showFavoritesOnly ? 'No hay outfits' : 'No tienes outfits'}
+            title={searchQuery || filterSeason !== 'all' || showFavoritesOnly ? t('outfits.noOutfits') : t('outfits.noOutfitsYet')}
             message={
               searchQuery || filterSeason !== 'all' || showFavoritesOnly
-                ? 'Intenta cambiar los filtros de búsqueda'
-                : 'Crea tu primer outfit combinando tus prendas'
+                ? t('outfits.noOutfitsFilter')
+                : t('outfits.emptyMessage')
             }
-            actionLabel={!searchQuery && filterSeason === 'all' && !showFavoritesOnly ? 'Crear Outfit' : undefined}
+            actionLabel={!searchQuery && filterSeason === 'all' && !showFavoritesOnly ? t('outfits.createOutfit') : undefined}
             onAction={!searchQuery && filterSeason === 'all' && !showFavoritesOnly ? handleCreateOutfit : undefined}
           />
         ) : (

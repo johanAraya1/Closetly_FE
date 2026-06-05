@@ -126,13 +126,22 @@ export const createGarment = async (
     
     // Agregar imagen si existe
     if (garmentData.image_url) {
-      // En React Native, FormData soporta referencias a archivos nativos
-      // No usamos fetch() porque no funciona con file:// URIs en RN
-      formData.append('image', {
-        uri: garmentData.image_url,
-        type: 'image/jpeg',
-        name: 'garment.jpg',
-      } as any);
+      const imageUri = garmentData.image_url;
+      if (Platform.OS === 'web') {
+        // En web, FormData nativo del browser no entiende { uri, type, name }
+        // Convertir el blob/data URI a un objeto File
+        const response = await fetch(imageUri);
+        const blob = await response.blob();
+        formData.append('image', blob, 'garment.jpg');
+      } else {
+        // En mobile, React Native FormData soporta referencias a archivos nativos
+        // No usamos fetch() porque no funciona con file:// URIs en RN
+        formData.append('image', {
+          uri: imageUri,
+          type: 'image/jpeg',
+          name: 'garment.jpg',
+        } as any);
+      }
     }
     
     const headers: Record<string, string> = {};

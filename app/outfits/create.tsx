@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useOutfits } from '@/hooks/useOutfits';
 import { SEASONS, COLORS, GARMENT_CATEGORIES } from '@/lib/constants';
-import { validationMessages } from '@/utils/validation';
+import { useTranslation } from '@/hooks/useTranslation';
 import type { GarmentSeason, Garment } from '@/types';
 
 export default function CreateOutfitScreen() {
@@ -32,6 +32,27 @@ export default function CreateOutfitScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+
+  const { t } = useTranslation();
+
+  const categoryLabels = useMemo(() => ({
+    tops: t('garments.category.tops'),
+    bottoms: t('garments.category.bottoms'),
+    dresses: t('garments.category.dresses'),
+    outerwear: t('garments.category.outerwear'),
+    shoes: t('garments.category.shoes'),
+    accessories: t('garments.category.accessories'),
+    bags: t('garments.category.bags'),
+    other: t('garments.category.other'),
+  } as Record<string, string>), [t]);
+
+  const seasonLabels = useMemo(() => ({
+    spring: t('outfits.create.seasonSpring'),
+    summer: t('outfits.create.seasonSummer'),
+    fall: t('outfits.create.seasonFall'),
+    winter: t('outfits.create.seasonWinter'),
+    'all-season': t('outfits.create.seasonAll'),
+  } as Record<string, string>), [t]);
 
   const toggleGarment = (garment: Garment) => {
     if (selectedGarments.find((g) => g.id === garment.id)) {
@@ -75,11 +96,11 @@ export default function CreateOutfitScreen() {
     const newErrors: { name?: string; garments?: string } = {};
 
     if (!name.trim()) {
-      newErrors.name = validationMessages.outfit.nameRequired;
+      newErrors.name = t('outfits.create.errorNameRequired');
     }
 
     if (selectedGarments.length === 0) {
-      newErrors.garments = validationMessages.outfit.garmentsRequired;
+      newErrors.garments = t('outfits.create.errorGarmentsRequired');
     }
 
     setErrors(newErrors);
@@ -113,13 +134,13 @@ export default function CreateOutfitScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>Crear Outfit</Text>
+          <Text style={styles.headerTitle}>{t('outfits.createOutfit')}</Text>
         </View>
         <EmptyState
           icon="shirt-outline"
-          title="No hay prendas disponibles"
-          message="Agrega algunas prendas a tu closet antes de crear un outfit"
-          actionLabel="Agregar Prenda"
+          title={t('outfits.create.noGarments')}
+          message={t('outfits.create.noGarmentsMessage')}
+          actionLabel={t('outfits.create.noGarmentsAction')}
           onAction={() => router.push('/garments/create')}
         />
       </SafeAreaView>
@@ -133,7 +154,7 @@ export default function CreateOutfitScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>Crear Outfit</Text>
+        <Text style={styles.headerTitle}>{t('outfits.createOutfit')}</Text>
       </View>
 
       <ScrollView 
@@ -143,39 +164,39 @@ export default function CreateOutfitScreen() {
         <View style={styles.formContainer}>
           {/* Nombre del Outfit */}
           <Input
-            label="Nombre del Outfit *"
+            label={t('outfits.create.name')}
             value={name}
             onChangeText={(text) => {
               setName(text);
               setErrors({ ...errors, name: undefined });
             }}
-            placeholder="ej., Viernes Casual"
+            placeholder={t('outfits.create.namePlaceholder')}
             error={errors.name}
             maxLength={50}
           />
 
           {/* Descripción */}
           <Input
-            label="Descripción"
+            label={t('outfits.create.description')}
             value={description}
             onChangeText={setDescription}
-            placeholder="Describe este outfit..."
+            placeholder={t('outfits.create.descriptionPlaceholder')}
             multiline
             numberOfLines={3}
           />
 
           {/* Ocasión */}
           <Input
-            label="Ocasión"
+            label={t('outfits.create.occasion')}
             value={occasion}
             onChangeText={setOccasion}
-            placeholder="ej., Trabajo, Casual, Fiesta"
+            placeholder={t('outfits.create.occasionPlaceholder')}
             maxLength={30}
           />
 
           {/* Temporada */}
           <View style={styles.section}>
-            <Text style={styles.label}>Temporada</Text>
+            <Text style={styles.label}>{t('outfits.create.season')}</Text>
             <ScrollView 
               horizontal 
               showsHorizontalScrollIndicator={false}
@@ -191,7 +212,7 @@ export default function CreateOutfitScreen() {
                   ]}
                 >
                   <Text style={season === s.value ? styles.chipTextActive : styles.chipTextInactive}>
-                    {s.label}
+                    {seasonLabels[s.value]}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -201,7 +222,7 @@ export default function CreateOutfitScreen() {
           {/* Outfit Preview - Muestra el outfit completo */}
           {selectedGarments.length > 0 && (
             <View style={styles.previewSection}>
-              <Text style={styles.label}>Preview del Outfit</Text>
+              <Text style={styles.label}>{t('outfits.create.preview')}</Text>
               <OutfitPreview selectedGarments={selectedGarments} />
             </View>
           )}
@@ -209,10 +230,10 @@ export default function CreateOutfitScreen() {
           {/* Seleccionar Prendas */}
           <View style={styles.section}>
             <View style={styles.labelRow}>
-              <Text style={styles.label}>Selecciona Prendas *</Text>
+              <Text style={styles.label}>{t('outfits.create.selectGarments')}</Text>
               <View style={styles.badge}>
                 <Text style={styles.badgeText}>
-                  {selectedGarments.length} {selectedGarments.length === 1 ? 'prenda' : 'prendas'}
+                  {t('outfits.create.garmentCount', { count: selectedGarments.length })}
                 </Text>
               </View>
             </View>
@@ -226,7 +247,7 @@ export default function CreateOutfitScreen() {
               <TextInput
                 value={searchQuery}
                 onChangeText={setSearchQuery}
-                placeholder="Buscar por nombre, marca o color..."
+                placeholder={t('outfits.create.searchPlaceholder')}
                 placeholderTextColor="#9CA3AF"
                 style={styles.searchInput}
               />
@@ -261,7 +282,7 @@ export default function CreateOutfitScreen() {
                   styles.filterText,
                   filterCategory === 'all' && styles.filterTextActive,
                 ]}>
-                  Todas
+                  {t('garments.category.all')}
                 </Text>
               </TouchableOpacity>
               {GARMENT_CATEGORIES.map((cat) => (
@@ -277,7 +298,7 @@ export default function CreateOutfitScreen() {
                     styles.filterText,
                     filterCategory === cat.value && styles.filterTextActive,
                   ]}>
-                    {cat.label}
+                    {categoryLabels[cat.value]}
                   </Text>
                 </TouchableOpacity>
               ))}
@@ -319,11 +340,11 @@ export default function CreateOutfitScreen() {
                           {garment.name}
                         </Text>
                         <Text style={styles.cardBrand} numberOfLines={1}>
-                          {garment.brand || 'Sin marca'}
+                          {garment.brand || t('outfits.create.withoutBrand')}
                         </Text>
                         <View style={styles.cardFooter}>
                           <Text style={styles.cardCategory}>
-                            {garment.category}
+                            {categoryLabels[garment.category] || garment.category}
                           </Text>
                         </View>
                       </View>
@@ -337,7 +358,7 @@ export default function CreateOutfitScreen() {
           {/* Botón */}
           <View style={styles.buttonContainer}>
             <Button
-              title="Crear Outfit"
+              title={t('outfits.createOutfit')}
               onPress={handleCreate}
               loading={isLoading}
               disabled={!isFormComplete || isLoading}
@@ -351,11 +372,11 @@ export default function CreateOutfitScreen() {
       <Modal
         visible={showSuccessModal}
         type="success"
-        title="¡Outfit Creado!"
-        message="Tu outfit se ha creado exitosamente. ¿Deseas crear otro outfit?"
+        title={t('outfits.create.successTitle')}
+        message={t('outfits.create.successMessage')}
         actions={[
           {
-            text: 'Sí, crear otro',
+            text: t('outfits.create.createAnother'),
             onPress: () => {
               setShowSuccessModal(false);
               setName('');
@@ -368,7 +389,7 @@ export default function CreateOutfitScreen() {
             variant: 'primary',
           },
           {
-            text: 'Ver mis Outfits',
+            text: t('outfits.create.viewOutfits'),
             onPress: () => {
               setShowSuccessModal(false);
               router.push('/(tabs)/home');

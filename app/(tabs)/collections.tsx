@@ -12,11 +12,13 @@ import { CollectionCard, Loading, EmptyState } from '@/components';
 import { useCollections } from '@/hooks/useCollections';
 import { useAuth } from '@/hooks/useAuth';
 import { COLORS } from '@/lib/constants';
+import { useTranslation } from '@/hooks/useTranslation';
 
 export default function CollectionsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { collections, isLoading, loadCollections, deleteCollection } = useCollections();
+  const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
 
   const onRefresh = useCallback(async () => {
@@ -33,19 +35,19 @@ export default function CollectionsScreen() {
         await loadCollections(user.id);
       }
     } catch (error) {
-      Alert.alert('Error', 'Failed to delete collection. Please try again.');
+      Alert.alert(t('common.error'), t('collections.errorDelete'));
     }
   }, [deleteCollection, loadCollections, user]);
 
   if (isLoading && !refreshing) {
-    return <Loading message="Loading collections..." />;
+    return <Loading message={t('collections.loading')} />;
   }
 
   return (
     <SafeAreaView style={styles.container}>
       {/* Header */}
       <View style={styles.header}>
-        <Text style={styles.title}>Collections</Text>
+        <Text style={styles.title}>{t('collections.title')}</Text>
         <TouchableOpacity
           onPress={() => router.push('/collections/create')}
           style={styles.addButton}
@@ -70,7 +72,7 @@ export default function CollectionsScreen() {
         {collections.length > 0 ? (
           <>
             <Text style={styles.subtitle}>
-              {collections.length} collection{collections.length !== 1 ? 's' : ''}
+              {t('collections.collectionCount', { count: collections.length })}
             </Text>
             {collections.map((collection) => (
               <CollectionCard
@@ -84,9 +86,9 @@ export default function CollectionsScreen() {
         ) : (
           <EmptyState
             icon="albums-outline"
-            title="No collections yet"
-            message="Create collections to organize your outfits"
-            actionLabel="Create Collection"
+            title={t('collections.noCollections')}
+            message={t('collections.noCollectionsMessage')}
+            actionLabel={t('collections.createFirst')}
             onAction={() => router.push('/collections/create')}
           />
         )}

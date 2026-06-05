@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, Modal } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/authStore';
+import { useTranslation } from '@/hooks/useTranslation';
 import { 
   isValidEmail, 
   isValidPassword, 
@@ -20,6 +21,7 @@ import {
 
 export default function RegisterScreen() {
   const router = useRouter();
+  const { t } = useTranslation();
   const { register, isLoading, error, clearError } = useAuth();
 
   const [email, setEmail] = useState('');
@@ -92,7 +94,7 @@ export default function RegisterScreen() {
 
     if (passwordCriteria.all) {
       if (!confirmPassword) {
-        newErrors.confirmPassword = 'Confirma tu contraseña';
+        newErrors.confirmPassword = t('auth.confirmPasswordRequired');
       } else if (confirmPassword !== password) {
         newErrors.confirmPassword = validationMessages.password.mismatch;
       }
@@ -106,7 +108,7 @@ export default function RegisterScreen() {
     clearError();
     
     if (!validate()) {
-      setErrorMessage('Por favor, completa todos los campos correctamente');
+      setErrorMessage(t('auth.registrationError'));
       setShowErrorModal(true);
       return;
     }
@@ -122,13 +124,13 @@ export default function RegisterScreen() {
     } else {
       // Leer el error fresco del store (evita stale closure)
       const currentError = useAuthStore.getState().error;
-      let message = currentError || 'Error al crear la cuenta';
+      let message = currentError || t('auth.genericError');
       if (currentError?.includes('409') || currentError?.includes('already exists') || currentError?.includes('Conflict')) {
-        message = 'Este correo electrónico ya está registrado. Por favor, inicia sesión o usa otro correo.';
+        message = t('auth.emailAlreadyRegistered');
       } else if (currentError?.includes('400')) {
-        message = 'Datos inválidos. Verifica que todos los campos sean correctos.';
+        message = t('auth.invalidData');
       } else if (currentError?.includes('network') || currentError?.includes('fetch') || currentError?.includes('timeout')) {
-        message = 'Error de conexión. Verifica tu internet e intenta nuevamente.';
+        message = t('auth.networkError');
       }
       setErrorMessage(message);
       setShowErrorModal(true);
@@ -143,20 +145,20 @@ export default function RegisterScreen() {
       >
         <ScrollView style={styles.scrollView} contentContainerStyle={styles.content}>
           <Text style={styles.title}>
-            Create Account
+            {t('auth.createAccount')}
           </Text>
           <Text style={styles.subtitle}>
-            Join Closetly and organize your wardrobe
+            {t('auth.joinClosetly')}
           </Text>
 
           <Input
-            label="Email"
+            label={t('auth.email')}
             value={email}
             onChangeText={(text) => {
               setEmail(text);
               setErrors({ ...errors, email: undefined });
             }}
-            placeholder="your@email.com"
+            placeholder={t('auth.emailPlaceholder')}
             keyboardType="email-address"
             autoCapitalize="none"
             error={errors.email}
@@ -164,34 +166,34 @@ export default function RegisterScreen() {
           />
 
           <Input
-            label="Username"
+            label={t('auth.username')}
             value={username}
             onChangeText={(text) => {
               setUsername(text);
               setErrors({ ...errors, username: undefined });
             }}
-            placeholder="username"
+            placeholder={t('auth.usernamePlaceholder')}
             autoCapitalize="none"
             error={errors.username}
             icon={<Ionicons name="at-outline" size={20} color="#9CA3AF" />}
           />
 
           <Input
-            label="Full Name (Optional)"
+            label={t('auth.fullNameOptional')}
             value={fullName}
             onChangeText={setFullName}
-            placeholder="John Doe"
+            placeholder={t('auth.fullNamePlaceholder')}
             icon={<Ionicons name="person-outline" size={20} color="#9CA3AF" />}
           />
 
           <Input
-            label="Password"
+            label={t('auth.password')}
             value={password}
             onChangeText={(text) => {
               setPassword(text);
               setErrors({ ...errors, password: undefined });
             }}
-            placeholder="••••••••"
+            placeholder={t('auth.passwordPlaceholder')}
             secureTextEntry={!showPassword}
             maxLength={16}
             error={errors.password}
@@ -208,14 +210,14 @@ export default function RegisterScreen() {
           />
 
           <View style={styles.passwordRules}>
-            <Text style={styles.rulesTitle}>La contraseña debe tener:</Text>
+            <Text style={styles.rulesTitle}>{t('auth.passwordRules')}</Text>
             <View style={styles.ruleItem}>
               <Ionicons
                 name={passwordCriteria.length ? 'checkmark-circle' : 'close-circle'}
                 size={16}
                 color={passwordCriteria.length ? '#10B981' : '#EF4444'}
               />
-              <Text style={styles.ruleText}>8 a 16 caracteres</Text>
+              <Text style={styles.ruleText}>{t('auth.passwordLength')}</Text>
             </View>
             <View style={styles.ruleItem}>
               <Ionicons
@@ -223,7 +225,7 @@ export default function RegisterScreen() {
                 size={16}
                 color={passwordCriteria.uppercase ? '#10B981' : '#EF4444'}
               />
-              <Text style={styles.ruleText}>Una letra mayúscula</Text>
+              <Text style={styles.ruleText}>{t('auth.passwordUppercase')}</Text>
             </View>
             <View style={styles.ruleItem}>
               <Ionicons
@@ -231,7 +233,7 @@ export default function RegisterScreen() {
                 size={16}
                 color={passwordCriteria.lowercase ? '#10B981' : '#EF4444'}
               />
-              <Text style={styles.ruleText}>Una letra minúscula</Text>
+              <Text style={styles.ruleText}>{t('auth.passwordLowercase')}</Text>
             </View>
             <View style={styles.ruleItem}>
               <Ionicons
@@ -239,7 +241,7 @@ export default function RegisterScreen() {
                 size={16}
                 color={passwordCriteria.number ? '#10B981' : '#EF4444'}
               />
-              <Text style={styles.ruleText}>Un número</Text>
+              <Text style={styles.ruleText}>{t('auth.passwordNumber')}</Text>
             </View>
             <View style={styles.ruleItem}>
               <Ionicons
@@ -247,19 +249,19 @@ export default function RegisterScreen() {
                 size={16}
                 color={passwordCriteria.special ? '#10B981' : '#EF4444'}
               />
-              <Text style={styles.ruleText}>Un caracter especial</Text>
+              <Text style={styles.ruleText}>{t('auth.passwordSpecial')}</Text>
             </View>
           </View>
 
           {passwordCriteria.all && (
             <Input
-              label="Confirmar contraseña"
+              label={t('auth.confirmPassword')}
               value={confirmPassword}
               onChangeText={(text) => {
                 setConfirmPassword(text);
                 setErrors({ ...errors, confirmPassword: undefined });
               }}
-              placeholder="••••••••"
+              placeholder={t('auth.passwordPlaceholder')}
               secureTextEntry={!showConfirmPassword}
               maxLength={16}
               error={errors.confirmPassword}
@@ -278,7 +280,7 @@ export default function RegisterScreen() {
 
           <View style={styles.buttonContainer}>
             <Button
-              title="Create Account"
+              title={t('auth.createAccount')}
               onPress={handleRegister}
               loading={isLoading}
               fullWidth
@@ -286,9 +288,9 @@ export default function RegisterScreen() {
           </View>
 
           <View style={styles.footer}>
-            <Text style={styles.footerText}>Already have an account? </Text>
+            <Text style={styles.footerText}>{t('auth.alreadyHaveAccount')} </Text>
             <Button
-              title="Sign In"
+              title={t('auth.signIn')}
               onPress={() => router.push('/(auth)/login')}
               variant="ghost"
             />
@@ -300,12 +302,12 @@ export default function RegisterScreen() {
       <Modal
         visible={showErrorModal}
         type="error"
-        title="Error en el Registro"
+        title={t('auth.registrationErrorTitle')}
         message={errorMessage}
         onClose={() => setShowErrorModal(false)}
         actions={[
           {
-            text: 'Entendido',
+            text: t('auth.gotIt'),
             onPress: () => setShowErrorModal(false),
             variant: 'primary',
           },
@@ -316,11 +318,11 @@ export default function RegisterScreen() {
       <Modal
         visible={showSuccessModal}
         type="success"
-        title="¡Cuenta Creada!"
-        message="Tu cuenta se ha creado exitosamente. Redirigiendo..."
+        title={t('auth.accountCreatedTitle')}
+        message={t('auth.accountCreatedMessage')}
         actions={[
           {
-            text: 'Continuar',
+            text: t('auth.continue'),
             onPress: () => {
               setShowSuccessModal(false);
               router.replace('/(tabs)/home');
