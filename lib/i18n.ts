@@ -191,7 +191,7 @@ const i18n = new I18n({
         summer: 'Summer',
         fall: 'Fall',
         winter: 'Winter',
-        'all-season': 'All Seasons',
+        'all_season': 'All Seasons',
       },
       style: {
         formal: 'Formal',
@@ -496,7 +496,7 @@ const i18n = new I18n({
         summer: 'Verano',
         fall: 'Otoño',
         winter: 'Invierno',
-        'all-season': 'Todas las Temporadas',
+        'all_season': 'Todas las Temporadas',
       },
       style: {
         formal: 'Formal',

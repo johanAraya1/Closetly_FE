@@ -251,7 +251,7 @@ export default function OutfitsScreen() {
         <TouchableOpacity
           style={[styles.filterChip, filterSeason !== 'all' && styles.filterChipActive]}
           onPress={() => {
-            const seasons: FilterSeason[] = ['all', 'spring', 'summer', 'fall', 'winter', 'all-season'];
+            const seasons: FilterSeason[] = ['all', 'spring', 'summer', 'fall', 'winter', 'all_season'];
             const currentIndex = seasons.indexOf(filterSeason);
             const nextIndex = (currentIndex + 1) % seasons.length;
             setFilterSeason(seasons[nextIndex]);

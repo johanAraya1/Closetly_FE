@@ -108,9 +108,8 @@ export const createGarment = async (
     formData.append('name', sanitizedName);
     formData.append('category', garmentData.category);
     
-    // Convertir 'all-season' a 'all_season' para el backend
-    const seasonValue = garmentData.season === 'all-season' ? 'all_season' : garmentData.season;
-    formData.append('season', seasonValue);
+    const seasonValue = garmentData.season;
+    formData.append('season', seasonValue as string);
     
     if (sanitizedColor) {
       formData.append('color', sanitizedColor);
@@ -216,9 +215,8 @@ export const updateGarment = async (
     if (updates.size !== undefined) body.size = updates.size;
     if (updates.notes !== undefined) body.notes = sanitizeNotes(updates.notes);
     
-    // Convertir 'all-season' a 'all_season' para el backend
     if (updates.season !== undefined) {
-      body.season = updates.season === 'all-season' ? 'all_season' : updates.season;
+      body.season = updates.season;
     }
     
     // NO enviar imageUrl - el backend no permite actualizar la imagen

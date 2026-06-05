@@ -25,7 +25,7 @@ export default function CreateOutfitScreen() {
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
   const [occasion, setOccasion] = useState('');
-  const [season, setSeason] = useState<GarmentSeason>('all-season');
+  const [season, setSeason] = useState<GarmentSeason>('all_season');
   const [selectedGarments, setSelectedGarments] = useState<Garment[]>([]);
   const [errors, setErrors] = useState<{ name?: string; garments?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
@@ -51,7 +51,7 @@ export default function CreateOutfitScreen() {
     summer: t('outfits.create.seasonSummer'),
     fall: t('outfits.create.seasonFall'),
     winter: t('outfits.create.seasonWinter'),
-    'all-season': t('outfits.create.seasonAll'),
+    'all_season': t('outfits.create.seasonAll'),
   } as Record<string, string>), [t]);
 
   const toggleGarment = (garment: Garment) => {
@@ -382,7 +382,7 @@ export default function CreateOutfitScreen() {
               setName('');
               setDescription('');
               setOccasion('');
-              setSeason('all-season');
+              setSeason('all_season');
               setSelectedGarments([]);
               setErrors({});
             },

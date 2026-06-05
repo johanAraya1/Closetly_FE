@@ -85,9 +85,9 @@ export async function analyzeGarmentImage(
     // La respuesta puede venir como { data: {...} } o directamente {...}
     const analysisData = result.data || result;
 
-    // Normalizar 'all' a 'all-season'
+    // Normalizar 'all' a 'all_season'
     if (analysisData.season === 'all') {
-      analysisData.season = 'all-season';
+      analysisData.season = 'all_season';
     }
 
     return { data: analysisData };

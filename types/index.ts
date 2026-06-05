@@ -58,7 +58,7 @@ export type GarmentCategory =
   | 'bags'
   | 'other';
 
-export type GarmentSeason = 'spring' | 'summer' | 'fall' | 'winter' | 'all-season';
+export type GarmentSeason = 'spring' | 'summer' | 'fall' | 'winter' | 'all_season';
 
 export type GarmentStyle = 
   | 'formal'

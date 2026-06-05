@@ -148,7 +148,6 @@ export const formatEnumValue = (value: string): string => {
     'summer': 'Verano',
     'fall': 'Otoño',
     'winter': 'Invierno',
-    'all-season': 'Todas las Temporadas',
     'all_season': 'Todas las Temporadas',
   };
 

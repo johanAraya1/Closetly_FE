@@ -135,8 +135,7 @@ export const createOutfit = async (
   
   const sanitizedNotes = outfitInfo.notes ? sanitizeNotes(outfitInfo.notes) : undefined;
 
-  // Convertir season: all-season → all_season para el backend
-  const seasonValue = outfitInfo.season === 'all-season' ? 'all_season' : outfitInfo.season;
+  const seasonValue = outfitInfo.season;
 
   const payload = {
     name: sanitizedName,

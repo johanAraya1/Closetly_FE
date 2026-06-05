@@ -76,7 +76,7 @@ export const SEASONS = [
   { value: 'summer', label: 'Verano' },
   { value: 'fall', label: 'Otoño' },
   { value: 'winter', label: 'Invierno' },
-  { value: 'all-season', label: 'Todas las Temporadas' },
+  { value: 'all_season', label: 'Todas las Temporadas' },
 ];
 
 export const GARMENT_STYLES = [

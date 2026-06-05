@@ -33,7 +33,7 @@ export default function CreateGarmentScreen() {
   const [category, setCategory] = useState<GarmentCategory>('tops');
   const [brand, setBrand] = useState('');
   const [color, setColor] = useState('');
-  const [seasons, setSeasons] = useState<GarmentSeason[]>(['all-season']);
+  const [seasons, setSeasons] = useState<GarmentSeason[]>(['all_season']);
   const [style, setStyle] = useState<GarmentStyle>('casual');
   const [notes, setNotes] = useState('');
   const [errors, setErrors] = useState<{ 
@@ -69,8 +69,7 @@ export default function CreateGarmentScreen() {
         if (Array.isArray(garment.season)) {
           setSeasons(garment.season);
         } else {
-          const seasonValue = garment.season === 'all_season' ? 'all-season' : garment.season;
-          setSeasons(seasonValue ? [seasonValue] : ['all-season']);
+          setSeasons(garment.season ? [garment.season] : ['all_season']);
         }
         setStyle(garment.style || 'casual');
         setNotes(garment.notes || '');
@@ -164,21 +163,21 @@ export default function CreateGarmentScreen() {
 
   // Manejar selección de temporadas
   const handleSeasonToggle = useCallback((seasonValue: GarmentSeason) => {
-    if (seasonValue === 'all-season') {
+    if (seasonValue === 'all_season') {
       // Si se selecciona "Todas las Temporadas"
       setSeasons(prev => {
         // Si ya está seleccionada, desmarcarla
-        if (prev.includes('all-season')) {
-          return prev.filter(s => s !== 'all-season');
+        if (prev.includes('all_season')) {
+          return prev.filter(s => s !== 'all_season');
         }
         // Si no está seleccionada, limpiar las demás y solo dejar esta
-        return ['all-season'];
+        return ['all_season'];
       });
     } else {
       // Si se selecciona cualquier otra temporada
       setSeasons(prev => {
         // Si "Todas las Temporadas" estaba seleccionada, removerla
-        const filtered = prev.filter(s => s !== 'all-season');
+        const filtered = prev.filter(s => s !== 'all_season');
         
         // Toggle de la temporada seleccionada
         if (filtered.includes(seasonValue)) {
@@ -427,9 +426,9 @@ export default function CreateGarmentScreen() {
                 <Text style={styles.label}>{t('garments.create.season')}</Text>
                 <View style={styles.chipContainer}>
                   {SEASONS.map((s) => {
-                    const isAllSeason = s.value === 'all-season';
+                    const isAllSeason = s.value === 'all_season';
                     const isSelected = seasons.includes(s.value as GarmentSeason);
-                    const isDisabled = !isAllSeason && seasons.includes('all-season');
+                    const isDisabled = !isAllSeason && seasons.includes('all_season');
                     
                     return (
                       <TouchableOpacity
@@ -517,7 +516,7 @@ export default function CreateGarmentScreen() {
               setCategory('tops');
               setBrand('');
               setColor('');
-              setSeasons(['all-season']);
+              setSeasons(['all_season']);
               setStyle('casual');
               setNotes('');
               setEditImageUri(null);
