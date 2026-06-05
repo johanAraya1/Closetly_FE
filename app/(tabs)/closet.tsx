@@ -417,9 +417,9 @@ const styles = StyleSheet.create({
     marginHorizontal: -8,
   },
   cardWrapper: {
-    width: '50%',
-    paddingHorizontal: 8,
-    marginBottom: 16,
+    width: '33.33%',
+    paddingHorizontal: 6,
+    marginBottom: 12,
   },
   loadingMore: {
     flexDirection: 'row',
