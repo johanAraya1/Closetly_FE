@@ -19,7 +19,7 @@ import type { GarmentSeason, Garment } from '@/types';
 export default function CreateOutfitScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { garments } = useGarments();
+  const { garments } = useGarments(true);
   const { createOutfit } = useOutfits();
 
   const [name, setName] = useState('');
