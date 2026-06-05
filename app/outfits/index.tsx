@@ -20,7 +20,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { OutfitCard, EmptyState, Button } from '@/components';
+import { OutfitCard, EmptyState, Button, withScreenErrorBoundary } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { useOutfits } from '@/hooks/useOutfits';
 import { SEASONS } from '@/lib/constants';
@@ -34,7 +34,7 @@ const SKELETON_IMAGE_HEIGHT = 180;
 type SortOption = 'recent' | 'oldest' | 'name' | 'favorites';
 type FilterSeason = GarmentSeason | 'all';
 
-export default function OutfitsScreen() {
+function OutfitsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { outfits, isLoading, isLoadingMore, hasMore, total, error, loadOutfits, loadMoreOutfits, deleteOutfit, toggleFavorite } = useOutfits(true);
@@ -540,3 +540,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
+export default withScreenErrorBoundary(OutfitsScreen);

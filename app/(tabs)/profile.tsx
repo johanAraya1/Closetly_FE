@@ -8,7 +8,7 @@ import { View, Text, ScrollView, Image, TouchableOpacity, Alert, StyleSheet, Swi
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Input } from '@/components';
+import { Button, Input, withScreenErrorBoundary } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useOutfits } from '@/hooks/useOutfits';
@@ -16,7 +16,7 @@ import { useCollections } from '@/hooks/useCollections';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
 
-export default function ProfileScreen() {
+function ProfileScreen() {
   const router = useRouter();
   const { profile, user, logout, isAdmin, updateProfile, isLoading } = useAuth();
   const { garments } = useGarments(true);
@@ -451,3 +451,5 @@ const styles = StyleSheet.create({
     marginVertical: 12,
   },
 });
+
+export default withScreenErrorBoundary(ProfileScreen);

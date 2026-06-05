@@ -66,6 +66,22 @@ export class ErrorBoundary extends Component<Props, State> {
   }
 }
 
+/**
+ * HOC que envuelve un componente de screen con ErrorBoundary
+ * Para usar en screens de expo-router: export default withScreenErrorBoundary(HomeScreen)
+ */
+export function withScreenErrorBoundary<P extends object>(
+  ScreenComponent: React.ComponentType<P>
+): React.FC<P> {
+  const WrappedScreen: React.FC<P> = (props) => (
+    <ErrorBoundary>
+      <ScreenComponent {...props} />
+    </ErrorBoundary>
+  );
+  WrappedScreen.displayName = `withScreenErrorBoundary(${ScreenComponent.displayName || ScreenComponent.name || 'Screen'})`;
+  return WrappedScreen;
+}
+
 const styles = StyleSheet.create({
   container: {
     flex: 1,

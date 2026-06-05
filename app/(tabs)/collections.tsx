@@ -8,13 +8,13 @@ import { View, Text, ScrollView, TouchableOpacity, RefreshControl, StyleSheet, A
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { CollectionCard, Loading, EmptyState } from '@/components';
+import { CollectionCard, Loading, EmptyState, withScreenErrorBoundary } from '@/components';
 import { useCollections } from '@/hooks/useCollections';
 import { useAuth } from '@/hooks/useAuth';
 import { COLORS } from '@/lib/constants';
 import { useTranslation } from '@/hooks/useTranslation';
 
-export default function CollectionsScreen() {
+function CollectionsScreen() {
   const router = useRouter();
   const { user } = useAuth();
   const { collections, isLoading, loadCollections, deleteCollection } = useCollections();
@@ -145,3 +145,5 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
 });
+
+export default withScreenErrorBoundary(CollectionsScreen);

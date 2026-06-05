@@ -9,10 +9,11 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
+import { withScreenErrorBoundary } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/hooks/useTranslation';
 
-export default function SettingsScreen() {
+function SettingsScreen() {
   const router = useRouter();
   const { profile } = useAuth();
   const { t, locale, changeLanguage } = useTranslation();
@@ -199,3 +200,5 @@ const styles = StyleSheet.create({
     color: '#111827',
   },
 });
+
+export default withScreenErrorBoundary(SettingsScreen);

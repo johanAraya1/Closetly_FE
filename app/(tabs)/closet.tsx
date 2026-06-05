@@ -8,14 +8,14 @@ import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, Activi
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { GarmentCard, Loading, EmptyState, Modal } from '@/components';
+import { GarmentCard, Loading, EmptyState, Modal, withScreenErrorBoundary } from '@/components';
 import { useGarments } from '@/hooks/useGarments';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useAuthStore } from '@/store/authStore';
 import { GARMENT_CATEGORIES, COLORS } from '@/lib/constants';
 import type { GarmentCategory } from '@/types';
 
-export default function ClosetScreen() {
+function ClosetScreen() {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
@@ -445,3 +445,5 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
 });
+
+export default withScreenErrorBoundary(ClosetScreen);

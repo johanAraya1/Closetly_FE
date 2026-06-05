@@ -13,8 +13,9 @@ import { useAuth } from '@/hooks/useAuth';
 import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
+import { withScreenErrorBoundary } from '@/components';
 
-export default function HomeScreen() {
+function HomeScreen() {
   const router = useRouter();
   const { profile, user, logout } = useAuth();
   const { outfits, isLoading, loadOutfits } = useOutfits();
@@ -295,3 +296,5 @@ const styles = StyleSheet.create({
     padding: 32,
   },
 });
+
+export default withScreenErrorBoundary(HomeScreen);
