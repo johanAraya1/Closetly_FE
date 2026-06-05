@@ -3,7 +3,10 @@
  * Servicio para gestionar outfits (conjuntos de prendas)
  */
 
+import { API_URL } from '@/lib/constants';
 import { apiClient } from '@/utils/apiClient';
+import { fetchWithTimeout } from '@/utils/fetchUtils';
+import { tokenService } from '@/services/tokenService';
 import { sanitizeName, sanitizeNotes, isInputSafe } from '@/utils/sanitize';
 import type { 
   Outfit, 
@@ -25,24 +28,64 @@ const normalizeOutfit = (outfit: any): any => ({
 /**
  * Obtiene todos los outfits del usuario con sus prendas
  */
-export const getOutfits = async (userId: string): Promise<ApiResponse<Outfit[]>> => {
-  // Obtener los outfits básicos
-  const outfitsResponse = await apiClient.get<any[]>(`/outfits?user_id=eq.${userId}&order=created_at.desc`);
-  
-  if (!outfitsResponse.data || outfitsResponse.error) {
-    return outfitsResponse;
-  }
-  
-  const outfits = outfitsResponse.data.map(normalizeOutfit);
+export const getOutfits = async (
+  userId: string,
+  limit?: number,
+  offset?: number,
+): Promise<ApiResponse<Outfit[]> & { total?: number; hasMore?: boolean }> => {
+  // Obtener los outfits básicos (con fetchWithTimeout para acceder a campos paginados)
+  const token = await tokenService.getAccessToken();
 
-  // Recolectar todos los garmentIds ÚNICOS de todos los outfits
+  let url = `${API_URL}/outfits?user_id=eq.${userId}&order=created_at.desc`;
+  if (limit !== undefined) url += `&limit=${limit}`;
+  if (offset !== undefined) url += `&offset=${offset}`;
+
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  const response = await fetchWithTimeout(url, {
+    method: 'GET',
+    headers,
+    timeout: 15000,
+  });
+
+  if (!response.ok) {
+    return { data: [], total: 0, hasMore: false, error: `Error al cargar outfits (${response.status})` };
+  }
+
+  const result = await response.json();
+
+  // Handle both paginated and non-paginated responses
+  let outfits: any[];
+  let total: number;
+  let hasMore: boolean;
+
+  if (result.data !== undefined && Array.isArray(result.data)) {
+    // Paginated response: { data: [...], total, hasMore }
+    outfits = result.data.map(normalizeOutfit);
+    total = result.total ?? outfits.length;
+    hasMore = result.hasMore ?? false;
+  } else if (Array.isArray(result)) {
+    // Plain array (backwards compatibility)
+    outfits = result.map(normalizeOutfit);
+    total = outfits.length;
+    hasMore = false;
+  } else {
+    return { data: [], total: 0, hasMore: false, error: 'Unexpected response format' };
+  }
+
+  // Recolectar todos los garmentIds ÚNICOS de los outfits de esta página
   const allGarmentIds = [...new Set(
     outfits.flatMap((o: any) => o.garmentIds || [])
   )];
 
   // Si no hay prendas que buscar, devolver tal cual
   if (allGarmentIds.length === 0) {
-    return { data: outfits.map((o: any) => ({ ...o, garments: [] })) };
+    return { data: outfits.map((o: any) => ({ ...o, garments: [] })), total, hasMore };
   }
 
   // UNA SOLA request batch para TODAS las prendas
@@ -53,7 +96,7 @@ export const getOutfits = async (userId: string): Promise<ApiResponse<Outfit[]>>
   if (!garmentsResponse.data || garmentsResponse.error) {
     // Si falla la batch, devolver outfits sin prendas en vez de error total
     console.warn('⚠️ No se pudieron cargar las prendas de los outfits:', garmentsResponse.error);
-    return { data: outfits.map((o: any) => ({ ...o, garments: [] })) };
+    return { data: outfits.map((o: any) => ({ ...o, garments: [] })), total, hasMore };
   }
 
   // Indexar prendas por ID para lookup O(1)
@@ -67,7 +110,7 @@ export const getOutfits = async (userId: string): Promise<ApiResponse<Outfit[]>>
     garments: (outfit.garmentIds || []).map((id: string) => garmentsMap.get(id)).filter(Boolean),
   }));
   
-  return { data: outfitsWithGarments };
+  return { data: outfitsWithGarments, total, hasMore };
 };
 
 /**

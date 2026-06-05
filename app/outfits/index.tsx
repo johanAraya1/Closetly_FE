@@ -37,7 +37,7 @@ type FilterSeason = GarmentSeason | 'all';
 export default function OutfitsScreen() {
   const router = useRouter();
   const { user } = useAuth();
-  const { outfits, isLoading, error, loadOutfits, deleteOutfit, toggleFavorite } = useOutfits(true);
+  const { outfits, isLoading, isLoadingMore, hasMore, total, error, loadOutfits, loadMoreOutfits, deleteOutfit, toggleFavorite } = useOutfits(true);
   const { t } = useTranslation();
 
   const [searchQuery, setSearchQuery] = useState('');
@@ -46,13 +46,25 @@ export default function OutfitsScreen() {
   const [showFavoritesOnly, setShowFavoritesOnly] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
-  // Refrescar outfits
+  // Refrescar outfits (resetea página)
   const handleRefresh = useCallback(async () => {
     if (!user?.id) return;
     setRefreshing(true);
     await loadOutfits(user.id);
     setRefreshing(false);
   }, [user?.id]);
+
+  // Infinite scroll handler
+  const handleScroll = useCallback((event: any) => {
+    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
+    const paddingToBottom = 40;
+
+    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
+
+    if (isCloseToBottom && hasMore && !isLoadingMore && user?.id) {
+      loadMoreOutfits(user.id);
+    }
+  }, [hasMore, isLoadingMore, loadMoreOutfits, user?.id]);
 
   // Filtrar y ordenar outfits
   const filteredAndSortedOutfits = useMemo(() => {
@@ -292,6 +304,8 @@ export default function OutfitsScreen() {
           filteredAndSortedOutfits.length === 0 ? styles.emptyContainer : styles.listContent
         }
         showsVerticalScrollIndicator={false}
+        onScroll={handleScroll}
+        scrollEventThrottle={400}
         {...(Platform.OS !== 'web' && {
           refreshControl: <RefreshControl refreshing={refreshing} onRefresh={handleRefresh} />,
         })}
@@ -309,16 +323,34 @@ export default function OutfitsScreen() {
             onAction={!searchQuery && filterSeason === 'all' && !showFavoritesOnly ? handleCreateOutfit : undefined}
           />
         ) : (
-          <View style={styles.gridContainer}>
-            {filteredAndSortedOutfits.map((outfit) => (
-              <OutfitCard
-                key={outfit.id}
-                outfit={outfit}
-                onPress={() => handleOutfitPress(outfit)}
-                onToggleFavorite={() => handleToggleFavorite(outfit)}
-              />
-            ))}
-          </View>
+          <>
+            <View style={styles.gridContainer}>
+              {filteredAndSortedOutfits.map((outfit) => (
+                <OutfitCard
+                  key={outfit.id}
+                  outfit={outfit}
+                  onPress={() => handleOutfitPress(outfit)}
+                  onToggleFavorite={() => handleToggleFavorite(outfit)}
+                />
+              ))}
+            </View>
+
+            {/* Loading indicator para infinite scroll */}
+            {isLoadingMore && (
+              <View style={styles.loadingMore}>
+                <ActivityIndicator size="small" color="#3B82F6" />
+                <Text style={styles.loadingMoreText}>Cargando más outfits...</Text>
+              </View>
+            )}
+
+            {/* End of list indicator */}
+            {!hasMore && outfits.length >= 20 && (
+              <View style={styles.endMessage}>
+                <Ionicons name="checkmark-circle" size={20} color="#10B981" />
+                <Text style={styles.endMessageText}>Has visto todos los outfits</Text>
+              </View>
+            )}
+          </>
         )}
       </ScrollView>
 
@@ -483,5 +515,28 @@ const styles = StyleSheet.create({
     color: '#991B1B',
     fontSize: 14,
     textAlign: 'center',
+  },
+  loadingMore: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  loadingMoreText: {
+    fontSize: 14,
+    color: '#6B7280',
+  },
+  endMessage: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingVertical: 20,
+    gap: 8,
+  },
+  endMessageText: {
+    fontSize: 14,
+    color: '#10B981',
+    fontWeight: '500',
   },
 });

@@ -18,7 +18,12 @@ import type {
 /**
  * Obtiene todas las prendas del usuario
  */
-export const getGarments = async (userId: string, token?: string): Promise<ApiResponse<Garment[]>> => {
+export const getGarments = async (
+  userId: string,
+  token?: string,
+  limit?: number,
+  offset?: number,
+): Promise<ApiResponse<Garment[]> & { total?: number; hasMore?: boolean }> => {
   try {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -26,7 +31,13 @@ export const getGarments = async (userId: string, token?: string): Promise<ApiRe
     
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-    }    const response = await fetchWithTimeout(`${API_URL}/garments?userId=eq.${userId}`, {
+    }
+
+    let url = `${API_URL}/garments?userId=eq.${userId}`;
+    if (limit !== undefined) url += `&limit=${limit}`;
+    if (offset !== undefined) url += `&offset=${offset}`;
+
+    const response = await fetchWithTimeout(url, {
       method: 'GET',
       headers,
       timeout: 15000,
@@ -39,13 +50,23 @@ export const getGarments = async (userId: string, token?: string): Promise<ApiRe
 
     const result = await response.json();
     
-    // Mapear la respuesta del backend al formato del frontend
-    const garments = (result.data || result || []).map((item: any) => ({
+    // Handle both paginated and non-paginated responses
+    if (result.data !== undefined && Array.isArray(result.data)) {
+      // Paginated response from backend: { data: [...], total, hasMore }
+      const garments = result.data.map((item: any) => ({
+        ...item,
+        image_url: item.imageUrl || item.image_url || item.image || '',
+      }));
+      return { data: garments, total: result.total, hasMore: result.hasMore };
+    }
+
+    // Fallback: plain array response
+    const garments = (result || []).map((item: any) => ({
       ...item,
       image_url: item.imageUrl || item.image_url || item.image || '',
     }));
     
-    return { data: garments };
+    return { data: garments, total: garments.length, hasMore: false };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Unknown error' };
   }

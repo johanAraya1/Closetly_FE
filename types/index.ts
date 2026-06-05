@@ -201,6 +201,13 @@ export interface PaginatedResponse<T> {
   total: number;
 }
 
+export interface PaginatedApiResponse<T> {
+  data: T[];
+  total: number;
+  hasMore: boolean;
+  error?: string;
+}
+
 // ==================== UI STATE ====================
 
 export interface LoadingState {

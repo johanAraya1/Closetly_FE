@@ -7,13 +7,20 @@ import { create } from 'zustand';
 import type { Garment, CreateGarmentDTO, UpdateGarmentDTO } from '@/types';
 import * as garmentService from '@/services/garmentService';
 
+const DEFAULT_PAGE_LIMIT = 20;
+
 interface GarmentsState {
   garments: Garment[];
   isLoading: boolean;
+  isLoadingMore: boolean;
+  hasMore: boolean;
+  page: number;
+  total: number;
   error: string | null;
   
   // Actions
   loadGarments: (userId: string, token?: string) => Promise<void>;
+  loadMoreGarments: (userId: string, token?: string) => Promise<void>;
   getGarmentById: (id: string) => Garment | undefined;
   createGarment: (userId: string, data: CreateGarmentDTO, token?: string) => Promise<Garment | null>;
   updateGarment: (id: string, updates: UpdateGarmentDTO, token?: string) => Promise<boolean>;
@@ -25,6 +32,10 @@ interface GarmentsState {
 const initialState = {
   garments: [],
   isLoading: false,
+  isLoadingMore: false,
+  hasMore: false,
+  page: 0,
+  total: 0,
   error: null,
 };
 
@@ -32,9 +43,9 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => ({
   ...initialState,
 
   loadGarments: async (userId: string, token?: string) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, page: 0, hasMore: false });
     
-    const result = await garmentService.getGarments(userId, token);
+    const result = await garmentService.getGarments(userId, token, DEFAULT_PAGE_LIMIT, 0);
     
     if (result.error) {
       set({ isLoading: false, error: result.error });
@@ -42,7 +53,38 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => ({
     }
 
     if (result.data) {
-      set({ garments: result.data, isLoading: false });
+      set({
+        garments: result.data,
+        isLoading: false,
+        total: result.total ?? result.data.length,
+        hasMore: result.hasMore ?? false,
+        page: 1,
+      });
+    }
+  },
+
+  loadMoreGarments: async (userId: string, token?: string) => {
+    const { isLoadingMore, hasMore, page } = get();
+    if (isLoadingMore || !hasMore) return;
+
+    set({ isLoadingMore: true });
+
+    const offset = page * DEFAULT_PAGE_LIMIT;
+    const result = await garmentService.getGarments(userId, token, DEFAULT_PAGE_LIMIT, offset);
+
+    if (result.error) {
+      set({ isLoadingMore: false, error: result.error });
+      return;
+    }
+
+    if (result.data) {
+      set((state) => ({
+        garments: [...state.garments, ...result.data!],
+        isLoadingMore: false,
+        total: result.total ?? state.total,
+        hasMore: result.hasMore ?? false,
+        page: state.page + 1,
+      }));
     }
   },
 

@@ -8,14 +8,21 @@ import type { Outfit, CreateOutfitDTO, UpdateOutfitDTO } from '@/types';
 import * as outfitService from '@/services/outfitService';
 import { useGarmentsStore } from '@/store/garmentsStore';
 
+const DEFAULT_PAGE_LIMIT = 20;
+
 interface OutfitsState {
   outfits: Outfit[];
   currentOutfit: Outfit | null;
   isLoading: boolean;
+  isLoadingMore: boolean;
+  hasMore: boolean;
+  page: number;
+  total: number;
   error: string | null;
   
   // Actions
   loadOutfits: (userId: string) => Promise<void>;
+  loadMoreOutfits: (userId: string) => Promise<void>;
   loadOutfitById: (id: string) => Promise<void>;
   createOutfit: (userId: string, data: CreateOutfitDTO) => Promise<Outfit | null>;
   updateOutfit: (id: string, updates: UpdateOutfitDTO) => Promise<boolean>;
@@ -29,6 +36,10 @@ const initialState = {
   outfits: [],
   currentOutfit: null,
   isLoading: false,
+  isLoadingMore: false,
+  hasMore: false,
+  page: 0,
+  total: 0,
   error: null,
 };
 
@@ -36,17 +47,48 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => ({
   ...initialState,
 
   loadOutfits: async (userId: string) => {
-    set({ isLoading: true, error: null });
-    
-    const result = await outfitService.getOutfits(userId);
-    
+    set({ isLoading: true, error: null, page: 0, hasMore: false });
+
+    const result = await outfitService.getOutfits(userId, DEFAULT_PAGE_LIMIT, 0);
+
     if (result.error) {
       set({ isLoading: false, error: result.error });
       return;
     }
 
     if (result.data) {
-      set({ outfits: result.data, isLoading: false });
+      set({
+        outfits: result.data,
+        isLoading: false,
+        total: result.total ?? result.data.length,
+        hasMore: result.hasMore ?? false,
+        page: 1,
+      });
+    }
+  },
+
+  loadMoreOutfits: async (userId: string) => {
+    const { isLoadingMore, hasMore, page } = get();
+    if (isLoadingMore || !hasMore) return;
+
+    set({ isLoadingMore: true });
+
+    const offset = page * DEFAULT_PAGE_LIMIT;
+    const result = await outfitService.getOutfits(userId, DEFAULT_PAGE_LIMIT, offset);
+
+    if (result.error) {
+      set({ isLoadingMore: false, error: result.error });
+      return;
+    }
+
+    if (result.data) {
+      set((state) => ({
+        outfits: [...state.outfits, ...result.data!],
+        isLoadingMore: false,
+        total: result.total ?? state.total,
+        hasMore: result.hasMore ?? false,
+        page: state.page + 1,
+      }));
     }
   },
 

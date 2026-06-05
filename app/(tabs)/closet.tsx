@@ -15,20 +15,16 @@ import { useAuthStore } from '@/store/authStore';
 import { GARMENT_CATEGORIES, COLORS } from '@/lib/constants';
 import type { GarmentCategory } from '@/types';
 
-const ITEMS_PER_PAGE = 20; // Incrementado para mejor UX en infinite scroll
-
 export default function ClosetScreen() {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
-  const { garments, isLoading, deleteGarment, loadGarments } = useGarments(true);
+  const { garments, isLoading, isLoadingMore, hasMore, total, deleteGarment, loadGarments, loadMoreGarments } = useGarments(true);
   const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState<GarmentCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');
-  const [displayedItemsCount, setDisplayedItemsCount] = useState(ITEMS_PER_PAGE);
   const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [garmentToDelete, setGarmentToDelete] = useState<string | null>(null);
-  const [isLoadingMore, setIsLoadingMore] = useState(false);
   const [refreshing, setRefreshing] = useState(false);
 
   const filteredGarments = useMemo(() => {
@@ -52,40 +48,21 @@ export default function ClosetScreen() {
     return result;
   }, [garments, selectedCategory, searchQuery]);
 
-  // Prendas visibles basadas en infinite scroll
-  const visibleGarments = useMemo(() => {
-    return filteredGarments.slice(0, displayedItemsCount);
-  }, [filteredGarments, displayedItemsCount]);
-
-  const hasMore = displayedItemsCount < filteredGarments.length;
-
   const handleCategoryChange = (category: GarmentCategory | 'all') => {
     setSelectedCategory(category);
-    setDisplayedItemsCount(ITEMS_PER_PAGE); // Reset al cambiar categoría
+    // Reseteamos la carga al cambiar categoría (la categoría se filtra client-side por ahora)
   };
-
-  const loadMore = useCallback(() => {
-    if (isLoadingMore || !hasMore) return;
-    
-    setIsLoadingMore(true);
-    // Simular delay de carga para mejor UX
-    setTimeout(() => {
-      setDisplayedItemsCount(prev => prev + ITEMS_PER_PAGE);
-      setIsLoadingMore(false);
-    }, 300);
-  }, [isLoadingMore, hasMore]);
 
   const handleScroll = useCallback((event: any) => {
     const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 20;
+    const paddingToBottom = 40;
     
-    // Detectar cuando el usuario está cerca del final (20px antes)
     const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
     
-    if (isCloseToBottom && hasMore && !isLoadingMore) {
-      loadMore();
+    if (isCloseToBottom && hasMore && !isLoadingMore && user) {
+      loadMoreGarments(user.id, token || undefined);
     }
-  }, [hasMore, isLoadingMore, loadMore]);
+  }, [hasMore, isLoadingMore, loadMoreGarments, user, token]);
 
   const handleDeletePress = (garmentId: string) => {
     setGarmentToDelete(garmentId);
@@ -237,15 +214,15 @@ export default function ClosetScreen() {
               <Text style={styles.countText}>
                 {filteredGarments.length} {filteredGarments.length === 1 ? 'prenda' : 'prendas'}
               </Text>
-              {displayedItemsCount < filteredGarments.length && (
+              {total > 0 && (
                 <Text style={styles.pageText}>
-                  Mostrando {displayedItemsCount} de {filteredGarments.length}
+                  {garments.length} de {total} cargadas
                 </Text>
               )}
             </View>
             
             <View style={styles.gridContainer}>
-              {visibleGarments.map((garment) => (
+              {filteredGarments.map((garment) => (
                 <View key={garment.id} style={styles.cardWrapper}>
                   <GarmentCard
                     garment={garment}
@@ -266,7 +243,7 @@ export default function ClosetScreen() {
             )}
 
             {/* Mensaje cuando se han cargado todas */}
-            {!hasMore && filteredGarments.length > ITEMS_PER_PAGE && (
+            {!hasMore && garments.length >= 20 && (
               <View style={styles.endMessage}>
                 <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
                 <Text style={styles.endMessageText}>Has visto todas las prendas</Text>
