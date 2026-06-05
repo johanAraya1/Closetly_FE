@@ -170,6 +170,10 @@ const i18n = new I18n({
         aiDetectedByAI: 'Detected by AI',
         aiInfoAnalyzing: 'Analyzing image with AI...',
         aiInfoWaiting: 'Waiting for AI detection...',
+        // Photo tip (max 3 times)
+        photoTipTitle: '📸 Pro tip for best results',
+        photoTipMessage: 'Take the photo with the garment extended against a plain background with good lighting.\n\nThis helps us remove the background for a cleaner look!',
+        photoTipGotIt: 'Got it!',
       },
       category: {
         all: 'All',
@@ -471,6 +475,10 @@ const i18n = new I18n({
         aiDetectedByAI: 'Detectado por IA',
         aiInfoAnalyzing: 'Analizando imagen con IA...',
         aiInfoWaiting: 'Esperando detección de IA...',
+        // Photo tip (max 3 times)
+        photoTipTitle: '📸 Tip para mejores fotos',
+        photoTipMessage: 'Tomá la foto con la prenda extendida contra un fondo liso y con buena luz.\n\n¡Esto nos ayuda a quitarle el fondo para una mejor presentación!',
+        photoTipGotIt: '¡Entendido!',
       },
       category: {
         all: 'Todas',

@@ -14,6 +14,7 @@ import { useGarments } from '@/hooks/useGarments';
 import { useImagePicker } from '@/hooks/useImagePicker';
 import { useAIAnalysis } from '@/hooks/useAIAnalysis';
 import { useTranslation } from '@/hooks/useTranslation';
+import { usePhotoTip } from '@/hooks/usePhotoTip';
 import { useAuthStore } from '@/store/authStore';
 import { GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES, COLORS } from '@/lib/constants';
 import type { GarmentCategory, GarmentSeason, GarmentStyle } from '@/types';
@@ -52,6 +53,7 @@ export default function CreateGarmentScreen() {
   const [errorMessage, setErrorMessage] = useState('');
   const [isFormEnabled, setIsFormEnabled] = useState(false);
   const [aiDetected, setAiDetected] = useState(false);
+  const { showTip } = usePhotoTip();
 
   // Cargar datos de la prenda si estamos editando
   useEffect(() => {
@@ -330,7 +332,7 @@ export default function CreateGarmentScreen() {
                 <TouchableOpacity
                   onPress={() => {
                     setAiDetected(false);
-                    pickImage();
+                    showTip(() => pickImage());
                   }}
                   style={styles.imagePickerButton}
                   disabled={isAnalyzing}
@@ -341,7 +343,7 @@ export default function CreateGarmentScreen() {
                 <TouchableOpacity
                   onPress={() => {
                     setAiDetected(false);
-                    capturePhoto();
+                    showTip(() => capturePhoto());
                   }}
                   style={styles.imagePickerButton}
                   disabled={isAnalyzing}
