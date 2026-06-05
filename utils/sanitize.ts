@@ -88,7 +88,7 @@ export const sanitizeFilename = (filename: string): string => {
 };
 
 /**
- * Sanitiza color (hex o nombre)
+ * Sanitiza color (hex o nombre) — inglés y español
  */
 export const sanitizeColor = (color: string): string => {
   if (!color) return '';
@@ -100,11 +100,25 @@ export const sanitizeColor = (color: string): string => {
     return sanitized;
   }
   
-  // Lista blanca de nombres de colores comunes
+  // Lista blanca de nombres de colores (inglés + español + variantes)
   const validColorNames = [
+    // English
     'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink',
     'black', 'white', 'gray', 'grey', 'brown', 'beige', 'navy',
     'maroon', 'olive', 'teal', 'aqua', 'silver', 'gold',
+    'cream', 'turquoise', 'wine', 'burgundy',
+    // English with modifiers
+    'dark red', 'dark blue', 'dark green', 'dark gray', 'dark grey',
+    'light red', 'light blue', 'light green', 'light gray', 'light grey',
+    'light beige', 'light pink', 'light yellow',
+    // Spanish básicos
+    'rojo', 'azul', 'verde', 'amarillo', 'naranja', 'morado', 'rosa',
+    'negro', 'blanco', 'gris', 'marron', 'marrón', 'cafe', 'café',
+    'beige', 'crema', 'dorado', 'plateado', 'turquesa', 'vino', 'marino',
+    // Spanish variantes
+    'rojo oscuro', 'azul oscuro', 'verde oscuro', 'gris oscuro',
+    'rojo claro', 'azul claro', 'verde claro', 'gris claro',
+    'beige claro', 'rosa claro', 'amarillo claro',
   ];
   
   if (validColorNames.includes(sanitized)) {
