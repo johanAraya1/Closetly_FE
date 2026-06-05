@@ -17,7 +17,6 @@ class AnalyticsService {
    * Inicializar analytics (aquí se conectaría Amplitude/Mixpanel)
    */
   init() {
-    console.log('📊 Analytics initialized');
   }
 
   /**
@@ -33,7 +32,6 @@ class AnalyticsService {
     };
 
     this.eventHistory.push(event);
-    console.log('📊 Analytics Event:', eventName, properties);
 
     // Aquí se enviaría a Amplitude/Mixpanel
     // amplitude.track(eventName, properties);
@@ -45,7 +43,6 @@ class AnalyticsService {
   identify(userId: string, userProperties?: Record<string, any>) {
     if (!this.isEnabled) return;
 
-    console.log('📊 User Identified:', userId, userProperties);
     // amplitude.setUserId(userId);
     // amplitude.setUserProperties(userProperties);
   }

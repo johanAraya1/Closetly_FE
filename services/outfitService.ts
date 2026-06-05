@@ -67,8 +67,6 @@ export const getOutfits = async (userId: string): Promise<ApiResponse<Outfit[]>>
     garments: (outfit.garmentIds || []).map((id: string) => garmentsMap.get(id)).filter(Boolean),
   }));
   
-  console.log('✅ Outfits con prendas completos (batch)');
-  
   return { data: outfitsWithGarments };
 };
 

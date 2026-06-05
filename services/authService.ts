@@ -84,8 +84,7 @@ export const register = async (credentials: RegisterCredentials): Promise<ApiRes
     };
 
     const { fetchWithTimeout } = await import('@/utils/fetchUtils');
-    console.log('Registering user:', payload.email);
-    
+
     const response = await fetchWithTimeout(`${API_URL}/auth/register`, {
       method: 'POST',
       headers: {
@@ -96,8 +95,6 @@ export const register = async (credentials: RegisterCredentials): Promise<ApiRes
     });
 
     const data = await response.json();
-    console.log('Register response status:', response.status);
-    console.log('Register response data:', JSON.stringify(data, null, 2));
 
     if (!response.ok) {
       return { error: data.error || data.message || 'Registration failed' };

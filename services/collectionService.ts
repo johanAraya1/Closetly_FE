@@ -23,7 +23,6 @@ export const getCollections = async (userId: string): Promise<ApiResponse<Collec
       `/collections?userId=${userId}`
     );
     
-    console.log('📦 Collections response:', collectionsResponse);
     
     if (!collectionsResponse.data || collectionsResponse.error) {
       return { data: [], error: collectionsResponse.error };
@@ -39,9 +38,6 @@ export const getCollections = async (userId: string): Promise<ApiResponse<Collec
           `/collections/${collection.id}/outfits`
         );
         
-        console.log(`� Raw response for collection "${collection.name}":`, outfitsResponse);
-        console.log(`📦 Outfits data:`, outfitsResponse.data);
-        console.log(`�👕 Collection "${collection.name}" outfits:`, outfitsResponse.data?.length || 0);
         
         const outfits = outfitsResponse.data || [];
         
@@ -76,7 +72,6 @@ export const getCollections = async (userId: string): Promise<ApiResponse<Collec
       }
     }
     
-    console.log('✅ Final collections with outfits:', collectionsWithOutfits);
     
     return { data: collectionsWithOutfits };
   } catch (error) {
@@ -90,14 +85,12 @@ export const getCollections = async (userId: string): Promise<ApiResponse<Collec
  */
 export const getCollectionById = async (id: string, userId: string): Promise<ApiResponse<Collection>> => {
   try {
-    console.log('🔍 Fetching collection by ID:', id);
     
     // Obtener todas las colecciones del usuario
     const collectionsResponse = await apiClient.get<any[]>(
       `/collections?userId=${userId}`
     );
     
-    console.log('📦 Collections response:', collectionsResponse);
     
     if (collectionsResponse.error || !collectionsResponse.data) {
       return { error: collectionsResponse.error || 'Failed to fetch collections' };
@@ -111,13 +104,10 @@ export const getCollectionById = async (id: string, userId: string): Promise<Api
       return { error: 'Collection not found' };
     }
     
-    console.log('✅ Collection data:', collection);
     
     // Obtener los outfits de esta colección
     const outfitsResponse = await apiClient.get<any[]>(`/collections/${id}/outfits`);
     
-    console.log('👕 Outfits response:', outfitsResponse);
-    console.log('👕 Outfits data detail:', JSON.stringify(outfitsResponse.data, null, 2));
     
     const outfitsData = outfitsResponse.data || [];
     
@@ -155,7 +145,6 @@ export const getCollectionById = async (id: string, userId: string): Promise<Api
       })
     );
     
-    console.log('✅ Outfits with garments:', outfitsWithGarments);
     
     const outfits = outfitsWithGarments;
     
@@ -203,11 +192,9 @@ export const createCollection = async (
     outfitIds: collectionData.outfitIds || [],
   };
 
-  console.log('🆕 Creating collection with payload:', payload);
 
   const response = await apiClient.post<Collection>('/collections', payload);
   
-  console.log('✅ Create collection response:', response);
 
   return response;
 };

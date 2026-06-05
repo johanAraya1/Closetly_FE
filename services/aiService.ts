@@ -80,7 +80,6 @@ export async function analyzeGarmentImage(
     }
 
     const result = await aiResponse.json();
-    console.log('AI Response:', result);
 
     // La respuesta puede venir como { data: {...} } o directamente {...}
     const analysisData = result.data || result;
