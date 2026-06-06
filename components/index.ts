@@ -17,5 +17,6 @@ export * from './OfflineBanner';
 export * from './SkeletonCard';
 export * from './AdminRoute';
 export * from './GarmentVisibilityForm';
+export * from './ListingTypeBadge';
 export { default as OutfitPreview } from './OutfitPreview';
 

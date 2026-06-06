@@ -328,6 +328,12 @@ const i18n = new I18n({
         },
       },
     },
+    marketplace: {
+      title: 'Marketplace',
+      tabTitle: 'Marketplace',
+      emptyTitle: 'Publish your first garment',
+      emptyMessage: 'Share your clothes with the community. Make your garments public from your closet so they appear here.',
+    },
     profile: {
       title: 'Profile',
       settings: 'Settings',
@@ -647,6 +653,12 @@ const i18n = new I18n({
           other: '{{count}} prendas',
         },
       },
+    },
+    marketplace: {
+      title: 'Marketplace',
+      tabTitle: 'Marketplace',
+      emptyTitle: 'Publicá tu primera prenda',
+      emptyMessage: 'Compartí tus prendas con la comunidad. Hacé públicas tus prendas desde tu closet para que aparezcan acá.',
     },
     profile: {
       title: 'Perfil',

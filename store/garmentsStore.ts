@@ -117,18 +117,18 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => {
     const tempId = `temp-${Date.now()}`;
     const optimisticGarment: Garment = {
       id: tempId,
-      user_id: userId,
+      userId: userId,
       name: data.name,
       category: data.category,
-      brand: data.brand || null,
-      color: data.color || null,
+      brand: data.brand,
+      color: data.color,
       season: data.season,
-      image_url: data.image_url || data.imageUrl || '',
-      notes: data.notes || null,
-      is_public: data.isPublic ?? false,
-      listing_type: data.isPublic && data.listingType ? data.listingType : null,
-      created_at: new Date().toISOString(),
-      updated_at: new Date().toISOString(),
+      imageUrl: data.imageUrl || '',
+      notes: data.notes,
+      isPublic: data.isPublic ?? false,
+      listingType: data.isPublic && data.listingType ? data.listingType : undefined,
+      createdAt: new Date().toISOString(),
+      updatedAt: new Date().toISOString(),
     };
 
     set((state) => ({
