@@ -46,7 +46,10 @@ function MarketplaceScreen() {
     <TouchableOpacity
       style={styles.card}
       activeOpacity={0.7}
-      onPress={() => {}}
+      onPress={() => (router as any).push({
+            pathname: '/marketplace/[id]',
+            params: { id: item.id },
+          })}
     >
       <View style={styles.cardImageContainer}>
         {(item as any).image_url ? (
@@ -74,6 +77,12 @@ function MarketplaceScreen() {
         >
           {item.name}
         </Text>
+        <View style={styles.cardUserRow}>
+          <Ionicons name="person-circle-outline" size={14} color="#9CA3AF" />
+          <Text style={styles.cardUserText}>
+            @usuario_{item.userId.slice(0, 8)}
+          </Text>
+        </View>
       </View>
     </TouchableOpacity>
   ), []);
@@ -235,6 +244,17 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: '#111827',
     lineHeight: 16,
+  },
+  cardUserRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginTop: 6,
+  },
+  cardUserText: {
+    fontSize: 11,
+    color: '#9CA3AF',
+    fontWeight: '400',
   },
   footer: {
     flexDirection: 'row',
