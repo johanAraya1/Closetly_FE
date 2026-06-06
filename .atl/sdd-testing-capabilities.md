@@ -1,7 +1,7 @@
 # Testing Capabilities — Closetly FE
 
 **Strict TDD Mode**: ❌ Disabled
-**Detected**: 2026-06-04
+**Detected**: 2026-06-06
 **Rationale**: No test runner, test framework, or test files found in the FE project. Must evaluate and set up before TDD can be enabled.
 
 ---

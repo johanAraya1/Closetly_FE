@@ -129,6 +129,18 @@ export const getColorFromName = (colorName: string): string => {
 /**
  * Formatea un enum a texto legible con traducción
  */
+/**
+ * Retorna el color asociado a un tipo de listing
+ */
+export const getListingTypeColor = (type: string): string => {
+  const colorMap: Record<string, string> = {
+    sell: '#10B981',
+    trade: '#8B5CF6',
+    giveaway: '#F97316',
+  };
+  return colorMap[type] || '#9CA3AF';
+};
+
 export const formatEnumValue = (value: string): string => {
   // Mapeo de categorías del backend (inglés) a español
   const categoryTranslations: Record<string, string> = {

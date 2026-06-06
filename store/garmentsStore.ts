@@ -125,6 +125,8 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => {
       season: data.season,
       image_url: data.image_url || data.imageUrl || '',
       notes: data.notes || null,
+      is_public: data.isPublic ?? false,
+      listing_type: data.isPublic && data.listingType ? data.listingType : null,
       created_at: new Date().toISOString(),
       updated_at: new Date().toISOString(),
     };

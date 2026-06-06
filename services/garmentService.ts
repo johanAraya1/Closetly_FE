@@ -171,6 +171,12 @@ export const createGarment = async (
       }
     }
     
+    // Append visibility fields
+    formData.append('is_public', String(garmentData.isPublic ?? false));
+    if (garmentData.isPublic && garmentData.listingType) {
+      formData.append('listing_type', garmentData.listingType);
+    }
+    
     const headers: Record<string, string> = {};
     
     if (token) {
@@ -241,6 +247,14 @@ export const updateGarment = async (
     
     if (updates.season !== undefined) {
       body.season = updates.season;
+    }
+    
+    if (updates.isPublic !== undefined) {
+      body.is_public = updates.isPublic;
+      // Solo enviar listing_type cuando is_public es true y listingType tiene valor
+      if (updates.isPublic && updates.listingType) {
+        body.listing_type = updates.listingType;
+      }
     }
     
     // NO enviar imageUrl - el backend no permite actualizar la imagen

@@ -201,6 +201,20 @@ const i18n = new I18n({
         bohemio: 'Bohemian',
         urbano: 'Urban',
       },
+      listingType: {
+        label: 'Listing Type',
+        sell: 'Sell',
+        trade: 'Trade',
+        giveaway: 'Give Away',
+        sellDescription: 'Monetize your wardrobe — sell to other users',
+        tradeDescription: 'Exchange garments with other users',
+        giveawayDescription: 'Give it a second life — donate to someone who needs it',
+      },
+      isPublic: {
+        label: 'Public',
+        tooltip: 'Public garments are visible to everyone in the marketplace. Other users can see, browse, and interact with your garment.',
+        hint: 'Make this garment visible to everyone',
+      },
     },
     outfits: {
       title: 'My Outfits',
@@ -506,6 +520,20 @@ const i18n = new I18n({
         elegante: 'Elegante',
         bohemio: 'Bohemio',
         urbano: 'Urbano',
+      },
+      listingType: {
+        label: 'Tipo de listing',
+        sell: 'Vender',
+        trade: 'Intercambiar',
+        giveaway: 'Regalar',
+        sellDescription: 'Monetizá tu guardarropa — vendé a otros usuarios',
+        tradeDescription: 'Intercambiá prendas con otros usuarios',
+        giveawayDescription: 'Dale una segunda vida — donalo a quien lo necesite',
+      },
+      isPublic: {
+        label: 'Público',
+        tooltip: 'Las prendas públicas son visibles para todos en el marketplace. Otros usuarios pueden ver, explorar e interactuar con tu prenda.',
+        hint: 'Hacé esta prenda visible para todos',
       },
     },
     outfits: {

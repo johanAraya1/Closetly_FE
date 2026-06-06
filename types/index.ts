@@ -48,6 +48,8 @@ export interface RegisterCredentials {
 
 // ==================== GARMENT (PRENDA) ====================
 
+export type ListingType = 'sell' | 'trade' | 'giveaway';
+
 export type GarmentCategory = 
   | 'tops'
   | 'bottoms'
@@ -80,6 +82,8 @@ export interface Garment {
   style?: GarmentStyle;
   imageUrl: string;
   notes?: string;
+  isPublic?: boolean;
+  listingType?: ListingType;
   createdAt: string;
   updatedAt: string;
 }
@@ -94,6 +98,8 @@ export interface CreateGarmentDTO {
   style?: GarmentStyle;
   imageUrl: string;
   notes?: string;
+  isPublic?: boolean;
+  listingType?: ListingType;
 }
 
 export interface UpdateGarmentDTO {
@@ -106,6 +112,8 @@ export interface UpdateGarmentDTO {
   style?: GarmentStyle;
   imageUrl?: string;
   notes?: string;
+  isPublic?: boolean;
+  listingType?: ListingType;
 }
 
 // ==================== OUTFIT ====================

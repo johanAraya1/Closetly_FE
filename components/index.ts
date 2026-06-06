@@ -16,5 +16,6 @@ export * from './ErrorBoundary';
 export * from './OfflineBanner';
 export * from './SkeletonCard';
 export * from './AdminRoute';
+export * from './GarmentVisibilityForm';
 export { default as OutfitPreview } from './OutfitPreview';
 

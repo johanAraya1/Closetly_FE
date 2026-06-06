@@ -1,0 +1,85 @@
+# openspec/config.yaml
+schema: spec-driven
+
+context: |
+  Tech stack:
+    Framework: React Native 0.73 + Expo SDK ~50.0.0
+    Language: TypeScript 5.3.3 (strict mode)
+    Navigation: expo-router ~3.4.0 (file-based routing)
+    State: Zustand ^4.4.7
+    Styling: NativeWind (Tailwind CSS) + StyleSheet
+    HTTP: Custom fetchWithTimeout wrapper (no Axios)
+    Auth: JWT tokens stored in expo-secure-store
+    i18n: i18n-js ^4.5.1
+    Icons: @expo/vector-icons (Ionicons)
+    BE: NestJS 10 (separate repo at Closetly_BE)
+
+  Architecture:
+    Screen -> Hook -> Zustand Store -> Service -> fetch() -> Backend API
+    Route groups: (auth)/ = unauthenticated, (tabs)/ = main authenticated
+    Path aliases: @/ -> root, @components/, @hooks/, @services/, @store/, @lib/, @utils/, @types/
+
+  Testing: NONE — no test runner, no test framework, zero test files
+    Strict TDD: false (cannot enable without test infrastructure)
+
+  Style:
+    ESLint ^8.56 (no config file — runs on defaults)
+    TypeScript strict (tsc --noEmit)
+    No formatter (no prettier)
+    camelCase file names, PascalCase components, .ts logic / .tsx JSX
+    Spanish JSDoc in services/hooks/stores, English types/DTOs
+
+  CI:
+    GitHub Actions: EAS Update on push to main -> preview + production OTA channels
+    Vercel: web export via npx expo export --platform web
+
+rules:
+  proposal:
+    - Include rollback plan for risky changes
+  specs:
+    - Use Given/When/Then for scenarios
+    - Use RFC 2119 keywords (MUST, SHALL, SHOULD, MAY)
+  design:
+    - Include sequence diagrams for complex flows
+    - Document architecture decisions with rationale
+  tasks:
+    - Group by phase, use hierarchical numbering
+    - Keep tasks completable in one session
+  apply:
+    - Follow existing code patterns (Screen -> Hook -> Store -> Service)
+    tdd: false
+    test_command: ""
+  verify:
+    test_command: ""
+    build_command: "npx expo export --platform web"
+    coverage_threshold: 0
+  archive:
+    - Warn before merging destructive deltas
+
+testing:
+  strict_tdd: false
+  runner: none
+  layers:
+    unit:
+      available: false
+      tool: null
+    integration:
+      available: false
+      tool: null
+    e2e:
+      available: false
+      tool: null
+  coverage:
+    available: false
+    command: null
+  quality:
+    linter:
+      available: true
+      command: "eslint ."
+      note: "No .eslintrc* file — relies on defaults"
+    type_checker:
+      available: true
+      command: "tsc --noEmit"
+    formatter:
+      available: false
+      command: null

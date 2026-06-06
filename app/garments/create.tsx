@@ -8,7 +8,7 @@ import { View, Text, ScrollView, Image, Alert, TouchableOpacity, StyleSheet } fr
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Input, Modal } from '@/components';
+import { Button, Input, Modal, GarmentVisibilityForm } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useImagePicker } from '@/hooks/useImagePicker';
@@ -17,7 +17,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { usePhotoTip } from '@/hooks/usePhotoTip';
 import { useAuthStore } from '@/store/authStore';
 import { GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES, COLORS } from '@/lib/constants';
-import type { GarmentCategory, GarmentSeason, GarmentStyle } from '@/types';
+import type { GarmentCategory, GarmentSeason, GarmentStyle, ListingType } from '@/types';
 
 export default function CreateGarmentScreen() {
   const router = useRouter();
@@ -36,6 +36,8 @@ export default function CreateGarmentScreen() {
   const [seasons, setSeasons] = useState<GarmentSeason[]>(['all_season']);
   const [style, setStyle] = useState<GarmentStyle>('casual');
   const [notes, setNotes] = useState('');
+  const [isPublic, setIsPublic] = useState(false);
+  const [listingType, setListingType] = useState<ListingType | null>(null);
   const [errors, setErrors] = useState<{ 
     name?: string; 
     image?: string; 
@@ -73,6 +75,8 @@ export default function CreateGarmentScreen() {
         }
         setStyle(garment.style || 'casual');
         setNotes(garment.notes || '');
+        setIsPublic((garment as any).is_public ?? false);
+        setListingType((garment as any).listing_type ?? null);
         setEditImageUri(garment.image_url);
         setLastAnalyzedUri(garment.image_url);
         setIsFormEnabled(true); // Habilitar formulario en modo edición
@@ -228,6 +232,8 @@ export default function CreateGarmentScreen() {
           season: seasonValue,
           style,
           notes: notes.trim() || undefined,
+          isPublic,
+          ...(isPublic && listingType ? { listingType } : {}),
         };
 
         // Actualizar prenda existente (sin enviar image_url)
@@ -252,6 +258,8 @@ export default function CreateGarmentScreen() {
           style,
           image_url: imageUrl || '',
           notes: notes.trim() || undefined,
+          isPublic,
+          ...(isPublic && listingType ? { listingType } : {}),
         }, token || undefined);
 
         setIsLoading(false);
@@ -486,6 +494,13 @@ export default function CreateGarmentScreen() {
                 numberOfLines={3}
               />
 
+              <GarmentVisibilityForm
+                isPublic={isPublic}
+                listingType={listingType}
+                onIsPublicChange={setIsPublic}
+                onListingTypeChange={setListingType}
+              />
+
               <View style={styles.buttonContainer}>
                 <Button
                   title={isEditMode ? t('garments.create.saveChanges') : t('garments.create.addToCloset')}
@@ -519,6 +534,8 @@ export default function CreateGarmentScreen() {
               setSeasons(['all_season']);
               setStyle('casual');
               setNotes('');
+              setIsPublic(false);
+              setListingType(null);
               setEditImageUri(null);
               setLastAnalyzedUri(null);
               setAiDetected(false);

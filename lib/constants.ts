@@ -3,6 +3,8 @@
  * Valores constantes utilizados en toda la aplicación
  */
 
+import type { ListingType } from '@/types';
+
 // API base URL (normalize: remove trailing slash). Supports multiple env var names
 const RAW_API_URL =
   process.env.EXPO_PUBLIC_API_URL ||
@@ -86,6 +88,12 @@ export const GARMENT_STYLES = [
   { value: 'elegante', label: 'Elegante' },
   { value: 'bohemio', label: 'Bohemio' },
   { value: 'urbano', label: 'Urbano' },
+];
+
+export const LISTING_TYPES: { value: ListingType; labelKey: string; descriptionKey: string; color: string }[] = [
+  { value: 'sell', labelKey: 'garments.listingType.sell', descriptionKey: 'garments.listingType.sellDescription', color: '#10B981' },
+  { value: 'trade', labelKey: 'garments.listingType.trade', descriptionKey: 'garments.listingType.tradeDescription', color: '#8B5CF6' },
+  { value: 'giveaway', labelKey: 'garments.listingType.giveaway', descriptionKey: 'garments.listingType.giveawayDescription', color: '#F97316' },
 ];
 
 export const STORAGE_KEYS = {

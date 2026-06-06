@@ -1,8 +1,8 @@
 # SDD Project Context — Closetly
 
 **Status**: Initialized
-**Date**: 2026-06-04
-**Mode**: Local file persistence (Engram unavailable)
+**Date**: 2026-06-06
+**Mode**: openspec (file-based at `openspec/`)
 **Strict TDD**: ❌ Disabled (no test runner on FE)
 
 ---
@@ -32,7 +32,7 @@
 | Auth | Custom (JWT + SecureStore) |
 | HTTP | `fetchWithTimeout` wrapper |
 | i18n | i18n-js ^4.5.1 |
-| Styling | Tailwind CSS (NativeWind) + StyleSheet |
+| Styling | NativeWind (Tailwind CSS) + StyleSheet |
 | Image | expo-image-picker, expo-image-manipulator |
 | Icons | @expo/vector-icons (Ionicons) |
 
@@ -57,7 +57,7 @@
 
 ```
 Closetly_FE/
-├── app/                    # expo-router pages
+├── app/                    # expo-router pages (19 screens)
 │   ├── _layout.tsx         # Root layout (auth guard)
 │   ├── index.tsx           # Entry point
 │   ├── (auth)/             # Auth group (onboarding, login, register)
@@ -65,24 +65,38 @@ Closetly_FE/
 │   ├── garments/
 │   │   └── create.tsx      # Create/edit garment screen
 │   ├── collections/
+│   │   ├── create.tsx
+│   │   └── [id].tsx
 │   ├── outfits/
+│   │   ├── index.tsx
+│   │   └── create.tsx
 │   ├── admin/
+│   │   └── dashboard.tsx
 │   └── settings.tsx
 ├── components/             # Reusable UI (16 files, barrel export via index.ts)
-├── hooks/                  # Custom hooks (9 files)
-├── store/                  # Zustand stores (4 files)
+├── hooks/                  # Custom hooks (10 files)
+├── store/                  # Zustand stores (4 files: auth, garments, outfits, collections)
 ├── services/               # API service layer (9 files)
-├── utils/                  # Utilities (9 files)
+├── utils/                  # Utilities (9 files incl. apiClient, fetchUtils, format, etc.)
 ├── lib/                    # Constants, i18n config
 ├── types/                  # TypeScript types/entities
 ├── contexts/               # React contexts (ThemeContext)
 ├── assets/                 # Static assets
+├── openspec/               # SDD configuration (init phase)
+│   ├── config.yaml
+│   ├── specs/
+│   └── changes/
+│       └── archive/
+└── .atl/                   # Local agent artifacts
+    ├── sdd-project-context.md
+    ├── sdd-testing-capabilities.md
+    └── skill-registry.md
 ```
 
 ## Architecture Pattern (FE)
 
 ```
-Screen → Hook → Zustand Store → Service → fetch() → Backend API
+Screen -> Hook -> Zustand Store -> Service -> fetch() -> Backend API
 ```
 
 - **Screen**: Page component (ex: `app/garments/create.tsx`)
@@ -115,7 +129,7 @@ Screen → Hook → Zustand Store → Service → fetch() → Backend API
 - Input sanitization via `@/utils/sanitize` on user-facing fields
 
 ### Path Aliases
-- `@/` → project root
+- `@/` -> project root
 - `@components/`, `@hooks/`, `@services/`, `@store/`, `@lib/`, `@utils/`, `@types/`
 
 ### Route Groups
@@ -124,65 +138,15 @@ Screen → Hook → Zustand Store → Service → fetch() → Backend API
 
 ---
 
-## Garment Creation Flow
+## Known Risks & Observations
 
-### Frontend Flow
-```
-1. User opens /garments/create
-2. Selects/takes photo (useImagePicker → pickImageFromGallery / takePhoto)
-3. Image auto-analyzed by AI (useAIAnalysis → POST /api/ai/analyze-garment)
-4. AI fills: name, category, color, brand, season, description (confidence-based)
-5. User reviews/edits form fields
-6. Submit → store.garmentsStore.createGarment() → service.garmentService.createGarment()
-7. Service builds FormData with fields + image
-8. POST to /api/garments (multipart/form-data)
-9. Optimistic update in store: temp ID → real garment on success
-10. Success/error modals shown
-```
-
-### Backend Flow
-```
-1. garments.controller.ts — POST /api/garments
-   - Guards: SupabaseAuthGuard (JWT validation)
-   - Accepts multipart (file) OR JSON (imageUrl)
-   - Validates with CreateGarmentDto (class-validator)
-   - Normalizes season via NormalizeSeasonPipe ('all-season' → 'all_season')
-
-2. create-garment.use-case.ts
-   - If file: uploads to Supabase Storage → gets public URL
-   - If imageUrl: uses directly (from AI analysis)
-   - Creates DB record via repository
-
-3. garment.repository.ts (Supabase)
-   - INSERT INTO garments (user_id, name, category, brand, color, season, style, image_url, notes)
-   - Season serialized as JSON string if array
-   - snake_case DB columns → camelCase domain entity mapping
-
-4. storage.service.ts
-   - uploadFile: Supabase Storage bucket → public URL
-   - deleteFile: Remove from bucket
-   - getPublicUrl: Generate public URL
-```
-
-### Data Model (DB → Entity → FE Type)
-```
-DB (snake_case):       BE Entity (camelCase):    FE Type (mixed):
-─────────────────────────────────────────────────────────────
-id                     id                        id
-user_id                userId                    userId / user_id
-name                   name                      name
-category               category                  category
-brand                  brand                     brand
-color                  color                     color
-season                 season                    season
-style                  style                     style
-image_url              imageUrl                  image_url / imageUrl
-notes                  notes                     notes
-created_at             createdAt                 createdAt / created_at
-updated_at             updatedAt                 updatedAt / updated_at
-```
-
-⚠ **Notable**: `image_url` field mapping is inconsistent in FE — `Garment.type` uses `imageUrl`, but `garmentService.ts` references `image_url`.
+1. **No tests on FE** — zero test dependencies, zero spec files. TDD not possible without setup.
+2. **camelCase/snake_case inconsistency** — FE types use camelCase (`imageUrl`, `userId`), but services/fetch layer sometimes maps snake_case (`image_url`).
+3. **No ESLint config** — `package.json` has `"lint": "eslint ."` but no `.eslintrc*` file.
+4. **No .env files** — No `.env.example` or `.env`; env vars use `EXPO_PUBLIC_` prefix.
+5. **`all-season` vs `all_season`** — Converted at both FE service and BE controller. Risk of mismatch.
+6. **Empty Tailwind config** — `tailwind.config.js` has empty `content: []` and no theme extensions.
+7. **Analytics at module level** — `analytics.init()` called as side effect in `_layout.tsx`.
 
 ---
 
@@ -190,18 +154,8 @@ updated_at             updatedAt                 updatedAt / updated_at
 
 | Artifact | Status |
 |---|---|
-| `.atl/` directory | ✅ Created (this session) |
-| `openspec/` directory | ❌ Does not exist |
+| `.atl/` directory | ✅ Existing (updated this session) |
+| `openspec/` directory | ✅ Existing (updated this session) |
+| `openspec/config.yaml` | ✅ Created this session |
+| `openspec/specs/` | ✅ Created this session |
 | `sdd-*` folders | ❌ None |
-
----
-
-## Notable Observations / Risks
-
-1. **No tests on FE** — zero test dependencies, zero spec files. TDD not possible without setup.
-2. **camelCase/snake_case inconsistency** — FE types use camelCase (`imageUrl`, `userId`), but services/fetch layer sometimes map snake_case (`image_url`). Both BE entity and FE type define the model differently.
-3. **Missing ESLint config** — `package.json` has `"lint": "eslint ."` but no `.eslintrc*` file exists.
-4. **No .env files** — No `.env.example` or `.env` on FE; all env vars in code are prefixed `EXPO_PUBLIC_`.
-5. **`all-season` ↔ `all_season`** — Converted manually at both FE service and BE controller layer. Risk of mismatch.
-6. **Tailwind config is empty** — `tailwind.config.js` has empty `content: []` and no theme extensions.
-7. **Analytics initialized at module level** — `analytics.init()` called as side effect in `_layout.tsx`.

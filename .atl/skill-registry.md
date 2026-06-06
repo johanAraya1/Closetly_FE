@@ -1,7 +1,7 @@
 # SDD Skill Registry — Closetly
 
-**Generated**: 2026-06-04
-**Scope**: User-level skills from `~/.config/opencode/skills/` and `~/.claude/skills/`
+**Generated**: 2026-06-06
+**Scope**: User-level skills from `~/.config/opencode/skills/`, `~/.claude/skills/`, `~/.agents/skills/`, `~/.copilot/skills/`
 
 ---
 
@@ -10,8 +10,10 @@
 | File | Path | Status |
 |---|---|---|
 | AGENTS.md | Root | ❌ Not found |
-| .clinerules | Root | ❌ Not found |
 | CLAUDE.md | Root | ❌ Not found |
+| .cursorrules | Root | ❌ Not found |
+| GEMINI.md | Root | ❌ Not found |
+| copilot-instructions.md | Root | ❌ Not found |
 
 ---
 
@@ -47,6 +49,12 @@
 | skill-improver | `~/.config/opencode/skills/skill-improver/SKILL.md` | Audit/upgrade skills |
 | skill-registry | `~/.config/opencode/skills/skill-registry/SKILL.md` | Index available skills |
 | work-unit-commits | `~/.config/opencode/skills/work-unit-commits/SKILL.md` | Plan commits as reviewable units |
+
+## Agent Instructions
+
+| File | Path |
+|---|---|
+| AGENTS.md (user) | `C:\Users\johan\.config\opencode\AGENTS.md` |
 
 ---
 
