@@ -227,3 +227,14 @@ export interface ImageUploadResult {
   url: string;
   path: string;
 }
+
+// ==================== PUBLIC PROFILE ====================
+
+export interface PublicProfileResult {
+  userId: string;
+  username?: string;
+  fullName?: string;
+  bio?: string;
+  avatarUrl?: string;
+  createdAt: string; // ISO date from BE
+}

@@ -4,15 +4,16 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, RefreshControl } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, RefreshControl, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ListingTypeBadge, Loading, EmptyState, withScreenErrorBoundary } from '@/components';
+import { apiClient } from '@/utils/apiClient';
 import { useMarketplaceStore } from '@/store/marketplaceStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS, GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES } from '@/lib/constants';
-import type { Garment } from '@/types';
+import type { Garment, PublicProfileResult } from '@/types';
 
 function MarketplaceGarmentDetailScreen() {
   const router = useRouter();
@@ -21,6 +22,24 @@ function MarketplaceGarmentDetailScreen() {
   const { garments, isLoading, loadPublicGarments } = useMarketplaceStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notFound, setNotFound] = useState(false);
+
+  // Profile state
+  const [profile, setProfile] = useState<PublicProfileResult | null>(null);
+  const [profileLoading, setProfileLoading] = useState(false);
+
+  const fetchPublicProfile = useCallback(async (userId: string) => {
+    setProfileLoading(true);
+    try {
+      const res = await apiClient.get<PublicProfileResult>('/users/public/' + userId, { requiresAuth: false });
+      if (res.data) {
+        setProfile(res.data);
+      }
+    } catch {
+      // Silently fail — fallback shows generic label
+    } finally {
+      setProfileLoading(false);
+    }
+  }, []);
 
   const garment = garments.find((g) => g.id === id);
 
@@ -32,6 +51,12 @@ function MarketplaceGarmentDetailScreen() {
       setNotFound(true);
     }
   }, [id, garment, garments.length, isLoading]);
+
+  useEffect(() => {
+    if (garment) {
+      fetchPublicProfile(garment.userId);
+    }
+  }, [garment, fetchPublicProfile]);
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -196,23 +221,42 @@ function MarketplaceGarmentDetailScreen() {
 
           <View style={styles.userCard}>
             <View style={styles.userRow}>
-              <Ionicons name="person-circle-outline" size={40} color={COLORS.gray[400]} />
+              {profileLoading ? (
+                <ActivityIndicator size="small" color={COLORS.primary} />
+              ) : profile?.avatarUrl ? (
+                <Image source={{ uri: profile.avatarUrl }} style={styles.userAvatar} />
+              ) : (
+                <Ionicons name="person-circle-outline" size={40} color={COLORS.gray[400]} />
+              )}
               <View style={styles.userInfo}>
-                <Text style={styles.userIdLabel}>
-                  @usuario_{garment.userId.slice(0, 8)}
-                </Text>
-                <Text style={styles.userIdHint}>
-                  ID: {garment.userId.slice(0, 12)}...
-                </Text>
+                {profile ? (
+                  <>
+                    <Text style={styles.userIdLabel}>
+                      @{profile.username || `usuario_${garment.userId.slice(0, 8)}`}
+                    </Text>
+                    {profile.fullName && (
+                      <Text style={styles.userFullName}>{profile.fullName}</Text>
+                    )}
+                  </>
+                ) : (
+                  <>
+                    <Text style={styles.userIdLabel}>
+                      @usuario_{garment.userId.slice(0, 8)}
+                    </Text>
+                    <Text style={styles.userIdHint}>
+                      ID: {garment.userId.slice(0, 12)}...
+                    </Text>
+                  </>
+                )}
               </View>
             </View>
 
             <TouchableOpacity
               style={styles.profileButton}
               activeOpacity={0.7}
-              onPress={() => {}} // Disabled for now
+              onPress={() => (router as any).push('/users/' + garment.userId)}
             >
-              <Ionicons name="person-outline" size={16} color={COLORS.gray[400]} />
+              <Ionicons name="person-outline" size={16} color={COLORS.gray[600]} />
               <Text style={styles.profileButtonText}>Ver perfil</Text>
             </TouchableOpacity>
           </View>
@@ -349,6 +393,17 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginTop: 2,
   },
+  userAvatar: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    backgroundColor: '#F3F4F6',
+  },
+  userFullName: {
+    fontSize: 13,
+    color: '#6B7280',
+    marginTop: 2,
+  },
   profileButton: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -360,12 +415,11 @@ const styles = StyleSheet.create({
     borderWidth: 1,
     borderColor: '#E5E7EB',
     backgroundColor: '#FFFFFF',
-    opacity: 0.5,
   },
   profileButtonText: {
     fontSize: 14,
     fontWeight: '600',
-    color: '#6B7280',
+    color: '#374151',
   },
 });
 
