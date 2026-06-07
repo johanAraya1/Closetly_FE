@@ -3,16 +3,18 @@
  * Pantalla principal con resumen de outfits y accesos rápidos
  */
 
-import React, { useState, useCallback, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert } from 'react-native';
+import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert, Animated, Easing, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, OutfitCard, Loading, EmptyState } from '@/components';
+import { Button, OutfitCard, Loading, EmptyState, SkeletonCard } from '@/components';
+import type { Garment } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
+import { useSuggestionsStore } from '@/store/suggestionsStore';
 import { withScreenErrorBoundary } from '@/components';
 
 function HomeScreen() {
@@ -21,6 +23,45 @@ function HomeScreen() {
   const { outfits, isLoading, loadOutfits } = useOutfits();
   const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
+  const [expandedSuggestion, setExpandedSuggestion] = useState<string | null>(null);
+  const spinAnim = useRef(new Animated.Value(0)).current;
+
+  const {
+    suggestions,
+    garments: suggestionGarments,
+    weather,
+    isLoading: suggestionsLoading,
+    error: suggestionsError,
+    fetchSuggestions,
+    lastUpdated,
+  } = useSuggestionsStore();
+
+  // Fetch suggestions on mount
+  useEffect(() => {
+    fetchSuggestions();
+  }, []);
+
+  // Spinning animation for refresh icon
+  useEffect(() => {
+    if (suggestionsLoading) {
+      const animation = Animated.loop(
+        Animated.timing(spinAnim, {
+          toValue: 1,
+          duration: 1000,
+          easing: Easing.linear,
+          useNativeDriver: true,
+        }),
+      );
+      animation.start();
+      return () => animation.stop();
+    }
+    spinAnim.setValue(0);
+  }, [suggestionsLoading]);
+
+  const spinInterpolation = spinAnim.interpolate({
+    inputRange: [0, 1],
+    outputRange: ['0deg', '360deg'],
+  });
 
   const favoriteOutfits = outfits.filter((o) => o.is_favorite);
   const recentOutfits = outfits.slice(0, 5);
@@ -96,6 +137,29 @@ function HomeScreen() {
           </View>
         </View>
 
+        {/* Weather Card */}
+        {weather && (
+          <View style={styles.weatherCard}>
+            <View style={styles.weatherRow}>
+              <View style={styles.weatherInfo}>
+                <Text style={styles.weatherTemp}>
+                  {Math.round(weather.temp)}°
+                </Text>
+                <Text style={styles.weatherCondition}>
+                  {weather.description}
+                </Text>
+              </View>
+              <View style={styles.weatherIconContainer}>
+                <Image
+                  source={{ uri: `https://openweathermap.org/img/wn/${weather.icon}@2x.png` }}
+                  style={styles.weatherIcon}
+                  resizeMode="contain"
+                />
+              </View>
+            </View>
+          </View>
+        )}
+
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
@@ -132,6 +196,147 @@ function HomeScreen() {
               <Text style={styles.actionText}>{t('home.browse')}</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* AI Outfit Suggestions */}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              {t('home.suggestionsToday')}
+            </Text>
+            <TouchableOpacity
+              onPress={() => fetchSuggestions()}
+              style={styles.refreshButton}
+              disabled={suggestionsLoading}
+              accessibilityLabel={t('home.refresh')}
+            >
+              <Animated.View style={{ transform: [{ rotate: spinInterpolation }] }}>
+                <Ionicons
+                  name="refresh"
+                  size={20}
+                  color={suggestionsLoading ? COLORS.gray[400] : COLORS.primary}
+                />
+              </Animated.View>
+            </TouchableOpacity>
+          </View>
+
+          {/* Loading skeletons */}
+          {suggestionsLoading && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.suggestionsScroll}
+            >
+              {Array.from({ length: 3 }).map((_, i) => (
+                <View key={i} style={styles.suggestionSkeleton}>
+                  <SkeletonCard height={160} borderRadius={12} />
+                  <View style={{ marginTop: 10, paddingHorizontal: 4 }}>
+                    <SkeletonCard width="70%" height={14} style={{ marginBottom: 6 }} />
+                    <SkeletonCard width="50%" height={12} />
+                  </View>
+                </View>
+              ))}
+            </ScrollView>
+          )}
+
+          {/* Error state */}
+          {!suggestionsLoading && suggestionsError && (
+            <View style={styles.suggestionsStatusContainer}>
+              <Ionicons name="cloud-offline-outline" size={32} color={COLORS.gray[400]} />
+              <Text style={styles.suggestionsStatusText}>
+                {t('home.suggestionsError')}
+              </Text>
+              <TouchableOpacity
+                onPress={() => fetchSuggestions()}
+                style={styles.retryButton}
+              >
+                <Text style={styles.retryButtonText}>{t('home.refresh')}</Text>
+              </TouchableOpacity>
+            </View>
+          )}
+
+          {/* Empty state */}
+          {!suggestionsLoading && !suggestionsError && suggestions.length === 0 && (
+            <View style={styles.suggestionsStatusContainer}>
+              <Ionicons name="bulb-outline" size={32} color={COLORS.gray[400]} />
+              <Text style={styles.suggestionsStatusText}>
+                {t('home.noSuggestions')}
+              </Text>
+            </View>
+          )}
+
+          {/* Suggestions carousel */}
+          {!suggestionsLoading && suggestions.length > 0 && (
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.suggestionsScroll}
+            >
+              {suggestions.map((suggestion) => {
+                const isExpanded = expandedSuggestion === suggestion.name;
+                const matchedGarments = suggestion.garmentIds
+                  .map((id) => suggestionGarments.find((g) => g.id === id))
+                  .filter(Boolean) as Garment[];
+
+                return (
+                  <TouchableOpacity
+                    key={suggestion.name}
+                    style={styles.suggestionCard}
+                    activeOpacity={0.95}
+                    onPress={() =>
+                      setExpandedSuggestion(isExpanded ? null : suggestion.name)
+                    }
+                  >
+                    {/* Garment images grid */}
+                    {matchedGarments.length > 0 && (
+                      <View style={styles.garmentGrid}>
+                        {matchedGarments.slice(0, 4).map((garment, idx) => (
+                          <View key={garment.id} style={styles.garmentThumb}>
+                            <Image
+                              source={{ uri: garment.imageUrl }}
+                              style={styles.garmentThumbImage}
+                              resizeMode="cover"
+                            />
+                            {idx === 3 && matchedGarments.length > 4 && (
+                              <View style={styles.garmentMoreOverlay}>
+                                <Text style={styles.garmentMoreText}>
+                                  +{matchedGarments.length - 4}
+                                </Text>
+                              </View>
+                            )}
+                          </View>
+                        ))}
+                      </View>
+                    )}
+
+                    {/* Name + occasion badge */}
+                    <View style={styles.suggestionInfo}>
+                      <Text style={styles.suggestionName} numberOfLines={1}>
+                        {suggestion.name}
+                      </Text>
+                      <View style={styles.occasionBadge}>
+                        <Text style={styles.occasionText} numberOfLines={1}>
+                          {suggestion.occasion}
+                        </Text>
+                      </View>
+                    </View>
+
+                    {/* Expandable reasoning */}
+                    {isExpanded && suggestion.reasoning && (
+                      <View style={styles.reasoningContainer}>
+                        <Text style={styles.reasoningLabel}>
+                          {t('home.suggestionReason')}
+                        </Text>
+                        <Text style={styles.reasoningText}>
+                          {suggestion.reasoning}
+                        </Text>
+                      </View>
+                    )}
+                  </TouchableOpacity>
+                );
+              })}
+            </ScrollView>
+          )}
         </View>
 
         {/* Favorite Outfits */}
@@ -294,6 +499,182 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 32,
+  },
+
+  // Weather Card
+  weatherCard: {
+    marginHorizontal: 24,
+    marginTop: 8,
+    marginBottom: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    paddingVertical: 12,
+    paddingHorizontal: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.06,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  weatherRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  weatherInfo: {
+    flex: 1,
+  },
+  weatherTemp: {
+    fontSize: 28,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  weatherCondition: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginTop: 2,
+    textTransform: 'capitalize',
+  },
+  weatherIconContainer: {
+    width: 56,
+    height: 56,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  weatherIcon: {
+    width: 56,
+    height: 56,
+  },
+
+  // Suggestions
+  refreshButton: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: '#FFFFFF',
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  suggestionsScroll: {
+    paddingRight: 24,
+    gap: 12,
+  },
+  suggestionsStatusContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 32,
+    alignItems: 'center',
+    gap: 12,
+  },
+  suggestionsStatusText: {
+    fontSize: 15,
+    color: '#6B7280',
+    textAlign: 'center',
+  },
+  retryButton: {
+    paddingHorizontal: 20,
+    paddingVertical: 8,
+    borderRadius: 8,
+    backgroundColor: COLORS.primary + '15',
+  },
+  retryButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  suggestionSkeleton: {
+    width: 200,
+    marginRight: 12,
+  },
+
+  // Suggestion Card
+  suggestionCard: {
+    width: 220,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  garmentGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    height: 120,
+    overflow: 'hidden',
+  },
+  garmentThumb: {
+    width: '50%',
+    height: 60,
+    backgroundColor: '#F9FAFB',
+    position: 'relative',
+  },
+  garmentThumbImage: {
+    width: '100%',
+    height: '100%',
+  },
+  garmentMoreOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  garmentMoreText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  suggestionInfo: {
+    padding: 12,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 8,
+  },
+  suggestionName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    flex: 1,
+  },
+  occasionBadge: {
+    backgroundColor: COLORS.primary + '20',
+    borderRadius: 8,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    maxWidth: 100,
+  },
+  occasionText: {
+    fontSize: 11,
+    fontWeight: '500',
+    color: COLORS.primary,
+  },
+  reasoningContainer: {
+    paddingHorizontal: 12,
+    paddingBottom: 12,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    paddingTop: 10,
+    marginTop: 0,
+  },
+  reasoningLabel: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: '#9CA3AF',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  reasoningText: {
+    fontSize: 12,
+    color: '#6B7280',
+    lineHeight: 18,
   },
 });
 

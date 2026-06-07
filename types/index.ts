@@ -282,3 +282,26 @@ export interface CreateConversationDTO {
 export interface SendMessageDTO {
   content: string;
 }
+
+// ==================== SUGGESTIONS (AI Outfit Suggestions) ====================
+
+export interface Suggestion {
+  name: string;
+  occasion: string;
+  description: string;
+  garmentIds: string[];
+  reasoning: string;
+}
+
+export interface WeatherData {
+  temp: number;
+  condition: string;
+  description: string;
+  icon: string;
+}
+
+export interface SuggestionsResponse {
+  suggestions: Suggestion[];
+  garments: Garment[];
+  weather?: WeatherData;
+}
