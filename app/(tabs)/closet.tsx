@@ -92,7 +92,7 @@ function ClosetScreen() {
   }, [user, token, loadGarments]);
 
   if (isLoading && !refreshing) {
-    return <Loading message="Loading your closet..." />;
+    return <Loading message={t('common.loading')} />;
   }
 
   return (
@@ -100,8 +100,8 @@ function ClosetScreen() {
       {/* Header */}
       <View style={styles.header}>
         <View>
-          <Text style={styles.headerTitle}>Mi Closet</Text>
-          <Text style={styles.headerSubtitle}>{garments.length} prendas</Text>
+          <Text style={styles.headerTitle}>{t('closet.title')}</Text>
+          <Text style={styles.headerSubtitle}>{t('closet.garmentCount', { count: garments.length })}</Text>
         </View>
         <TouchableOpacity
           onPress={() => router.push('/garments/create')}
@@ -116,7 +116,7 @@ function ClosetScreen() {
         <Ionicons name="search" size={20} color="#9CA3AF" style={styles.searchIcon} />
         <TextInput
           style={styles.searchInput}
-          placeholder="Buscar por nombre, marca o color..."
+          placeholder={t('closet.searchPlaceholder')}
           placeholderTextColor="#9CA3AF"
           value={searchQuery}
           onChangeText={setSearchQuery}
@@ -161,7 +161,7 @@ function ClosetScreen() {
             color: selectedCategory === 'all' ? '#FFFFFF' : '#374151',
             fontWeight: selectedCategory === 'all' ? '600' : '500',
           }}>
-            Todas
+            {t('closet.allCategories')}
           </Text>
         </TouchableOpacity>
         {GARMENT_CATEGORIES.map((cat) => (
@@ -212,11 +212,11 @@ function ClosetScreen() {
           <>
             <View style={styles.resultHeader}>
               <Text style={styles.countText}>
-                {filteredGarments.length} {filteredGarments.length === 1 ? 'prenda' : 'prendas'}
+                {t('closet.garmentCount', { count: filteredGarments.length })}
               </Text>
               {total > 0 && (
                 <Text style={styles.pageText}>
-                  {garments.length} de {total} cargadas
+                  {t('closet.loadedCount', { loaded: garments.length, total })}
                 </Text>
               )}
             </View>
@@ -238,7 +238,7 @@ function ClosetScreen() {
             {isLoadingMore && (
               <View style={styles.loadingMore}>
                 <ActivityIndicator size="small" color={COLORS.primary} />
-                <Text style={styles.loadingMoreText}>Cargando más prendas...</Text>
+                <Text style={styles.loadingMoreText}>{t('closet.loadingMore')}</Text>
               </View>
             )}
 
@@ -246,22 +246,22 @@ function ClosetScreen() {
             {!hasMore && garments.length >= 20 && (
               <View style={styles.endMessage}>
                 <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
-                <Text style={styles.endMessageText}>Has visto todas las prendas</Text>
+                <Text style={styles.endMessageText}>{t('closet.endMessage')}</Text>
               </View>
             )}
           </>
         ) : (
           <EmptyState
             icon="shirt-outline"
-            title={searchQuery ? 'No se encontraron prendas' : 'No hay prendas'}
+            title={searchQuery ? t('closet.noResults') : t('closet.noGarments')}
             message={
               searchQuery 
-                ? 'Intenta con otra búsqueda'
+                ? t('closet.tryDifferentSearch')
                 : selectedCategory === 'all'
-                  ? 'Comienza agregando ropa a tu closet'
-                  : `No tienes ${GARMENT_CATEGORIES.find(c => c.value === selectedCategory)?.label.toLowerCase()} aún`
+                  ? t('closet.startAdding')
+                  : t('closet.noGarmentsCategory', { category: GARMENT_CATEGORIES.find(c => c.value === selectedCategory)?.label.toLowerCase() })
             }
-            actionLabel="Agrega Tu Primera Prenda"
+            actionLabel={t('closet.addYourFirst')}
             onAction={() => router.push('/garments/create')}
           />
         )}
@@ -271,16 +271,16 @@ function ClosetScreen() {
       <Modal
         visible={showDeleteModal}
         type="error"
-        title="¿Eliminar Prenda?"
-        message="Esta acción no se puede deshacer. Si esta prenda forma parte de algún outfit, también se eliminará de esos outfits. ¿Estás seguro de que deseas continuar?"
+        title={t('closet.deleteTitle')}
+        message={t('closet.deleteMessage')}
         actions={[
           {
-            text: 'Cancelar',
+            text: t('common.cancel'),
             onPress: handleCancelDelete,
             variant: 'secondary',
           },
           {
-            text: 'Sí, eliminar',
+            text: t('closet.confirmDelete'),
             onPress: handleConfirmDelete,
             variant: 'primary',
           },

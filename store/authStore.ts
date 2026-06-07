@@ -65,7 +65,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const refreshToken = result.data.refreshToken || (result.data as any).refresh_token || accessToken;
         
         if (!accessToken) {
-          console.error('Backend response missing token:', result.data);
           set({ 
             isLoading: false, 
             error: 'Error de autenticación: respuesta inválida del servidor' 
@@ -93,7 +92,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isLoading: false, error: 'Respuesta inválida del servidor' });
       return false;
     } catch (error) {
-      console.error('Error in login:', error);
       set({ 
         isLoading: false, 
         error: error instanceof Error ? error.message : 'Error inesperado al iniciar sesión' 
@@ -124,7 +122,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         const refreshToken = result.data.refreshToken || (result.data as any).refresh_token || accessToken;
         
         if (!accessToken) {
-          console.error('Backend response missing token:', result.data);
           set({ 
             isLoading: false, 
             error: 'Error de autenticación: respuesta inválida del servidor' 
@@ -152,7 +149,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
       set({ isLoading: false, error: 'Respuesta inválida del servidor' });
       return false;
     } catch (error) {
-      console.error('Error in register:', error);
       set({ 
         isLoading: false, 
         error: error instanceof Error ? error.message : 'Error inesperado al registrar' 

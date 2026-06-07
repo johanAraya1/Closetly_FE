@@ -117,8 +117,7 @@ export const SUPABASE_BUCKETS = {
 };
 
 export const SUPABASE_URL =
-  process.env.EXPO_PUBLIC_SUPABASE_URL ||
-  'https://your-project.supabase.co';
+  process.env.EXPO_PUBLIC_SUPABASE_URL || '';
 
 export const SUPABASE_ANON_KEY =
   process.env.EXPO_PUBLIC_SUPABASE_ANON_KEY || '';

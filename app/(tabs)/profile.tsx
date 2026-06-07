@@ -3,7 +3,7 @@
  * Pantalla de perfil del usuario
  */
 
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useEffect, useMemo, useRef, useState } from 'react';
 import { View, Text, ScrollView, Image, TouchableOpacity, Alert, StyleSheet, Switch } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -28,6 +28,10 @@ function ProfileScreen() {
   const [bio, setBio] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const originalUsername = useRef('');
+  const originalFullName = useRef('');
+  const originalBio = useRef('');
+  const originalIsPublic = useRef(false);
 
   const displayName = useMemo(() => {
     const name =
@@ -43,7 +47,20 @@ function ProfileScreen() {
     setFullName(profile?.full_name || '');
     setBio(profile?.bio || '');
     setIsPublic(Boolean(profile?.is_public));
+    originalUsername.current = profile?.username || '';
+    originalFullName.current = profile?.full_name || '';
+    originalBio.current = profile?.bio || '';
+    originalIsPublic.current = Boolean(profile?.is_public);
   }, [profile?.username, profile?.full_name, profile?.bio, profile?.is_public]);
+
+  const hasChanges = useMemo(() => {
+    return (
+      username !== originalUsername.current ||
+      fullName !== originalFullName.current ||
+      bio !== originalBio.current ||
+      isPublic !== originalIsPublic.current
+    );
+  }, [username, fullName, bio, isPublic]);
 
   const handleLogout = async () => {
     await logout();
@@ -53,7 +70,7 @@ function ProfileScreen() {
   const handleSaveProfile = async () => {
     if (!profile) return;
     if (!username.trim()) {
-      Alert.alert('Error', 'El usuario es obligatorio.');
+      Alert.alert(t('common.error'), t('profile.usernameRequired'));
       return;
     }
 
@@ -67,9 +84,9 @@ function ProfileScreen() {
     setIsSaving(false);
 
     if (success) {
-      Alert.alert('Éxito', 'Perfil actualizado correctamente.');
+      Alert.alert(t('common.success'), t('profile.updateSuccess'));
     } else {
-      Alert.alert('Error', 'No se pudo actualizar el perfil.');
+      Alert.alert(t('common.error'), t('profile.updateError'));
     }
   };
 
@@ -125,19 +142,19 @@ function ProfileScreen() {
                 <Text style={styles.statNumber}>
                   {garments.length}
                 </Text>
-                <Text style={styles.statLabel}>Garments</Text>
+                <Text style={styles.statLabel}>{t('profile.garments')}</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>
                   {outfits.length}
                 </Text>
-                <Text style={styles.statLabel}>Outfits</Text>
+                <Text style={styles.statLabel}>{t('profile.outfits')}</Text>
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>
                   {collections.length}
                 </Text>
-                <Text style={styles.statLabel}>Collections</Text>
+                <Text style={styles.statLabel}>{t('profile.collections')}</Text>
               </View>
             </View>
           </View>
@@ -145,39 +162,39 @@ function ProfileScreen() {
 
         {/* Edit Profile */}
         <View style={styles.editSection}>
-          <Text style={styles.sectionTitle}>Editar Perfil</Text>
+          <Text style={styles.sectionTitle}>{t('profile.editProfile')}</Text>
           <Input
-            label="Usuario"
+            label={t('profile.username')}
             value={username}
             onChangeText={setUsername}
-            placeholder="Tu usuario"
+            placeholder={t('profile.usernamePlaceholder')}
             autoCapitalize="none"
           />
           <Input
-            label="Nombre completo"
+            label={t('profile.fullName')}
             value={fullName}
             onChangeText={setFullName}
-            placeholder="Tu nombre"
+            placeholder={t('profile.fullNamePlaceholder')}
           />
           <Input
-            label="Correo electrónico"
+            label={t('profile.email')}
             value={user?.email || ''}
             editable={false}
             selectTextOnFocus={false}
           />
           <Input
-            label="Bio"
+            label={t('profile.bio')}
             value={bio}
             onChangeText={setBio}
-            placeholder="Cuéntanos sobre ti..."
+            placeholder={t('profile.bioPlaceholder')}
             multiline
             numberOfLines={3}
           />
           <View style={styles.privacyRow}>
             <View>
-              <Text style={styles.privacyLabel}>Perfil público</Text>
+              <Text style={styles.privacyLabel}>{t('profile.publicProfile')}</Text>
               <Text style={styles.privacyHint}>
-                Permite que otros usuarios vean tu perfil.
+                {t('profile.publicProfileHint')}
               </Text>
             </View>
             <Switch
@@ -188,9 +205,10 @@ function ProfileScreen() {
             />
           </View>
           <Button
-            title={isSaving || isLoading ? 'Guardando...' : 'Guardar cambios'}
+            title={isSaving || isLoading ? t('profile.saving') : t('profile.saveChanges')}
             onPress={handleSaveProfile}
             loading={isSaving || isLoading}
+            disabled={!hasChanges || isSaving || isLoading}
             fullWidth
           />
         </View>
@@ -202,7 +220,7 @@ function ProfileScreen() {
             <>
               <View style={styles.adminBadge}>
                 <Ionicons name="shield-checkmark" size={16} color={COLORS.primary} />
-                <Text style={styles.adminBadgeText}>Administrador</Text>
+                <Text style={styles.adminBadgeText}>{t('profile.admin')}</Text>
               </View>
               <TouchableOpacity
                 onPress={() => router.push('/admin/dashboard')}
@@ -210,7 +228,7 @@ function ProfileScreen() {
               >
                 <View style={styles.actionLeft}>
                   <Ionicons name="shield" size={24} color={COLORS.primary} />
-                  <Text style={[styles.actionText, styles.adminText]}>Panel de Administración</Text>
+                  <Text style={[styles.actionText, styles.adminText]}>{t('profile.adminPanel')}</Text>
                 </View>
                 <Ionicons name="chevron-forward" size={20} color={COLORS.primary} />
               </TouchableOpacity>
@@ -234,7 +252,7 @@ function ProfileScreen() {
           >
             <View style={styles.actionLeft}>
               <Ionicons name="help-circle-outline" size={24} color={COLORS.gray[700]} />
-              <Text style={styles.actionText}>Help & Support</Text>
+              <Text style={styles.actionText}>{t('profile.helpSupport')}</Text>
             </View>
             <Ionicons name="chevron-forward" size={20} color={COLORS.gray[400]} />
           </TouchableOpacity>
