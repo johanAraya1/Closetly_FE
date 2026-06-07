@@ -355,6 +355,7 @@ const i18n = new I18n({
       cancel: 'Cancel',
       save: 'Save',
       typing: 'Typing...',
+      sendError: 'Failed to send message',
     },
     profile: {
       title: 'Profile',
@@ -703,6 +704,7 @@ const i18n = new I18n({
       cancel: 'Cancelar',
       save: 'Guardar',
       typing: 'Escribiendo...',
+      sendError: 'No se pudo enviar el mensaje',
     },
     profile: {
       title: 'Perfil',

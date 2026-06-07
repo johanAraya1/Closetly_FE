@@ -195,7 +195,8 @@ function ChatRoomScreen() {
     try {
       await sendMessage(conversationId, text, imageUrl);
     } catch {
-      // El store maneja el error internamente
+      const errMsg = useChatStore.getState().error || t('chat.sendError');
+      Alert.alert(t('common.error'), errMsg);
     }
   }, [inputText, selectedImageUri, conversationId, sendMessage, currentUserId, t]);
 
