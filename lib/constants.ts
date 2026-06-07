@@ -99,6 +99,7 @@ export const LISTING_TYPES: { value: ListingType; labelKey: string; descriptionK
 export const STORAGE_KEYS = {
   AUTH_TOKEN: '@closetly/auth_token',
   USER_PROFILE: '@closetly/user_profile',
+  PUSH_TOKEN: '@closetly/push_token',
 };
 
 export const IMAGE_CONFIG = {

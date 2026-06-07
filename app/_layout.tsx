@@ -10,9 +10,20 @@ import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { analytics } from '@/services/analyticsService';
+import {
+  registerForPushNotifications,
+  registerPushToken,
+  unregisterPushToken,
+} from '@/services/pushNotificationService';
+import {
+  setupNotificationHandler,
+  setupNotificationResponseHandler,
+  setupAndroidNotificationChannel,
+} from '@/utils/notificationHandler';
 
-// Inicializar analytics
+// Inicializar analytics y notification handler (antes del render)
 analytics.init();
+setupNotificationHandler();
 
 export default function RootLayout() {
   // TODOS los hooks deben estar al inicio (antes de cualquier return)
@@ -52,6 +63,37 @@ export default function RootLayout() {
       router.replace('/(tabs)/home');
     }
   }, [isAuthenticated, segments, isLoading, isAppReady, isInitialized]);
+
+  // Configurar canal de notificaciones en Android (al arrancar)
+  useEffect(() => {
+    setupAndroidNotificationChannel();
+  }, []);
+
+  // Listener de navegación cuando el usuario TOCA una notificación
+  useEffect(() => {
+    const cleanup = setupNotificationResponseHandler(router);
+    return cleanup;
+  }, [router]);
+
+  // Registrar push token cuando auth cambia (login/logout)
+  useEffect(() => {
+    if (!isAppReady || !isInitialized) return;
+
+    async function handlePushTokenRegistration() {
+      if (isAuthenticated) {
+        // Login o sesión restaurada → registrar push token
+        const token = await registerForPushNotifications();
+        if (token) {
+          await registerPushToken(token);
+        }
+      } else {
+        // Logout → desregistrar push token
+        await unregisterPushToken();
+      }
+    }
+
+    handlePushTokenRegistration();
+  }, [isAuthenticated, isAppReady, isInitialized]);
 
   // Mostrar splash screen mientras carga la sesión
   if (!isAppReady || !isInitialized) {
