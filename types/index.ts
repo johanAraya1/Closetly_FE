@@ -349,3 +349,26 @@ export interface PackingFormData {
   lat?: number;
   lon?: number;
 }
+
+// ==================== WEEKLY PLANNER ====================
+
+export interface WeeklyPlanDay {
+  id: string;
+  dayOfWeek: number; // 0=Monday, 6=Sunday
+  outfit: {
+    id: string;
+    name: string;
+    imageUrl?: string;
+    garments: { id: string; name: string; imageUrl: string }[];
+  } | null;
+}
+
+export interface UpsertPlanEntry {
+  dayOfWeek: number;
+  outfitId: string;
+}
+
+export interface GetPlanResponse {
+  plan: WeeklyPlanDay[];
+  weekStart: string;
+}

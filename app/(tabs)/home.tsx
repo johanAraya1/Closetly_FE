@@ -197,7 +197,7 @@ function HomeScreen() {
             </TouchableOpacity>
           </View>
 
-          {/* Row 2: Stats & Packing */}
+          {/* Row 2: Stats, Planner & Packing */}
           <View style={[styles.actionsRow, { marginTop: 10 }]}>
             <TouchableOpacity
               onPress={() => router.push('/stats')}
@@ -207,6 +207,16 @@ function HomeScreen() {
                 <Ionicons name="bar-chart-outline" size={24} color="#10B981" />
               </View>
               <Text style={styles.actionText}>{t('stats.title')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/planner')}
+              style={[styles.actionCard, styles.actionCardMiddle]}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#62D9C7' + '20' }]}>
+                <Ionicons name="calendar-outline" size={24} color="#62D9C7" />
+              </View>
+              <Text style={styles.actionText}>{t('planner.title')}</Text>
             </TouchableOpacity>
 
             <TouchableOpacity
