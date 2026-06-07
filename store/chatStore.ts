@@ -43,6 +43,8 @@ interface ChatState {
   loadConversations: () => Promise<void>;
   loadMessages: (convId: string, reset?: boolean) => Promise<void>;
   sendMessage: (convId: string, content: string) => Promise<void>;
+  editMessage: (convId: string, messageId: string, content: string) => Promise<void>;
+  deleteMessage: (convId: string, messageId: string) => Promise<void>;
   createConversation: (dto: CreateConversationDTO) => Promise<Conversation>;
   setActiveConversation: (convId: string | null) => void;
   subscribeToConversation: (convId: string) => void;
@@ -207,6 +209,118 @@ export const useChatStore = create<ChatState>((set, get) => {
     },
 
     /**
+     * Edita un mensaje con optimistic update
+     * 1. Verifica que el sender sea el usuario actual
+     * 2. Actualiza content + editedAt inmediatamente
+     * 3. Llama a la API
+     * 4. On error: rollback restaurando content original
+     */
+    editMessage: async (convId: string, messageId: string, content: string) => {
+      const { user } = useAuthStore.getState();
+      const senderId = user?.id || 'unknown';
+
+      const currentMessages = get().messages[convId] || [];
+      const targetMessage = currentMessages.find((m) => m.id === messageId);
+
+      if (!targetMessage) return;
+      if (targetMessage.senderId !== senderId) return;
+
+      const originalContent = targetMessage.content;
+      const originalEditedAt = targetMessage.editedAt;
+
+      // Optimistic update
+      set((state) => {
+        const convMessages = state.messages[convId] || [];
+        return {
+          messages: {
+            ...state.messages,
+            [convId]: convMessages.map((msg) =>
+              msg.id === messageId
+                ? { ...msg, content, editedAt: new Date().toISOString() }
+                : msg
+            ),
+          },
+        };
+      });
+
+      try {
+        await chatService.editMessage(convId, messageId, content);
+      } catch (err) {
+        // Rollback: restaurar content y editedAt originales
+        set((state) => {
+          const convMessages = state.messages[convId] || [];
+          return {
+            messages: {
+              ...state.messages,
+              [convId]: convMessages.map((msg) =>
+                msg.id === messageId
+                  ? { ...msg, content: originalContent, editedAt: originalEditedAt }
+                  : msg
+              ),
+            },
+            error: err instanceof Error ? err.message : 'Error al editar mensaje',
+          };
+        });
+      }
+    },
+
+    /**
+     * Elimina un mensaje con optimistic update (soft delete)
+     * 1. Verifica que el sender sea el usuario actual
+     * 2. Setea content → null, deletedAt → now inmediatamente
+     * 3. Llama a la API
+     * 4. On error: rollback restaurando content + deletedAt originales
+     */
+    deleteMessage: async (convId: string, messageId: string) => {
+      const { user } = useAuthStore.getState();
+      const senderId = user?.id || 'unknown';
+
+      const currentMessages = get().messages[convId] || [];
+      const targetMessage = currentMessages.find((m) => m.id === messageId);
+
+      if (!targetMessage) return;
+      if (targetMessage.senderId !== senderId) return;
+
+      const originalContent = targetMessage.content;
+      const originalDeletedAt = targetMessage.deletedAt;
+
+      // Optimistic update: marcar como eliminado
+      set((state) => {
+        const convMessages = state.messages[convId] || [];
+        return {
+          messages: {
+            ...state.messages,
+            [convId]: convMessages.map((msg) =>
+              msg.id === messageId
+                ? { ...msg, content: null, deletedAt: new Date().toISOString() }
+                : msg
+            ),
+          },
+        };
+      });
+
+      try {
+        await chatService.deleteMessage(convId, messageId);
+      } catch (err) {
+        // Rollback: restaurar content y remover deletedAt
+        set((state) => {
+          const convMessages = state.messages[convId] || [];
+          return {
+            messages: {
+              ...state.messages,
+              [convId]: convMessages.map((msg) =>
+                msg.id === messageId
+                  ? { ...msg, content: originalContent, deletedAt: originalDeletedAt }
+                  : msg
+              ),
+            },
+            error: err instanceof Error ? err.message : 'Error al eliminar mensaje',
+          };
+        });
+      }
+    },
+
+    /**
      * Crea una nueva conversación
      * @returns La conversación creada
      */
@@ -269,12 +383,21 @@ export const useChatStore = create<ChatState>((set, get) => {
       }
 
       _realtimeSubscription = createRealtimeChannel(convId, currentUserId, (message) => {
-        // Append incoming message to messages array
+        // Append incoming message to messages array,
+        // or UPDATE it if it already exists (e.g. edit/delete from another device)
         set((state) => {
           const currentMessages = state.messages[convId] || [];
-          // Evitar duplicados por si el mensaje ya llegó vía API response
-          if (currentMessages.some((m) => m.id === message.id)) {
-            return state;
+          const existingIndex = currentMessages.findIndex((m) => m.id === message.id);
+          if (existingIndex !== -1) {
+            // Replace existing message with updated data
+            const updated = [...currentMessages];
+            updated[existingIndex] = message;
+            return {
+              messages: {
+                ...state.messages,
+                [convId]: updated,
+              },
+            };
           }
           return {
             messages: {

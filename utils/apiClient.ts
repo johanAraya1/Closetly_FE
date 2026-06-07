@@ -65,6 +65,17 @@ export const apiClient = {
   },
 
   /**
+   * Realiza una petición PATCH autenticada
+   */
+  async patch<T>(endpoint: string, data?: any, options: ApiRequestOptions = {}): Promise<ApiResponse<T>> {
+    return this.request<T>(endpoint, {
+      ...options,
+      method: 'PATCH',
+      body: data ? JSON.stringify(data) : undefined,
+    });
+  },
+
+  /**
    * Realiza una petición DELETE autenticada
    */
   async delete<T>(endpoint: string, options: ApiRequestOptions = {}): Promise<ApiResponse<T>> {

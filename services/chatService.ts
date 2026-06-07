@@ -50,4 +50,26 @@ export const chatService = {
     if (!res.data) throw new Error(res.error || 'No se pudo enviar el mensaje');
     return res.data;
   },
+
+  /**
+   * Edita un mensaje existente (solo contenido)
+   */
+  async editMessage(conversationId: string, messageId: string, content: string): Promise<Message> {
+    const res = await apiClient.patch<Message>(
+      `/chat/conversations/${conversationId}/messages/${messageId}`,
+      { content }
+    );
+    if (!res.data) throw new Error(res.error || 'No se pudo editar el mensaje');
+    return res.data;
+  },
+
+  /**
+   * Elimina un mensaje (soft delete)
+   */
+  async deleteMessage(conversationId: string, messageId: string): Promise<void> {
+    const res = await apiClient.delete<void>(
+      `/chat/conversations/${conversationId}/messages/${messageId}`
+    );
+    if (res.error) throw new Error(res.error || 'No se pudo eliminar el mensaje');
+  },
 };

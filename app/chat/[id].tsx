@@ -16,6 +16,7 @@ import {
   KeyboardAvoidingView,
   Platform,
   Keyboard,
+  Alert,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -32,6 +33,8 @@ function ChatRoomScreen() {
   const { id: conversationId } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const [inputText, setInputText] = useState('');
+  const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
+  const [editText, setEditText] = useState('');
   const flatListRef = useRef<FlatList<Message>>(null);
   const currentUserId = useAuthStore((s) => s.user?.id);
 
@@ -39,6 +42,8 @@ function ChatRoomScreen() {
     messages,
     isLoadingMessages,
     sendMessage,
+    editMessage,
+    deleteMessage,
     loadMessages,
     setActiveConversation,
     unsubscribeFromConversation,
@@ -103,29 +108,116 @@ function ChatRoomScreen() {
     return date.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' });
   };
 
+  const handleLongPress = useCallback(
+    (message: Message) => {
+      if (!currentUserId) return;
+      const isOwn = message.senderId === currentUserId;
+      if (!isOwn) return;
+      if (message.deletedAt) return; // Already deleted
+
+      Alert.alert(
+        t('chat.edit'),
+        undefined,
+        [
+          {
+            text: t('chat.edit'),
+            onPress: () => {
+              setEditText(message.content || '');
+              setEditingMessageId(message.id);
+            },
+          },
+          {
+            text: t('chat.delete'),
+            style: 'destructive',
+            onPress: () => {
+              Alert.alert(
+                t('chat.delete'),
+                undefined,
+                [
+                  { text: t('chat.cancel'), style: 'cancel' },
+                  {
+                    text: t('chat.delete'),
+                    style: 'destructive',
+                    onPress: () => {
+                      if (conversationId) {
+                        deleteMessage(conversationId, message.id);
+                      }
+                    },
+                  },
+                ],
+                { cancelable: true }
+              );
+            },
+          },
+          { text: t('chat.cancel'), style: 'cancel' },
+        ],
+        { cancelable: true }
+      );
+    },
+    [currentUserId, conversationId, deleteMessage, t]
+  );
+
+  const handleEditSave = useCallback(async () => {
+    const text = editText.trim();
+    if (!text || !conversationId || !editingMessageId) return;
+
+    setEditingMessageId(null);
+    setEditText('');
+    await editMessage(conversationId, editingMessageId, text);
+  }, [editText, conversationId, editingMessageId, editMessage]);
+
+  const handleEditCancel = useCallback(() => {
+    setEditingMessageId(null);
+    setEditText('');
+  }, []);
+
   const renderMessage = useCallback(
     ({ item }: { item: Message }) => {
       if (!currentUserId) return null;
       const isOwn = currentUserId === item.senderId;
+      const isDeleted = !!item.deletedAt;
+      const isEditing = editingMessageId === item.id;
 
-      return (
+      const bubbleContent = (
         <View
           style={[
-            styles.messageRow,
-            isOwn ? styles.messageRowOwn : styles.messageRowOther,
+            styles.messageBubble,
+            isOwn ? styles.messageBubbleOwn : styles.messageBubbleOther,
+            isDeleted && styles.messageBubbleDeleted,
           ]}
         >
-          <View
-            style={[
-              styles.messageBubble,
-              isOwn ? styles.messageBubbleOwn : styles.messageBubbleOther,
-            ]}
-          >
-            {!isOwn && (
-              <Text style={styles.messageSender}>
-                {item.senderId.slice(0, 8)}
-              </Text>
-            )}
+          {!isOwn && !isDeleted && (
+            <Text style={styles.messageSender}>
+              {item.senderId.slice(0, 8)}
+            </Text>
+          )}
+          {isEditing ? (
+            <View style={styles.editContainer}>
+              <TextInput
+                style={styles.editInput}
+                value={editText}
+                onChangeText={setEditText}
+                autoFocus
+                returnKeyType="done"
+                onSubmitEditing={handleEditSave}
+              />
+              <View style={styles.editActions}>
+                <TouchableOpacity onPress={handleEditCancel} style={styles.editActionBtn}>
+                  <Text style={styles.editActionCancel}>{t('chat.cancel')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleEditSave}
+                  style={[styles.editActionBtn, styles.editActionSaveBtn]}
+                >
+                  <Text style={styles.editActionSave}>{t('chat.save')}</Text>
+                </TouchableOpacity>
+              </View>
+            </View>
+          ) : isDeleted ? (
+            <Text style={styles.messageTextDeleted}>
+              {t('chat.deletedMessage')}
+            </Text>
+          ) : (
             <Text
               style={[
                 styles.messageText,
@@ -134,19 +226,62 @@ function ChatRoomScreen() {
             >
               {item.content}
             </Text>
-            <Text
-              style={[
-                styles.messageTime,
-                isOwn ? styles.messageTimeOwn : styles.messageTimeOther,
-              ]}
+          )}
+          {!isEditing && (
+            <View style={styles.messageTimeRow}>
+              <Text
+                style={[
+                  styles.messageTime,
+                  isOwn ? styles.messageTimeOwn : styles.messageTimeOther,
+                ]}
+              >
+                {formatTime(item.createdAt)}
+              </Text>
+              {item.editedAt && !isDeleted && (
+                <Text
+                  style={[
+                    styles.messageEdited,
+                    isOwn ? styles.messageEditedOwn : styles.messageEditedOther,
+                  ]}
+                >
+                  {' '}· {t('chat.edited')}
+                </Text>
+              )}
+            </View>
+          )}
+        </View>
+      );
+
+      return (
+        <View
+          style={[
+            styles.messageRow,
+            isOwn ? styles.messageRowOwn : styles.messageRowOther,
+          ]}
+        >
+          {isOwn && !isDeleted && !isEditing ? (
+            <TouchableOpacity
+              activeOpacity={0.7}
+              onLongPress={() => handleLongPress(item)}
+              delayLongPress={400}
             >
-              {formatTime(item.createdAt)}
-            </Text>
-          </View>
+              {bubbleContent}
+            </TouchableOpacity>
+          ) : (
+            bubbleContent
+          )}
         </View>
       );
     },
-    [currentUserId]
+    [
+      currentUserId,
+      editingMessageId,
+      editText,
+      handleLongPress,
+      handleEditSave,
+      handleEditCancel,
+      t,
+    ]
   );
 
   const renderEmpty = useCallback(() => {
@@ -393,6 +528,65 @@ const styles = StyleSheet.create({
   },
   sendButtonDisabled: {
     backgroundColor: '#F3F4F6',
+  },
+  messageBubbleDeleted: {
+    opacity: 0.65,
+  },
+  messageTextDeleted: {
+    fontSize: 14,
+    fontStyle: 'italic',
+    color: '#9CA3AF',
+  },
+  messageTimeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'flex-end',
+    marginTop: 4,
+  },
+  messageEdited: {
+    fontSize: 11,
+  },
+  messageEditedOwn: {
+    color: 'rgba(255, 255, 255, 0.6)',
+  },
+  messageEditedOther: {
+    color: '#9CA3AF',
+  },
+  editContainer: {
+    minWidth: 200,
+  },
+  editInput: {
+    backgroundColor: '#F3F4F6',
+    borderRadius: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    fontSize: 15,
+    color: '#111827',
+    minHeight: 40,
+  },
+  editActions: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    marginTop: 8,
+    gap: 8,
+  },
+  editActionBtn: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    borderRadius: 8,
+  },
+  editActionCancel: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '600',
+  },
+  editActionSaveBtn: {
+    backgroundColor: COLORS.primary,
+  },
+  editActionSave: {
+    fontSize: 13,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
 

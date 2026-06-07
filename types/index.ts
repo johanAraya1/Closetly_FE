@@ -265,8 +265,10 @@ export interface Message {
   id: string;
   conversationId: string;
   senderId: string;
-  content: string;
+  content: string | null;
   createdAt: string;
+  editedAt?: string;
+  deletedAt?: string;
 }
 
 export interface CreateConversationDTO {
