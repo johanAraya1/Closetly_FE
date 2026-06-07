@@ -26,7 +26,7 @@ import { useOutfitsStore } from '@/store/outfitsStore';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS, SPACING, FONT_SIZES } from '@/lib/constants';
-import { EmptyState, Loading, SkeletonCard } from '@/components';
+import { EmptyState, Loading, SkeletonCard, withScreenErrorBoundary } from '@/components';
 import type { Outfit } from '@/types';
 
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
@@ -736,4 +736,4 @@ const styles = StyleSheet.create({
   },
 });
 
-export default PlannerScreen;
+export default withScreenErrorBoundary(PlannerScreen);

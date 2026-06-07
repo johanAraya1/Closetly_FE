@@ -57,18 +57,28 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     const ws = weekStart || get().weekStart;
     set({ isLoading: true, error: null, weekStart: ws });
 
-    const result = await plannerService.getWeeklyPlan(ws);
+    try {
+      const result = await plannerService.getWeeklyPlan(ws);
 
-    if (result.error) {
-      set({ isLoading: false, error: result.error });
-      return;
-    }
+      if (result.error) {
+        set({ isLoading: false, error: result.error });
+        return;
+      }
 
-    if (result.data) {
+      if (result.data) {
+        set({
+          plan: Array.isArray(result.data.plan) ? result.data.plan : [],
+          weekStart: result.data.weekStart || ws,
+          isLoading: false,
+        });
+      } else {
+        set({ isLoading: false, plan: [] });
+      }
+    } catch (err) {
       set({
-        plan: result.data.plan,
-        weekStart: result.data.weekStart,
         isLoading: false,
+        error: (err as Error)?.message || 'Failed to load plan',
+        plan: [],
       });
     }
   },

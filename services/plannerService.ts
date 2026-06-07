@@ -32,13 +32,10 @@ export const upsertPlan = async (
 
 /**
  * Elimina un outfit asignado a un día específico
- * DELETE con body — el apiClient soporta body vía ApiRequestOptions (extends RequestInit)
  */
 export const clearPlanDay = async (
   weekStart: string,
   dayOfWeek: number
 ): Promise<ApiResponse<void>> => {
-  return apiClient.delete('/plans', {
-    body: JSON.stringify({ weekStart, dayOfWeek }),
-  });
+  return apiClient.post('/plans/clear', { weekStart, dayOfWeek });
 };
