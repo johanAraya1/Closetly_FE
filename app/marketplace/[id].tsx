@@ -11,6 +11,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { ListingTypeBadge, Loading, EmptyState, withScreenErrorBoundary } from '@/components';
 import { apiClient } from '@/utils/apiClient';
 import { useMarketplaceStore } from '@/store/marketplaceStore';
+import { useChatStore } from '@/store/chatStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS, GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES } from '@/lib/constants';
 import type { Garment, PublicProfileResult } from '@/types';
@@ -57,6 +58,25 @@ function MarketplaceGarmentDetailScreen() {
       fetchPublicProfile(garment.userId);
     }
   }, [garment, fetchPublicProfile]);
+
+  const handleContactar = useCallback(async () => {
+    if (!garment) return;
+    try {
+      const conversation = await useChatStore.getState().createConversation({
+        sellerId: garment.userId,
+        listingType: garment.listingType || 'sell',
+        listingGarmentId: garment.id,
+        listingTitle: garment.name,
+      });
+      (router as any).push({
+        pathname: '/chat/[id]',
+        params: { id: conversation.id },
+      });
+    } catch (err) {
+      const message = err instanceof Error ? err.message : 'Error al crear la conversación';
+      alert(message);
+    }
+  }, [garment, router]);
 
   const onRefresh = useCallback(async () => {
     setIsRefreshing(true);
@@ -259,6 +279,16 @@ function MarketplaceGarmentDetailScreen() {
               <Ionicons name="person-outline" size={16} color={COLORS.gray[600]} />
               <Text style={styles.profileButtonText}>Ver perfil</Text>
             </TouchableOpacity>
+
+            {/* Contactar Button */}
+            <TouchableOpacity
+              style={styles.contactarButton}
+              activeOpacity={0.8}
+              onPress={handleContactar}
+            >
+              <Ionicons name="chatbubble" size={18} color="#FFFFFF" />
+              <Text style={styles.contactarButtonText}>{t('chat.contactar')}</Text>
+            </TouchableOpacity>
           </View>
         </View>
       </ScrollView>
@@ -420,6 +450,21 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: '#374151',
+  },
+  contactarButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: COLORS.primary,
+  },
+  contactarButtonText: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });
 
