@@ -45,7 +45,7 @@ interface ChatState {
   // Actions
   loadConversations: () => Promise<void>;
   loadMessages: (convId: string, reset?: boolean) => Promise<void>;
-  sendMessage: (convId: string, content: string) => Promise<void>;
+  sendMessage: (convId: string, content: string, imageUrl?: string) => Promise<void>;
   editMessage: (convId: string, messageId: string, content: string) => Promise<void>;
   deleteMessage: (convId: string, messageId: string) => Promise<void>;
   createConversation: (dto: CreateConversationDTO) => Promise<Conversation>;
@@ -159,7 +159,7 @@ export const useChatStore = create<ChatState>((set, get) => {
      * 3. Reemplaza el mensaje temporal con la respuesta del server
      * 4. En caso de error, remueve el mensaje temporal
      */
-    sendMessage: async (convId: string, content: string) => {
+    sendMessage: async (convId: string, content: string, imageUrl?: string) => {
       const tempId = `temp_${Date.now()}_${Math.random().toString(36).slice(2, 8)}`;
       const { user } = useAuthStore.getState();
       const senderId = user?.id || 'unknown';
@@ -168,7 +168,8 @@ export const useChatStore = create<ChatState>((set, get) => {
         id: tempId,
         conversationId: convId,
         senderId,
-        content,
+        content: content || null,
+        imageUrl,
         createdAt: new Date().toISOString(),
       };
 
@@ -182,7 +183,7 @@ export const useChatStore = create<ChatState>((set, get) => {
       }));
 
       try {
-        const sentMessage = await chatService.sendMessage(convId, content);
+        const sentMessage = await chatService.sendMessage(convId, content, imageUrl);
 
         // Reemplazar el mensaje temporal con el real del server
         set((state) => {

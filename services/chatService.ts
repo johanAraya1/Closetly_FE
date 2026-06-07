@@ -41,13 +41,39 @@ export const chatService = {
 
   /**
    * Envía un mensaje en una conversación existente
+   * @param imageUrl - URL opcional de imagen adjunta
    */
-  async sendMessage(conversationId: string, content: string): Promise<Message> {
+  async sendMessage(conversationId: string, content: string, imageUrl?: string): Promise<Message> {
+    const body: Record<string, unknown> = {};
+    if (content) body.content = content;
+    if (imageUrl) body.imageUrl = imageUrl;
+
     const res = await apiClient.post<Message>(
       `/chat/conversations/${conversationId}/messages`,
-      { content }
+      body
     );
     if (!res.data) throw new Error(res.error || 'No se pudo enviar el mensaje');
+    return res.data;
+  },
+
+  /**
+   * Sube una imagen para adjuntar a un mensaje de chat
+   * Sigue el mismo patrón que garmentService.uploadGarmentImage
+   */
+  async uploadChatImage(uri: string): Promise<{ url: string; storagePath: string }> {
+    const formData = new FormData();
+    const fileName = `chat-${Date.now()}.jpg`;
+
+    formData.append('image', {
+      uri,
+      name: fileName,
+      type: 'image/jpeg',
+    } as any);
+
+    const res = await apiClient.upload<{ url: string; storagePath: string }>('/chat/upload', formData);
+    if (res.error || !res.data) {
+      throw new Error(res.error || 'No se pudo subir la imagen');
+    }
     return res.data;
   },
 

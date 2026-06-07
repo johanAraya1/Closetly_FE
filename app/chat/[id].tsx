@@ -17,6 +17,8 @@ import {
   Platform,
   Keyboard,
   Alert,
+  Image,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -25,7 +27,9 @@ import { Loading, EmptyState, withScreenErrorBoundary } from '@/components';
 import { useChatStore } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
 import { broadcastTyping } from '@/services/chatRealtime';
+import { chatService } from '@/services/chatService';
 import { useTranslation } from '@/hooks/useTranslation';
+import { pickImageFromGallery, takePhoto } from '@/utils/imageUtils';
 import { COLORS } from '@/lib/constants';
 import type { Message } from '@/types';
 
@@ -36,6 +40,8 @@ function ChatRoomScreen() {
   const [inputText, setInputText] = useState('');
   const [editingMessageId, setEditingMessageId] = useState<string | null>(null);
   const [editText, setEditText] = useState('');
+  const [selectedImageUri, setSelectedImageUri] = useState<string | null>(null);
+  const [isUploadingImage, setIsUploadingImage] = useState(false);
   const flatListRef = useRef<FlatList<Message>>(null);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -123,9 +129,42 @@ function ChatRoomScreen() {
     [conversationId, currentUserId]
   );
 
+  const handlePickImage = useCallback(async () => {
+    const uri = await pickImageFromGallery();
+    if (uri) {
+      setSelectedImageUri(uri);
+    }
+  }, []);
+
+  const handleCapturePhoto = useCallback(async () => {
+    const uri = await takePhoto();
+    if (uri) {
+      setSelectedImageUri(uri);
+    }
+  }, []);
+
+  const handleImagePickerPress = useCallback(() => {
+    Alert.alert(
+      t('chat.sendPhoto'),
+      undefined,
+      [
+        {
+          text: t('garments.create.takePhoto'),
+          onPress: handleCapturePhoto,
+        },
+        {
+          text: t('garments.create.chooseFromGallery'),
+          onPress: handlePickImage,
+        },
+        { text: t('chat.cancel'), style: 'cancel' },
+      ],
+      { cancelable: true }
+    );
+  }, [t, handleCapturePhoto, handlePickImage]);
+
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
-    if (!text || !conversationId) return;
+    if ((!text && !selectedImageUri) || !conversationId) return;
 
     // Al enviar, dejar de emitir typing
     if (typingTimeoutRef.current) {
@@ -134,15 +173,31 @@ function ChatRoomScreen() {
     }
     broadcastTyping(conversationId, currentUserId || 'unknown', false);
 
+    // Upload image if selected
+    let imageUrl: string | undefined;
+    if (selectedImageUri) {
+      setIsUploadingImage(true);
+      try {
+        const result = await chatService.uploadChatImage(selectedImageUri);
+        imageUrl = result.url;
+      } catch {
+        Alert.alert(t('common.error'), 'Failed to upload photo');
+        setIsUploadingImage(false);
+        return;
+      }
+      setIsUploadingImage(false);
+      setSelectedImageUri(null);
+    }
+
     setInputText('');
     Keyboard.dismiss();
 
     try {
-      await sendMessage(conversationId, text);
+      await sendMessage(conversationId, text, imageUrl);
     } catch {
       // El store maneja el error internamente
     }
-  }, [inputText, conversationId, sendMessage, currentUserId]);
+  }, [inputText, selectedImageUri, conversationId, sendMessage, currentUserId, t]);
 
   const isOwnMessage = (senderId: string): boolean => {
     return currentUserId === senderId;
@@ -263,14 +318,25 @@ function ChatRoomScreen() {
               {t('chat.deletedMessage')}
             </Text>
           ) : (
-            <Text
-              style={[
-                styles.messageText,
-                isOwn ? styles.messageTextOwn : styles.messageTextOther,
-              ]}
-            >
-              {item.content}
-            </Text>
+            <View style={styles.messageContentContainer}>
+              {item.imageUrl && (
+                <Image
+                  source={{ uri: item.imageUrl }}
+                  style={styles.messageImage}
+                  resizeMode="cover"
+                />
+              )}
+              {item.content !== null && (
+                <Text
+                  style={[
+                    styles.messageText,
+                    isOwn ? styles.messageTextOwn : styles.messageTextOther,
+                  ]}
+                >
+                  {item.content}
+                </Text>
+              )}
+            </View>
           )}
           {!isEditing && (
             <View style={styles.messageTimeRow}>
@@ -353,7 +419,7 @@ function ChatRoomScreen() {
     );
   }, [isLoadingMessages, conversationMessages.length, t]);
 
-  const canSend = inputText.trim().length > 0;
+  const canSend = (inputText.trim().length > 0 || !!selectedImageUri) && !isUploadingImage;
 
   // Scroll to end when content size changes (initial load)
   const handleContentSizeChange = useCallback(() => {
@@ -415,8 +481,43 @@ function ChatRoomScreen() {
           </View>
         )}
 
+        {/* Image Preview Bar */}
+        {selectedImageUri && (
+          <View style={styles.imagePreviewBar}>
+            <Image
+              source={{ uri: selectedImageUri }}
+              style={styles.imagePreviewThumb}
+              resizeMode="cover"
+            />
+            {isUploadingImage ? (
+              <View style={styles.imagePreviewLoading}>
+                <ActivityIndicator size="small" color={COLORS.primary} />
+                <Text style={styles.imagePreviewLoadingText}>{t('chat.uploading')}</Text>
+              </View>
+            ) : (
+              <TouchableOpacity
+                onPress={() => setSelectedImageUri(null)}
+                style={styles.imagePreviewRemove}
+              >
+                <Ionicons name="close-circle" size={22} color="#6B7280" />
+              </TouchableOpacity>
+            )}
+          </View>
+        )}
+
         {/* Input Bar */}
         <View style={styles.inputBar}>
+          <TouchableOpacity
+            style={styles.cameraButton}
+            onPress={handleImagePickerPress}
+            activeOpacity={0.7}
+          >
+            <Ionicons
+              name="camera-outline"
+              size={24}
+              color={COLORS.gray[500]}
+            />
+          </TouchableOpacity>
           <TextInput
             style={styles.textInput}
             value={inputText}
@@ -432,11 +533,15 @@ function ChatRoomScreen() {
             disabled={!canSend}
             activeOpacity={0.7}
           >
-            <Ionicons
-              name="send"
-              size={20}
-              color={canSend ? '#FFFFFF' : COLORS.gray[300]}
-            />
+            {isUploadingImage ? (
+              <ActivityIndicator size="small" color="#FFFFFF" />
+            ) : (
+              <Ionicons
+                name="send"
+                size={20}
+                color={canSend ? '#FFFFFF' : COLORS.gray[300]}
+              />
+            )}
           </TouchableOpacity>
         </View>
       </KeyboardAvoidingView>
@@ -653,6 +758,61 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#9CA3AF',
     fontStyle: 'italic',
+  },
+
+  // Image Preview
+  imagePreviewBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+  },
+  imagePreviewThumb: {
+    width: 48,
+    height: 48,
+    borderRadius: 8,
+    backgroundColor: '#F3F4F6',
+  },
+  imagePreviewLoading: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginLeft: 12,
+    gap: 8,
+  },
+  imagePreviewLoadingText: {
+    fontSize: 13,
+    color: '#6B7280',
+  },
+  imagePreviewRemove: {
+    marginLeft: 12,
+    padding: 4,
+  },
+
+  // Camera Button
+  cameraButton: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    justifyContent: 'center',
+    alignItems: 'center',
+    marginRight: 4,
+  },
+
+  // Message Image
+  messageImage: {
+    width: '100%',
+    borderRadius: 12,
+    maxHeight: 300,
+    aspectRatio: 1,
+    marginBottom: 6,
+    backgroundColor: '#F3F4F6',
+  },
+  messageContentContainer: {
+    gap: 4,
   },
 });
 

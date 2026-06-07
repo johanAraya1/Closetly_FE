@@ -266,6 +266,7 @@ export interface Message {
   conversationId: string;
   senderId: string;
   content: string | null;
+  imageUrl?: string;
   createdAt: string;
   editedAt?: string;
   deletedAt?: string;
