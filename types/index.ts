@@ -238,3 +238,44 @@ export interface PublicProfileResult {
   avatarUrl?: string;
   createdAt: string; // ISO date from BE
 }
+
+// ==================== CHAT ====================
+
+export interface Conversation {
+  id: string;
+  listingType: ListingType;
+  listingGarmentId: string;
+  listingTitle: string;
+  otherParticipant: {
+    userId: string;
+    username?: string;
+    avatarUrl?: string;
+  };
+  lastMessage?: {
+    content: string;
+    createdAt: string;
+    senderId: string;
+  };
+  unreadCount?: number;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export interface Message {
+  id: string;
+  conversationId: string;
+  senderId: string;
+  content: string;
+  createdAt: string;
+}
+
+export interface CreateConversationDTO {
+  sellerId: string;
+  listingType: string;
+  listingGarmentId: string;
+  listingTitle: string;
+}
+
+export interface SendMessageDTO {
+  content: string;
+}

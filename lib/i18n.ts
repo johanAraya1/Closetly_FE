@@ -334,6 +334,16 @@ const i18n = new I18n({
       emptyTitle: 'Publish your first garment',
       emptyMessage: 'Share your clothes with the community. Make your garments public from your closet so they appear here.',
     },
+    chat: {
+      tabTitle: 'Messages',
+      title: 'Messages',
+      inputPlaceholder: 'Write a message...',
+      send: 'Send',
+      emptyList: 'No conversations yet',
+      emptyRoom: 'Send the first message',
+      unread: '{{count}} unread',
+      contactar: 'Contact',
+    },
     profile: {
       title: 'Profile',
       settings: 'Settings',
@@ -659,6 +669,16 @@ const i18n = new I18n({
       tabTitle: 'Marketplace',
       emptyTitle: 'Publicá tu primera prenda',
       emptyMessage: 'Compartí tus prendas con la comunidad. Hacé públicas tus prendas desde tu closet para que aparezcan acá.',
+    },
+    chat: {
+      tabTitle: 'Mensajes',
+      title: 'Mensajes',
+      inputPlaceholder: 'Escribí un mensaje...',
+      send: 'Enviar',
+      emptyList: 'No tenés conversaciones aún',
+      emptyRoom: 'Enviá el primer mensaje',
+      unread: '{{count}} sin leer',
+      contactar: 'Contactar',
     },
     profile: {
       title: 'Perfil',
