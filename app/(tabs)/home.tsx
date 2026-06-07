@@ -196,6 +196,29 @@ function HomeScreen() {
               <Text style={styles.actionText}>{t('home.browse')}</Text>
             </TouchableOpacity>
           </View>
+
+          {/* Row 2: Stats & Packing */}
+          <View style={[styles.actionsRow, { marginTop: 10 }]}>
+            <TouchableOpacity
+              onPress={() => router.push('/stats')}
+              style={[styles.actionCard, styles.actionCardFirst]}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#10B981' + '20' }]}>
+                <Ionicons name="bar-chart-outline" size={24} color="#10B981" />
+              </View>
+              <Text style={styles.actionText}>{t('stats.title')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity
+              onPress={() => router.push('/packing')}
+              style={[styles.actionCard, styles.actionCardLast]}
+            >
+              <View style={[styles.actionIcon, { backgroundColor: '#F59E0B' + '20' }]}>
+                <Ionicons name="briefcase-outline" size={24} color="#F59E0B" />
+              </View>
+              <Text style={styles.actionText}>{t('packing.title')}</Text>
+            </TouchableOpacity>
+          </View>
         </View>
 
         {/* AI Outfit Suggestions */}

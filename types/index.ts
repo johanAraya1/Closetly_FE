@@ -305,3 +305,47 @@ export interface SuggestionsResponse {
   garments: Garment[];
   weather?: WeatherData;
 }
+
+// ==================== CLOSET STATS ====================
+
+export interface ClosetStats {
+  totalGarments: number;
+  totalOutfits: number;
+  byCategory: Record<string, number>;
+  bySeason: Record<string, number>;
+  byStyle: Record<string, number>;
+  byBrand: Record<string, number>;
+  byColor: Record<string, number>;
+  publicCount: number;
+  privateCount: number;
+  recentAdditions: { id: string; name: string; imageUrl: string; createdAt: string }[];
+  byCategoryPercentage: Record<string, number>;
+}
+
+// ==================== PACKING LIST ====================
+
+export interface PackingGarmentItem {
+  id: string;
+  name: string;
+}
+
+export interface PackingDay {
+  day: number;
+  outfitName: string;
+  garments: PackingGarmentItem[];
+  notes?: string;
+}
+
+export interface PackingSuggestion {
+  days: PackingDay[];
+  garments: Garment[];   // all user garments for image lookup
+  weather?: WeatherData | null;
+}
+
+export interface PackingFormData {
+  days: number;
+  destination?: string;
+  purpose?: string;
+  lat?: number;
+  lon?: number;
+}
