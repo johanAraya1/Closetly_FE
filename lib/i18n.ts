@@ -333,6 +333,9 @@ const i18n = new I18n({
       tabTitle: 'Marketplace',
       emptyTitle: 'Publish your first garment',
       emptyMessage: 'Share your clothes with the community. Make your garments public from your closet so they appear here.',
+      searchPlaceholder: 'Search garments...',
+      noResults: 'No results',
+      allListingTypes: 'All',
     },
     chat: {
       tabTitle: 'Messages',
@@ -669,6 +672,9 @@ const i18n = new I18n({
       tabTitle: 'Marketplace',
       emptyTitle: 'Publicá tu primera prenda',
       emptyMessage: 'Compartí tus prendas con la comunidad. Hacé públicas tus prendas desde tu closet para que aparezcan acá.',
+      searchPlaceholder: 'Buscá prendas...',
+      noResults: 'Sin resultados',
+      allListingTypes: 'Todos',
     },
     chat: {
       tabTitle: 'Mensajes',

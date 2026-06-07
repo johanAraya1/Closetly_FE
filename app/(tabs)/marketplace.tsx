@@ -2,18 +2,33 @@
  * Marketplace Screen
  * FlatList con prendas públicas de todos los usuarios
  * Pull-to-refresh, infinite scroll, empty state, error state
+ * Búsqueda y filtros por nombre, categoría y tipo de listing
  */
 
-import React, { useCallback, useEffect } from 'react';
-import { View, Text, FlatList, TouchableOpacity, RefreshControl, ActivityIndicator, StyleSheet, Image } from 'react-native';
+import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import {
+  View,
+  Text,
+  FlatList,
+  TouchableOpacity,
+  RefreshControl,
+  ActivityIndicator,
+  StyleSheet,
+  Image,
+  TextInput,
+  ScrollView,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ListingTypeBadge, EmptyState, Loading, withScreenErrorBoundary } from '@/components';
 import { useMarketplaceStore } from '@/store/marketplaceStore';
 import { useTranslation } from '@/hooks/useTranslation';
-import { COLORS } from '@/lib/constants';
+import { useDebounce } from '@/hooks/useDebounce';
+import { COLORS, GARMENT_CATEGORIES, LISTING_TYPES } from '@/lib/constants';
 import type { Garment } from '@/types';
+
+const SEARCH_DEBOUNCE_MS = 300;
 
 function MarketplaceScreen() {
   const router = useRouter();
@@ -28,6 +43,39 @@ function MarketplaceScreen() {
     loadMorePublicGarments,
   } = useMarketplaceStore();
 
+  // ── Filter state ──────────────────────────────────────────────
+  const [searchText, setSearchText] = useState('');
+  const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
+  const [selectedListingType, setSelectedListingType] = useState<string | null>(null);
+
+  const debouncedSearchText = useDebounce(searchText, SEARCH_DEBOUNCE_MS);
+
+  // ── Filtered list (client-side) ──────────────────────────────
+  const filteredGarments = useMemo(() => {
+    let result = garments;
+
+    // Search by name
+    if (debouncedSearchText.trim()) {
+      const query = debouncedSearchText.trim().toLowerCase();
+      result = result.filter((g) => g.name.toLowerCase().includes(query));
+    }
+
+    // Filter by category
+    if (selectedCategory) {
+      result = result.filter((g) => g.category === selectedCategory);
+    }
+
+    // Filter by listing type
+    if (selectedListingType) {
+      result = result.filter((g) => g.listingType === selectedListingType);
+    }
+
+    return result;
+  }, [garments, debouncedSearchText, selectedCategory, selectedListingType]);
+
+  const hasActiveFilters = debouncedSearchText.trim() !== '' || selectedCategory !== null || selectedListingType !== null;
+
+  // ── Data fetching ─────────────────────────────────────────────
   useEffect(() => {
     loadPublicGarments();
   }, []);
@@ -42,6 +90,7 @@ function MarketplaceScreen() {
     }
   }, [isLoadingMore, hasMore, loadMorePublicGarments]);
 
+  // ── Renderers ─────────────────────────────────────────────────
   const renderItem = useCallback(({ item }: { item: Garment }) => (
     <TouchableOpacity
       style={styles.card}
@@ -113,6 +162,19 @@ function MarketplaceScreen() {
       );
     }
 
+    // Filters active but no matches
+    if (hasActiveFilters) {
+      return (
+        <View style={styles.centerContainer}>
+          <Ionicons name="search-outline" size={64} color={COLORS.gray[300]} />
+          <Text style={styles.errorTitle}>{t('marketplace.noResults')}</Text>
+          <Text style={styles.errorMessage}>
+            {t('closet.noGarmentsMessage')}
+          </Text>
+        </View>
+      );
+    }
+
     return (
       <EmptyState
         icon="storefront-outline"
@@ -122,7 +184,7 @@ function MarketplaceScreen() {
         onAction={() => router.push('/closet')}
       />
     );
-  }, [isLoading, error, t, onRefresh, router]);
+  }, [isLoading, error, t, hasActiveFilters, onRefresh, router]);
 
   if (isLoading && garments.length === 0 && !error) {
     return <Loading message={t('common.loading')} />;
@@ -140,14 +202,131 @@ function MarketplaceScreen() {
         </Text>
       </View>
 
+      {/* Search Bar */}
+      <View style={styles.searchContainer}>
+        <View style={styles.searchBar}>
+          <Ionicons name="search-outline" size={18} color={COLORS.gray[400]} />
+          <TextInput
+            style={styles.searchInput}
+            placeholder={t('marketplace.searchPlaceholder')}
+            placeholderTextColor={COLORS.gray[400]}
+            value={searchText}
+            onChangeText={setSearchText}
+            returnKeyType="search"
+            autoCorrect={false}
+            autoCapitalize="none"
+          />
+          {searchText.length > 0 && (
+            <TouchableOpacity
+              onPress={() => setSearchText('')}
+              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+            >
+              <Ionicons name="close-circle" size={18} color={COLORS.gray[400]} />
+            </TouchableOpacity>
+          )}
+        </View>
+      </View>
+
+      {/* Filter Chips */}
+      <View style={styles.filtersRow}>
+        <ScrollView
+          horizontal
+          showsHorizontalScrollIndicator={false}
+          contentContainerStyle={styles.chipsContainer}
+        >
+          {/* Category Chips */}
+          <TouchableOpacity
+            style={[
+              styles.chip,
+              selectedCategory === null && styles.chipActive,
+            ]}
+            onPress={() => setSelectedCategory(null)}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                selectedCategory === null && styles.chipTextActive,
+              ]}
+            >
+              {t('garments.category.all')}
+            </Text>
+          </TouchableOpacity>
+          {GARMENT_CATEGORIES.map((cat) => (
+            <TouchableOpacity
+              key={cat.value}
+              style={[
+                styles.chip,
+                selectedCategory === cat.value && styles.chipActive,
+              ]}
+              onPress={() =>
+                setSelectedCategory(selectedCategory === cat.value ? null : cat.value)
+              }
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  selectedCategory === cat.value && styles.chipTextActive,
+                ]}
+              >
+                {cat.label}
+              </Text>
+            </TouchableOpacity>
+          ))}
+
+          {/* Separator between category and listing type */}
+          <View style={styles.chipSeparator} />
+
+          {/* Listing Type Chips */}
+          <TouchableOpacity
+            style={[
+              styles.chip,
+              selectedListingType === null && styles.chipActive,
+            ]}
+            onPress={() => setSelectedListingType(null)}
+          >
+            <Text
+              style={[
+                styles.chipText,
+                selectedListingType === null && styles.chipTextActive,
+              ]}
+            >
+              {t('marketplace.allListingTypes')}
+            </Text>
+          </TouchableOpacity>
+          {LISTING_TYPES.map((lt) => (
+            <TouchableOpacity
+              key={lt.value}
+              style={[
+                styles.chip,
+                selectedListingType === lt.value && styles.chipActive,
+              ]}
+              onPress={() =>
+                setSelectedListingType(
+                  selectedListingType === lt.value ? null : lt.value
+                )
+              }
+            >
+              <Text
+                style={[
+                  styles.chipText,
+                  selectedListingType === lt.value && styles.chipTextActive,
+                ]}
+              >
+                {t(lt.labelKey)}
+              </Text>
+            </TouchableOpacity>
+          ))}
+        </ScrollView>
+      </View>
+
       {/* Public Garments Feed */}
       <FlatList
-        data={garments}
+        data={filteredGarments}
         renderItem={renderItem}
         keyExtractor={(item) => item.id}
         numColumns={2}
         contentContainerStyle={styles.listContent}
-        columnWrapperStyle={garments.length > 0 ? styles.columnWrapper : undefined}
+        columnWrapperStyle={filteredGarments.length > 0 ? styles.columnWrapper : undefined}
         refreshControl={
           <RefreshControl
             refreshing={isLoading && garments.length > 0}
@@ -297,6 +476,66 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontWeight: '600',
     fontSize: 15,
+  },
+  searchContainer: {
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  searchBar: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#F3F4F6',
+    borderRadius: 10,
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    gap: 8,
+  },
+  searchInput: {
+    flex: 1,
+    fontSize: 15,
+    color: '#111827',
+    padding: 0,
+  },
+  filtersRow: {
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingVertical: 10,
+  },
+  chipsContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    gap: 8,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    backgroundColor: '#FFFFFF',
+  },
+  chipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  chipText: {
+    fontSize: 13,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  chipTextActive: {
+    color: '#FFFFFF',
+  },
+  chipSeparator: {
+    width: 1,
+    height: 20,
+    backgroundColor: '#E5E7EB',
+    marginHorizontal: 4,
   },
 });
 
