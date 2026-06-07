@@ -352,6 +352,7 @@ const i18n = new I18n({
       deletedMessage: 'Message deleted',
       cancel: 'Cancel',
       save: 'Save',
+      typing: 'Typing...',
     },
     profile: {
       title: 'Profile',
@@ -697,6 +698,7 @@ const i18n = new I18n({
       deletedMessage: 'Mensaje eliminado',
       cancel: 'Cancelar',
       save: 'Guardar',
+      typing: 'Escribiendo...',
     },
     profile: {
       title: 'Perfil',

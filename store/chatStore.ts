@@ -39,6 +39,9 @@ interface ChatState {
   // Realtime connection status
   isConnected: boolean;
 
+  // Typing indicator
+  isTyping: boolean;
+
   // Actions
   loadConversations: () => Promise<void>;
   loadMessages: (convId: string, reset?: boolean) => Promise<void>;
@@ -50,6 +53,7 @@ interface ChatState {
   subscribeToConversation: (convId: string) => void;
   unsubscribeFromConversation: () => void;
   clearError: () => void;
+  setTyping: (isTyping: boolean) => void;
 }
 
 const initialState = {
@@ -63,6 +67,7 @@ const initialState = {
   error: null,
   activeConversationId: null,
   isConnected: false,
+  isTyping: false,
 };
 
 export const useChatStore = create<ChatState>((set, get) => {
@@ -382,31 +387,39 @@ export const useChatStore = create<ChatState>((set, get) => {
         _realtimeSubscription = null;
       }
 
-      _realtimeSubscription = createRealtimeChannel(convId, currentUserId, (message) => {
-        // Append incoming message to messages array,
-        // or UPDATE it if it already exists (e.g. edit/delete from another device)
-        set((state) => {
-          const currentMessages = state.messages[convId] || [];
-          const existingIndex = currentMessages.findIndex((m) => m.id === message.id);
-          if (existingIndex !== -1) {
-            // Replace existing message with updated data
-            const updated = [...currentMessages];
-            updated[existingIndex] = message;
+      _realtimeSubscription = createRealtimeChannel(
+        convId,
+        currentUserId,
+        (message) => {
+          // Append incoming message to messages array,
+          // or UPDATE it if it already exists (e.g. edit/delete from another device)
+          set((state) => {
+            const currentMessages = state.messages[convId] || [];
+            const existingIndex = currentMessages.findIndex((m) => m.id === message.id);
+            if (existingIndex !== -1) {
+              // Replace existing message with updated data
+              const updated = [...currentMessages];
+              updated[existingIndex] = message;
+              return {
+                messages: {
+                  ...state.messages,
+                  [convId]: updated,
+                },
+              };
+            }
             return {
               messages: {
                 ...state.messages,
-                [convId]: updated,
+                [convId]: [...currentMessages, message],
               },
             };
-          }
-          return {
-            messages: {
-              ...state.messages,
-              [convId]: [...currentMessages, message],
-            },
-          };
-        });
-      });
+          });
+        },
+        // onTyping callback — recibe isTyping para el otro usuario
+        (isTyping: boolean) => {
+          set({ isTyping });
+        }
+      );
 
       set({ isConnected: true });
     },
@@ -423,5 +436,7 @@ export const useChatStore = create<ChatState>((set, get) => {
     },
 
     clearError: () => set({ error: null }),
+
+    setTyping: (isTyping: boolean) => set({ isTyping }),
   };
 });

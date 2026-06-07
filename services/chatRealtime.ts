@@ -1,12 +1,18 @@
 /**
  * Chat Realtime Service
  * Subscripción Realtime para mensajes en vivo usando @supabase/realtime-js
- * Se subscribe a INSERT en la tabla `messages` filtrada por conversation_id
+ * - postgres_changes para INSERT en la tabla `messages`
+ * - broadcast para typing indicator (sin DB)
  *
  * Uso standalone (sin store):
  *   const { unsubscribe } = createRealtimeChannel(convId, userId, onMessage);
  *   // cleanup:
  *   unsubscribe();
+ *
+ * Typing broadcast:
+ *   import { broadcastTyping } from '@/services/chatRealtime';
+ *   broadcastTyping(convId, currentUserId, true);  // empezó a escribir
+ *   broadcastTyping(convId, currentUserId, false); // dejó de escribir
  */
 
 import { RealtimeClient } from '@supabase/realtime-js';
@@ -14,6 +20,9 @@ import { SUPABASE_URL, SUPABASE_ANON_KEY } from '@/lib/constants';
 import type { Message } from '@/types';
 
 let _client: RealtimeClient | null = null;
+
+// Trackea canales activos por conversationId para enviar broadcasts
+const _channels = new Map<string, any>();
 
 /**
  * Retorna la instancia singleton de RealtimeClient
@@ -29,6 +38,7 @@ const getClient = (): RealtimeClient => {
 
 /**
  * Mapea un payload de Realtime (snake_case DB row) a la interfaz Message (camelCase)
+ * Incluye editedAt y deletedAt para edit/delete en tiempo real
  */
 const mapPayloadToMessage = (payload: Record<string, any>): Message => ({
   id: payload.id,
@@ -36,6 +46,8 @@ const mapPayloadToMessage = (payload: Record<string, any>): Message => ({
   senderId: payload.sender_id,
   content: payload.content,
   createdAt: payload.created_at,
+  editedAt: payload.edited_at,
+  deletedAt: payload.deleted_at,
 });
 
 /**
@@ -44,14 +56,19 @@ const mapPayloadToMessage = (payload: Record<string, any>): Message => ({
  * @param conversationId - ID de la conversación a escuchar
  * @param currentUserId - ID del usuario actual (para filtrar sus propios mensajes)
  * @param onMessage - Callback invocado cuando llega un mensaje NUEVO de OTRO usuario
+ * @param onTyping - Callback opcional invocado cuando OTRO usuario escribe (recibe isTyping)
  * @returns Objeto con función `unsubscribe` para limpiar la subscripción
  */
 export const createRealtimeChannel = (
   conversationId: string,
   currentUserId: string,
-  onMessage: (message: Message) => void
+  onMessage: (message: Message) => void,
+  onTyping?: (isTyping: boolean) => void
 ): { unsubscribe: () => void } => {
   const channel = getClient().channel(`messages:conv_${conversationId}`);
+
+  // Track para poder enviar broadcasts desde fuera
+  _channels.set(conversationId, channel);
 
   channel.on(
     'postgres_changes',
@@ -69,13 +86,48 @@ export const createRealtimeChannel = (
     }
   );
 
+  // Broadcast listener para typing indicator
+  if (onTyping) {
+    channel.on('broadcast', { event: 'typing' }, (response: any) => {
+      const data = response.payload || response;
+      // Solo reaccionar a eventos de OTRO usuario
+      if (data.senderId && data.senderId !== currentUserId) {
+        onTyping(data.isTyping);
+      }
+    });
+  }
+
   channel.subscribe();
 
   return {
     unsubscribe: () => {
       channel.unsubscribe();
+      _channels.delete(conversationId);
     },
   };
+};
+
+/**
+ * Envía un broadcast de typing para una conversación.
+ * Úsalo desde el onChangeText del input con un debounce de 2s.
+ *
+ * @param conversationId - ID de la conversación
+ * @param senderId - ID del usuario que está escribiendo
+ * @param isTyping - true si empezó a escribir, false si dejó
+ */
+export const broadcastTyping = (
+  conversationId: string,
+  senderId: string,
+  isTyping: boolean
+): void => {
+  const channel = _channels.get(conversationId);
+  if (!channel) return;
+
+  channel.send({
+    type: 'broadcast',
+    event: 'typing',
+    payload: { senderId, isTyping },
+  });
 };
 
 /**

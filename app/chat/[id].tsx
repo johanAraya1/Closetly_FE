@@ -24,6 +24,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Loading, EmptyState, withScreenErrorBoundary } from '@/components';
 import { useChatStore } from '@/store/chatStore';
 import { useAuthStore } from '@/store/authStore';
+import { broadcastTyping } from '@/services/chatRealtime';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
 import type { Message } from '@/types';
@@ -37,16 +38,19 @@ function ChatRoomScreen() {
   const [editText, setEditText] = useState('');
   const flatListRef = useRef<FlatList<Message>>(null);
   const currentUserId = useAuthStore((s) => s.user?.id);
+  const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   const {
     messages,
     isLoadingMessages,
+    isTyping,
     sendMessage,
     editMessage,
     deleteMessage,
     loadMessages,
     setActiveConversation,
     unsubscribeFromConversation,
+    setTyping,
   } = useChatStore();
 
   const conversationMessages = conversationId ? messages[conversationId] || [] : [];
@@ -57,7 +61,7 @@ function ChatRoomScreen() {
   );
 
   // Mount: cargar mensajes, setear conversación activa, subscribir Realtime
-  // Unmount: desubscribir Realtime
+  // Unmount: desubscribir Realtime, cleanup typing
   useEffect(() => {
     if (!conversationId) return;
 
@@ -65,6 +69,14 @@ function ChatRoomScreen() {
     loadMessages(conversationId, true);
 
     return () => {
+      // Cleanup typing
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+        typingTimeoutRef.current = null;
+      }
+      broadcastTyping(conversationId, currentUserId || 'unknown', false);
+      setTyping(false);
+
       unsubscribeFromConversation();
       setActiveConversation(null);
     };
@@ -85,9 +97,42 @@ function ChatRoomScreen() {
     await loadMessages(conversationId, false);
   }, [conversationId, loadMessages]);
 
+  /**
+   * Manejador de cambio de texto con debounce para broadcast de typing.
+   * Por cada tecla: broadcast typing true + reset timeout de 2s.
+   * A los 2s sin escribir: broadcast typing false.
+   */
+  const handleInputChange = useCallback(
+    (text: string) => {
+      setInputText(text);
+
+      if (!conversationId || !currentUserId) return;
+
+      // Broadcast que estamos escribiendo
+      broadcastTyping(conversationId, currentUserId, true);
+
+      // Resetear el timeout de idle
+      if (typingTimeoutRef.current) {
+        clearTimeout(typingTimeoutRef.current);
+      }
+
+      typingTimeoutRef.current = setTimeout(() => {
+        broadcastTyping(conversationId, currentUserId, false);
+      }, 2000);
+    },
+    [conversationId, currentUserId]
+  );
+
   const handleSend = useCallback(async () => {
     const text = inputText.trim();
     if (!text || !conversationId) return;
+
+    // Al enviar, dejar de emitir typing
+    if (typingTimeoutRef.current) {
+      clearTimeout(typingTimeoutRef.current);
+      typingTimeoutRef.current = null;
+    }
+    broadcastTyping(conversationId, currentUserId || 'unknown', false);
 
     setInputText('');
     Keyboard.dismiss();
@@ -97,7 +142,7 @@ function ChatRoomScreen() {
     } catch {
       // El store maneja el error internamente
     }
-  }, [inputText, conversationId, sendMessage]);
+  }, [inputText, conversationId, sendMessage, currentUserId]);
 
   const isOwnMessage = (senderId: string): boolean => {
     return currentUserId === senderId;
@@ -363,12 +408,19 @@ function ChatRoomScreen() {
           />
         )}
 
+        {/* Typing Indicator */}
+        {isTyping && (
+          <View style={styles.typingIndicator}>
+            <Text style={styles.typingText}>{t('chat.typing')}</Text>
+          </View>
+        )}
+
         {/* Input Bar */}
         <View style={styles.inputBar}>
           <TextInput
             style={styles.textInput}
             value={inputText}
-            onChangeText={setInputText}
+            onChangeText={handleInputChange}
             placeholder={t('chat.inputPlaceholder')}
             placeholderTextColor="#9CA3AF"
             returnKeyType="send"
@@ -587,6 +639,20 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#FFFFFF',
     fontWeight: '600',
+  },
+
+  // Typing Indicator
+  typingIndicator: {
+    paddingHorizontal: 16,
+    paddingVertical: 4,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: StyleSheet.hairlineWidth,
+    borderTopColor: '#E5E7EB',
+  },
+  typingText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    fontStyle: 'italic',
   },
 });
 
