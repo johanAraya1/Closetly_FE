@@ -45,6 +45,7 @@ const i18n = new I18n({
       error: 'Error',
       success: 'Success',
       ok: 'OK',
+      retry: 'Retry',
     },
     auth: {
       login: 'Log In',
@@ -263,6 +264,10 @@ const i18n = new I18n({
       errorDelete: 'Could not delete outfit',
       detailTitle: 'Outfit Detail',
       comingSoon: 'View details of "{{name}}" (coming soon)',
+      share: 'Share',
+      sharing: 'Generating image...',
+      shareTitle: 'Share Outfit',
+      garments: 'Garments',
       create: {
         name: 'Outfit Name *',
         namePlaceholder: 'e.g., Casual Friday',
@@ -474,6 +479,7 @@ const i18n = new I18n({
       error: 'Error',
       success: 'Éxito',
       ok: 'OK',
+      retry: 'Reintentar',
     },
     auth: {
       login: 'Iniciar Sesión',
@@ -692,6 +698,10 @@ const i18n = new I18n({
       errorDelete: 'No se pudo eliminar el outfit',
       detailTitle: 'Detalle de Outfit',
       comingSoon: 'Ver detalles de "{{name}}" (próximamente)',
+      share: 'Compartir',
+      sharing: 'Generando imagen...',
+      shareTitle: 'Compartir Outfit',
+      garments: 'Prendas',
       create: {
         name: 'Nombre del Outfit *',
         namePlaceholder: 'ej., Viernes Casual',

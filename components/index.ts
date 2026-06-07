@@ -19,4 +19,5 @@ export * from './AdminRoute';
 export * from './GarmentVisibilityForm';
 export * from './ListingTypeBadge';
 export { default as OutfitPreview } from './OutfitPreview';
+export { default as OutfitShareCard } from './OutfitShareCard';
 

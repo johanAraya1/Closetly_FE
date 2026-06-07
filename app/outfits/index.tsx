@@ -153,9 +153,9 @@ function OutfitsScreen() {
   // Navegar a detalle del outfit
   const handleOutfitPress = useCallback(
     (outfit: Outfit) => {
-      Alert.alert(t('outfits.detailTitle'), t('outfits.comingSoon', { name: outfit.name }));
+      router.push(`/outfits/${outfit.id}`);
     },
-    []
+    [router]
   );
 
   // Navegar a crear outfit
