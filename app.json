@@ -40,13 +40,6 @@
         {
           "color": "#62D9C7"
         }
-      ],
-      [
-        "expo-location",
-        {
-          "locationWhenInUsePermission": "Closetly needs your location to suggest outfits based on the weather in your area.",
-          "locationAlwaysAndWhenInUsePermission": "Closetly needs your location to suggest outfits based on the weather in your area."
-        }
       ]
     ],
     "scheme": "closetly",
