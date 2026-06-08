@@ -204,6 +204,24 @@ export default function CreateGarmentScreen() {
     return hasImage && hasName && hasBrand && hasColor && hasSeason;
   }, [imageUri, editImageUri, name, brand, color, seasons]);
 
+  const handlePickWithOption = useCallback((isCamera: boolean) => {
+    Alert.alert(
+      t('garments.create.photo'),
+      t('garments.create.cropOption'),
+      [
+        { text: t('garments.create.useFull'), onPress: () => {
+          setAiDetected(false);
+          showTip(() => isCamera ? capturePhoto(false) : pickImage(false));
+        }},
+        { text: t('garments.create.useCrop'), onPress: () => {
+          setAiDetected(false);
+          showTip(() => isCamera ? capturePhoto(true) : pickImage(true));
+        }},
+        { text: t('common.cancel'), style: 'cancel' },
+      ]
+    );
+  }, [t, pickImage, capturePhoto, showTip, setAiDetected]);
+
   const handleCreate = useCallback(async () => {
     if (!validate() || !user) {
       Alert.alert(
@@ -324,8 +342,7 @@ export default function CreateGarmentScreen() {
                     onPress={() => {
                       setLastAnalyzedUri(null);
                       setAiDetected(false);
-                      if (isEditMode) setEditImageUri(null);
-                      pickImage();
+                      handlePickWithOption(false);
                     }}
                     style={styles.changeImageButton}
                     disabled={isAnalyzing}
@@ -337,10 +354,7 @@ export default function CreateGarmentScreen() {
             ) : (
               <View style={styles.imagePickerRow}>
                 <TouchableOpacity
-                  onPress={() => {
-                    setAiDetected(false);
-                    showTip(() => pickImage());
-                  }}
+                  onPress={() => handlePickWithOption(false)}
                   style={styles.imagePickerButton}
                   disabled={isAnalyzing}
                 >
@@ -348,10 +362,7 @@ export default function CreateGarmentScreen() {
                   <Text style={styles.imagePickerText}>{t('garments.create.chooseFromGallery')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => {
-                    setAiDetected(false);
-                    showTip(() => capturePhoto());
-                  }}
+                  onPress={() => handlePickWithOption(true)}
                   style={styles.imagePickerButton}
                   disabled={isAnalyzing}
                 >

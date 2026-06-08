@@ -36,10 +36,24 @@ export const optimizeImage = async (uri: string): Promise<string> => {
 };
 
 /**
+ * Opciones para selección de imagen
+ */
+export interface ImagePickOptions {
+  /** Si se debe mostrar el editor de recorte después de seleccionar */
+  crop?: boolean;
+  /** Relación de aspecto para el recorte (solo si crop=true) */
+  aspect?: [number, number];
+}
+
+/**
  * Abre el selector de imágenes de la galería
  */
-export const pickImageFromGallery = async (): Promise<string | null> => {
+export const pickImageFromGallery = async (
+  options: ImagePickOptions = {}
+): Promise<string | null> => {
   try {
+    const { crop = false, aspect } = options;
+
     // Solicitar permisos
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
     
@@ -50,8 +64,8 @@ export const pickImageFromGallery = async (): Promise<string | null> => {
     // Abrir galería
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
-      allowsEditing: true,
-      aspect: [4, 3],
+      allowsEditing: crop,
+      aspect: aspect ?? [4, 3],
       quality: 1,
     });
 
@@ -70,8 +84,12 @@ export const pickImageFromGallery = async (): Promise<string | null> => {
 /**
  * Abre la cámara para tomar una foto
  */
-export const takePhoto = async (): Promise<string | null> => {
+export const takePhoto = async (
+  options: ImagePickOptions = {}
+): Promise<string | null> => {
   try {
+    const { crop = false } = options;
+
     // Solicitar permisos
     const { status } = await ImagePicker.requestCameraPermissionsAsync();
     
@@ -79,9 +97,9 @@ export const takePhoto = async (): Promise<string | null> => {
       throw new Error('Permission to access camera was denied');
     }
 
-    // Abrir cámara (sin editor de recorte para usar la foto completa)
+    // Abrir cámara
     const result = await ImagePicker.launchCameraAsync({
-      allowsEditing: false,
+      allowsEditing: crop,
       quality: 1,
     });
 

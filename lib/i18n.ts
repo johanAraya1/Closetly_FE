@@ -195,10 +195,20 @@ const i18n = new I18n({
         aiDetectedByAI: 'Detected by AI',
         aiInfoAnalyzing: 'Analyzing image with AI...',
         aiInfoWaiting: 'Waiting for AI detection...',
+        cropOption: 'How would you like to add the photo?',
+        useFull: 'Full photo',
+        useCrop: 'Crop',
         // Photo tip (max 3 times)
         photoTipTitle: '📸 Pro tip for best results',
         photoTipMessage: 'Take the photo with the garment extended against a plain background with good lighting.\n\nThis helps us remove the background for a cleaner look!',
         photoTipGotIt: 'Got it!',
+      },
+      detail: {
+        title: 'Garment Detail',
+        notFound: 'Garment not found',
+        public: 'Public',
+        private: 'Private',
+        editGarment: 'Edit Garment',
       },
       category: {
         all: 'All',
@@ -652,10 +662,20 @@ const i18n = new I18n({
         aiDetectedByAI: 'Detectado por IA',
         aiInfoAnalyzing: 'Analizando imagen con IA...',
         aiInfoWaiting: 'Esperando detección de IA...',
+        cropOption: '¿Cómo querés agregar la foto?',
+        useFull: 'Foto completa',
+        useCrop: 'Recortar',
         // Photo tip (max 3 times)
         photoTipTitle: '📸 Tip para mejores fotos',
         photoTipMessage: 'Tomá la foto con la prenda extendida contra un fondo liso y con buena luz.\n\n¡Esto nos ayuda a quitarle el fondo para una mejor presentación!',
         photoTipGotIt: '¡Entendido!',
+      },
+      detail: {
+        title: 'Detalle de Prenda',
+        notFound: 'Prenda no encontrada',
+        public: 'Pública',
+        private: 'Privada',
+        editGarment: 'Editar Prenda',
       },
       category: {
         all: 'Todas',

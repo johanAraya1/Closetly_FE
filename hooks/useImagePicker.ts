@@ -6,14 +6,15 @@
 import { useState } from 'react';
 import { Alert } from 'react-native';
 import { pickImageFromGallery, takePhoto } from '@/utils/imageUtils';
+import type { ImagePickOptions } from '@/utils/imageUtils';
 import * as garmentService from '@/services/garmentService';
 import * as profileService from '@/services/profileService';
 
 interface UseImagePickerReturn {
   imageUri: string | null;
   isUploading: boolean;
-  pickImage: () => Promise<void>;
-  capturePhoto: () => Promise<void>;
+  pickImage: (crop?: boolean) => Promise<void>;
+  capturePhoto: (crop?: boolean) => Promise<void>;
   uploadGarmentImage: (userId: string) => Promise<string | null>;
   uploadAvatarImage: (userId: string) => Promise<string | null>;
   resetImage: () => void;
@@ -23,9 +24,9 @@ export const useImagePicker = (): UseImagePickerReturn => {
   const [imageUri, setImageUri] = useState<string | null>(null);
   const [isUploading, setIsUploading] = useState(false);
 
-  const pickImage = async () => {
+  const pickImage = async (crop: boolean = false) => {
     try {
-      const uri = await pickImageFromGallery();
+      const uri = await pickImageFromGallery({ crop });
       if (uri) {
         setImageUri(uri);
       }
@@ -34,9 +35,9 @@ export const useImagePicker = (): UseImagePickerReturn => {
     }
   };
 
-  const capturePhoto = async () => {
+  const capturePhoto = async (crop: boolean = false) => {
     try {
-      const uri = await takePhoto();
+      const uri = await takePhoto({ crop });
       if (uri) {
         setImageUri(uri);
       }

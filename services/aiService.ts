@@ -6,6 +6,7 @@
 import { API_URL } from '@/lib/constants';
 import * as ImageManipulator from 'expo-image-manipulator';
 import type { GarmentCategory, GarmentSeason } from '@/types';
+import i18n from '@/lib/i18n';
 
 export interface GarmentAnalysis {
   name: string;
@@ -36,6 +37,9 @@ export async function analyzeGarmentImage(
       return { error: 'No se pudo procesar la imagen' };
     }
 
+    // Obtener el locale actual del usuario para que la IA responda en ese idioma
+    const locale = i18n.locale?.split('-')[0] || 'en';
+
     // Enviar al backend para análisis
     const aiResponse = await fetch(`${API_URL}/ai/analyze-garment`, {
       method: 'POST',
@@ -44,6 +48,7 @@ export async function analyzeGarmentImage(
       },
       body: JSON.stringify({
         imageBase64: base64,
+        locale,
       }),
     });
 
