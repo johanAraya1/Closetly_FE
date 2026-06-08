@@ -4,6 +4,7 @@
  */
 
 import { create } from 'zustand';
+import * as Location from 'expo-location';
 import type { Suggestion, Garment, WeatherData, SuggestionsResponse } from '@/types';
 import { apiClient } from '@/utils/apiClient';
 
@@ -13,6 +14,7 @@ interface SuggestionsState {
   weather: WeatherData | null;
   isLoading: boolean;
   error: string | null;
+  message: string | null;
   lastUpdated: Date | null;
 
   // Actions
@@ -26,6 +28,7 @@ const initialState = {
   weather: null,
   isLoading: false,
   error: null,
+  message: null,
   lastUpdated: null,
 };
 
@@ -33,27 +36,26 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
   ...initialState,
 
   fetchSuggestions: async (lat?: number, lon?: number) => {
-    set({ isLoading: true, error: null });
+      set({ isLoading: true, error: null, message: null });
 
     try {
-      // If coordinates not provided, try to get them via geolocation
+      // If coordinates not provided, try to get them via expo-location
       let queryLat = lat;
       let queryLon = lon;
 
       if (queryLat === undefined || queryLon === undefined) {
         try {
-          const position = await new Promise<GeolocationPosition>(
-            (resolve, reject) => {
-              navigator.geolocation.getCurrentPosition(resolve, reject, {
-                timeout: 5000,
-                enableHighAccuracy: false,
-              });
-            },
-          );
-          queryLat = position.coords.latitude;
-          queryLon = position.coords.longitude;
+          const { status } = await Location.requestForegroundPermissionsAsync();
+          if (status !== 'granted') {
+            console.warn('⚠️ Location permission denied, fetching suggestions without location');
+          } else {
+            const position = await Location.getCurrentPositionAsync({
+              accuracy: Location.Accuracy.Low, // Low = ~3km, fast, no GPS needed
+            });
+            queryLat = position.coords.latitude;
+            queryLon = position.coords.longitude;
+          }
         } catch {
-          // Geolocation failed — call without coordinates
           console.warn('⚠️ Geolocation unavailable, fetching suggestions without location');
         }
       }
@@ -71,7 +73,7 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
           console.warn('⚠️ Suggestions with coords failed, retrying without location');
           const fallbackResult = await apiClient.get<SuggestionsResponse>('/outfits/suggestions');
           if (fallbackResult.error) {
-            set({ isLoading: false, error: fallbackResult.error });
+            set({ isLoading: false, error: fallbackResult.error, message: null });
             return;
           }
           if (fallbackResult.data) {
@@ -79,13 +81,14 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
               suggestions: fallbackResult.data.suggestions ?? [],
               garments: fallbackResult.data.garments ?? [],
               weather: fallbackResult.data.weather ?? null,
+              message: fallbackResult.data.message ?? null,
               isLoading: false,
               lastUpdated: new Date(),
             });
             return;
           }
         }
-        set({ isLoading: false, error: result.error });
+        set({ isLoading: false, error: result.error, message: null });
         return;
       }
 
@@ -94,13 +97,14 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
           suggestions: result.data.suggestions ?? [],
           garments: result.data.garments ?? [],
           weather: result.data.weather ?? null,
+          message: result.data.message ?? null,
           isLoading: false,
           lastUpdated: new Date(),
         });
       }
     } catch (err) {
-      const message = err instanceof Error ? err.message : 'Unknown error';
-      set({ isLoading: false, error: message });
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      set({ isLoading: false, error: errorMsg, message: null });
     }
   },
 

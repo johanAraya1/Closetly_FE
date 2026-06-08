@@ -304,6 +304,7 @@ export interface SuggestionsResponse {
   suggestions: Suggestion[];
   garments: Garment[];
   weather?: WeatherData;
+  message?: string;
 }
 
 // ==================== CLOSET STATS ====================

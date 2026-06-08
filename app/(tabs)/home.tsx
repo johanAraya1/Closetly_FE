@@ -32,6 +32,7 @@ function HomeScreen() {
     weather,
     isLoading: suggestionsLoading,
     error: suggestionsError,
+    message: suggestionsMessage,
     fetchSuggestions,
     lastUpdated,
   } = useSuggestionsStore();
@@ -293,7 +294,7 @@ function HomeScreen() {
             <View style={styles.suggestionsStatusContainer}>
               <Ionicons name="bulb-outline" size={32} color={COLORS.gray[400]} />
               <Text style={styles.suggestionsStatusText}>
-                {t('home.noSuggestions')}
+                {suggestionsMessage || t('home.noSuggestions')}
               </Text>
             </View>
           )}
