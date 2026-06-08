@@ -1,4 +1,4 @@
-const { config } = require('./app.json');
+const appJson = require('./app.json');
 
 // Location plugin config for native builds (Android permissions, etc.)
 const locationPlugin = [
@@ -20,7 +20,7 @@ const isWebBuild = !!(
 );
 
 if (!isWebBuild) {
-  config.plugins.push(locationPlugin);
+  appJson.expo.plugins.push(locationPlugin);
 }
 
-module.exports = config;
+module.exports = appJson;
