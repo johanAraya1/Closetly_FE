@@ -23,6 +23,8 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { ListingTypeBadge, EmptyState, Loading, withScreenErrorBoundary } from '@/components';
 import { useMarketplaceStore } from '@/store/marketplaceStore';
+import { useGarmentsStore } from '@/store/garmentsStore';
+import { useAuthStore } from '@/store/authStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useDebounce } from '@/hooks/useDebounce';
 import { COLORS, GARMENT_CATEGORIES, LISTING_TYPES } from '@/lib/constants';
@@ -33,6 +35,9 @@ const SEARCH_DEBOUNCE_MS = 300;
 function MarketplaceScreen() {
   const router = useRouter();
   const { t } = useTranslation();
+  const user = useAuthStore((s) => s.user);
+  const myGarmentsTotal = useGarmentsStore((s) => s.total);
+  const myGarments = useGarmentsStore((s) => s.garments);
   const {
     garments,
     isLoading,
@@ -175,16 +180,30 @@ function MarketplaceScreen() {
       );
     }
 
+    // User has garments in their closet but none are public
+    const hasMyGarments = myGarmentsTotal > 0 || myGarments.length > 0;
+    if (user && hasMyGarments) {
+      return (
+        <EmptyState
+          icon="storefront-outline"
+          title="Publicá tus prendas"
+          message={`Tenés ${myGarmentsTotal} prendas en tu closet, pero ninguna es pública. Andá a tu closet, editá una prenda y activá "Público" para que aparezca acá.`}
+          actionLabel="Ir al Closet"
+          onAction={() => router.push('/closet')}
+        />
+      );
+    }
+
     return (
       <EmptyState
         icon="storefront-outline"
         title="Publicá tu primera prenda"
-        message="Compartí tus prendas con la comunidad. Hacé públicas tus prendas desde el closet para que aparezcan acá."
+        message="Compartí tus prendas con la comunidad. Hacé públicas tus prendas desde tu closet para que aparezcan acá."
         actionLabel="Ir al Closet"
         onAction={() => router.push('/closet')}
       />
     );
-  }, [isLoading, error, t, hasActiveFilters, onRefresh, router]);
+  }, [isLoading, error, t, hasActiveFilters, onRefresh, router, user, myGarmentsTotal]);
 
   if (isLoading && garments.length === 0 && !error) {
     return <Loading message={t('common.loading')} />;

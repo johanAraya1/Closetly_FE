@@ -138,7 +138,10 @@ const i18n = new I18n({
       deleteMessage: 'This action cannot be undone. If this garment is part of any outfit, it will also be removed from those outfits. Are you sure you want to continue?',
       confirmDelete: 'Yes, delete',
       loadedCount: '{{loaded}} of {{total}} loaded',
-      garmentCount: '{{count}} {{count, plural, one {garment} other {garments}}}',
+      garmentCount: {
+        one: '{{count}} garment',
+        other: '{{count}} garments',
+      },
       noGarmentsCategory: 'No {{category}} yet',
     },
     garments: {
@@ -592,7 +595,10 @@ const i18n = new I18n({
       deleteMessage: 'Esta acción no se puede deshacer. Si esta prenda forma parte de algún outfit, también se va a eliminar de esos outfits. ¿Estás seguro de que querés continuar?',
       confirmDelete: 'Sí, eliminar',
       loadedCount: '{{loaded}} de {{total}} cargadas',
-      garmentCount: '{{count}} {{count, plural, one {prenda} other {prendas}}}',
+      garmentCount: {
+        one: '{{count}} prenda',
+        other: '{{count}} prendas',
+      },
       noGarmentsCategory: 'No tenés {{category}} aún',
     },
     garments: {
