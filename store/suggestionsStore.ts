@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import * as Location from 'expo-location';
 import type { Suggestion, Garment, WeatherData, SuggestionsResponse } from '@/types';
 import { apiClient } from '@/utils/apiClient';
+import i18n from '@/lib/i18n';
 
 interface SuggestionsState {
   suggestions: Suggestion[];
@@ -60,10 +61,14 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
         }
       }
 
-      let endpoint = '/outfits/suggestions';
+      let endpoint = `/outfits/suggestions`;
       if (queryLat !== undefined && queryLon !== undefined) {
         endpoint += `?lat=${queryLat}&lon=${queryLon}`;
       }
+
+      // Add locale for localized AI responses
+      const locale = i18n.locale;
+      endpoint += `${endpoint.includes('?') ? '&' : '?'}locale=${locale}`;
 
       const result = await apiClient.get<SuggestionsResponse>(endpoint);
 
@@ -71,7 +76,7 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
         // If failed with coordinates, try without them
         if (queryLat !== undefined && queryLon !== undefined) {
           console.warn('⚠️ Suggestions with coords failed, retrying without location');
-          const fallbackResult = await apiClient.get<SuggestionsResponse>('/outfits/suggestions');
+          const fallbackResult = await apiClient.get<SuggestionsResponse>(`/outfits/suggestions?locale=${locale}`);
           if (fallbackResult.error) {
             set({ isLoading: false, error: fallbackResult.error, message: null });
             return;
