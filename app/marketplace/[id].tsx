@@ -94,7 +94,13 @@ function MarketplaceGarmentDetailScreen() {
     return s?.label ?? season;
   };
 
-  const getStyleLabel = (style: string): string => {
+  const getStyleLabel = (style: string | string[]): string => {
+    if (Array.isArray(style)) {
+      return style.map(s => {
+        const found = GARMENT_STYLES.find(st => st.value === s);
+        return found?.label ?? s;
+      }).join(', ');
+    }
     const s = GARMENT_STYLES.find((s) => s.value === style);
     return s?.label ?? style;
   };

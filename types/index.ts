@@ -79,7 +79,7 @@ export interface Garment {
   color?: string;
   size?: string;
   season?: GarmentSeason | GarmentSeason[];
-  style?: GarmentStyle;
+  style?: GarmentStyle[];
   imageUrl: string;
   notes?: string;
   isPublic?: boolean;
@@ -95,7 +95,7 @@ export interface CreateGarmentDTO {
   color?: string;
   size?: string;
   season?: GarmentSeason | GarmentSeason[];
-  style?: GarmentStyle;
+  style?: GarmentStyle[];
   imageUrl: string;
   notes?: string;
   isPublic?: boolean;
@@ -109,7 +109,7 @@ export interface UpdateGarmentDTO {
   color?: string;
   size?: string;
   season?: GarmentSeason | GarmentSeason[];
-  style?: GarmentStyle;
+  style?: GarmentStyle[];
   imageUrl?: string;
   notes?: string;
   isPublic?: boolean;

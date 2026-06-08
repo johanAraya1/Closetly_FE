@@ -198,6 +198,7 @@ const i18n = new I18n({
         cropOption: 'How would you like to add the photo?',
         useFull: 'Full photo',
         useCrop: 'Crop',
+        noBrand: 'No brand',
         // Photo tip (max 3 times)
         photoTipTitle: '📸 Pro tip for best results',
         photoTipMessage: 'Take the photo with the garment extended against a plain background with good lighting.\n\nThis helps us remove the background for a cleaner look!',
@@ -665,6 +666,7 @@ const i18n = new I18n({
         cropOption: '¿Cómo querés agregar la foto?',
         useFull: 'Foto completa',
         useCrop: 'Recortar',
+        noBrand: 'No tiene marca',
         // Photo tip (max 3 times)
         photoTipTitle: '📸 Tip para mejores fotos',
         photoTipMessage: 'Tomá la foto con la prenda extendida contra un fondo liso y con buena luz.\n\n¡Esto nos ayuda a quitarle el fondo para una mejor presentación!',

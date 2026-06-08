@@ -32,9 +32,10 @@ export default function CreateGarmentScreen() {
   const [name, setName] = useState('');
   const [category, setCategory] = useState<GarmentCategory>('tops');
   const [brand, setBrand] = useState('');
+  const [noBrand, setNoBrand] = useState(false);
   const [color, setColor] = useState('');
   const [seasons, setSeasons] = useState<GarmentSeason[]>(['all_season']);
-  const [style, setStyle] = useState<GarmentStyle>('casual');
+  const [selectedStyles, setSelectedStyles] = useState<GarmentStyle[]>([]);
   const [notes, setNotes] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [listingType, setListingType] = useState<ListingType | null>(null);
@@ -66,6 +67,7 @@ export default function CreateGarmentScreen() {
         setName(garment.name);
         setCategory(garment.category);
         setBrand(garment.brand || '');
+        setNoBrand(!garment.brand);
         setColor(garment.color || '');
         // Manejar season como array o string
         if (Array.isArray(garment.season)) {
@@ -73,7 +75,14 @@ export default function CreateGarmentScreen() {
         } else {
           setSeasons(garment.season ? [garment.season] : ['all_season']);
         }
-        setStyle(garment.style || 'casual');
+        // Manejar style como array o string
+        if (Array.isArray(garment.style)) {
+          setSelectedStyles(garment.style);
+        } else if (garment.style) {
+          setSelectedStyles([garment.style]);
+        } else {
+          setSelectedStyles([]);
+        }
         setNotes(garment.notes || '');
         setIsPublic((garment as any).is_public ?? false);
         setListingType((garment as any).listing_type ?? null);
@@ -149,7 +158,7 @@ export default function CreateGarmentScreen() {
       newErrors.image = t('garments.create.errorImageRequired');
     }
 
-    if (!brand.trim()) {
+    if (!noBrand && !brand.trim()) {
       newErrors.brand = t('garments.create.errorBrandRequired');
     }
 
@@ -163,7 +172,7 @@ export default function CreateGarmentScreen() {
 
     setErrors(newErrors);
     return Object.keys(newErrors).length === 0;
-  }, [name, imageUri, editImageUri, brand, color, seasons]);
+  }, [name, imageUri, editImageUri, noBrand, brand, color, seasons]);
 
   // Manejar selección de temporadas
   const handleSeasonToggle = useCallback((seasonValue: GarmentSeason) => {
@@ -193,16 +202,27 @@ export default function CreateGarmentScreen() {
     }
   }, []);
 
+  // Manejar selección de estilos (multi-select)
+  const handleStyleToggle = useCallback((styleValue: GarmentStyle) => {
+    setSelectedStyles(prev => {
+      if (prev.includes(styleValue)) {
+        return prev.filter(s => s !== styleValue);
+      } else {
+        return [...prev, styleValue];
+      }
+    });
+  }, []);
+
   // Verificar si el formulario está completo
   const isFormComplete = useMemo(() => {
     const hasImage = !!(imageUri || editImageUri);
     const hasName = name.trim().length > 0;
-    const hasBrand = brand.trim().length > 0;
+    const hasBrand = noBrand || brand.trim().length > 0;
     const hasColor = color.trim().length > 0;
     const hasSeason = seasons.length > 0;
     
     return hasImage && hasName && hasBrand && hasColor && hasSeason;
-  }, [imageUri, editImageUri, name, brand, color, seasons]);
+  }, [imageUri, editImageUri, name, noBrand, brand, color, seasons]);
 
   const handlePickWithOption = useCallback((isCamera: boolean) => {
     Alert.alert(
@@ -245,10 +265,10 @@ export default function CreateGarmentScreen() {
         const updateData = {
           name: name.trim(),
           category,
-          brand: brand.trim() || undefined,
+          brand: noBrand ? undefined : (brand.trim() || undefined),
           color: color.trim() || undefined,
           season: seasonValue,
-          style,
+          style: selectedStyles, // Send array (empty = clear styles)
           notes: notes.trim() || undefined,
           isPublic,
           ...(isPublic && listingType ? { listingType } : {}),
@@ -270,10 +290,10 @@ export default function CreateGarmentScreen() {
         const garment = await createGarment(user.id, {
           name: name.trim(),
           category,
-          brand: brand.trim() || undefined,
+          brand: noBrand ? undefined : (brand.trim() || undefined),
           color: color.trim() || undefined,
           season: seasonValue,
-          style,
+          style: selectedStyles.length > 0 ? selectedStyles : undefined,
           image_url: imageUrl || '',
           notes: notes.trim() || undefined,
           isPublic,
@@ -296,7 +316,7 @@ export default function CreateGarmentScreen() {
       setErrorMessage(`${t('garments.create.errorGeneric')}: ${errorMsg}`);
       setShowErrorModal(true);
     }
-  }, [validate, user, isEditMode, id, name, category, brand, color, seasons, style, notes, imageUri, editImageUri, token, createGarment, updateGarment, router]);
+  }, [validate, user, isEditMode, id, name, category, noBrand, brand, color, seasons, selectedStyles, notes, imageUri, editImageUri, token, createGarment, updateGarment, router]);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -424,11 +444,30 @@ export default function CreateGarmentScreen() {
                 value={brand}
                 onChangeText={(text) => {
                   setBrand(text);
+                  if (text.length > 0) setNoBrand(false);
                   setErrors({ ...errors, brand: undefined });
                 }}
                 placeholder={t('garments.create.brandPlaceholder')}
                 error={errors.brand}
+                editable={!noBrand}
               />
+
+              <TouchableOpacity
+                style={styles.checkboxRow}
+                onPress={() => {
+                  setNoBrand(!noBrand);
+                  if (!noBrand) {
+                    setBrand('');
+                    setErrors({ ...errors, brand: undefined });
+                  }
+                }}
+                activeOpacity={0.7}
+              >
+                <View style={[styles.checkbox, noBrand && styles.checkboxActive]}>
+                  {noBrand && <Ionicons name="checkmark" size={16} color="#FFFFFF" />}
+                </View>
+                <Text style={styles.checkboxLabel}>{t('garments.create.noBrand')}</Text>
+              </TouchableOpacity>
 
               <Input
                 label={t('garments.create.color')}
@@ -479,20 +518,23 @@ export default function CreateGarmentScreen() {
               <View style={styles.section}>
                 <Text style={styles.label}>{t('garments.create.style')}</Text>
                 <View style={styles.chipContainer}>
-                  {GARMENT_STYLES.map((st) => (
-                    <TouchableOpacity
-                      key={st.value}
-                      onPress={() => setStyle(st.value as GarmentStyle)}
-                      style={[
-                        styles.chip,
-                        style === st.value ? styles.chipActiveTertiary : styles.chipInactive,
-                      ]}
-                    >
-                      <Text style={style === st.value ? styles.chipTextActive : styles.chipTextInactive}>
-                        {t('garments.style.' + st.value)}
-                      </Text>
-                    </TouchableOpacity>
-                  ))}
+                  {GARMENT_STYLES.map((st) => {
+                    const isSelected = selectedStyles.includes(st.value as GarmentStyle);
+                    return (
+                      <TouchableOpacity
+                        key={st.value}
+                        onPress={() => handleStyleToggle(st.value as GarmentStyle)}
+                        style={[
+                          styles.chip,
+                          isSelected ? styles.chipActiveTertiary : styles.chipInactive,
+                        ]}
+                      >
+                        <Text style={isSelected ? styles.chipTextActive : styles.chipTextInactive}>
+                          {t('garments.style.' + st.value)}
+                        </Text>
+                      </TouchableOpacity>
+                    );
+                  })}
                 </View>
               </View>
 
@@ -541,9 +583,10 @@ export default function CreateGarmentScreen() {
               setName('');
               setCategory('tops');
               setBrand('');
+              setNoBrand(false);
               setColor('');
               setSeasons(['all_season']);
-              setStyle('casual');
+              setSelectedStyles([]);
               setNotes('');
               setIsPublic(false);
               setListingType(null);
@@ -806,5 +849,30 @@ const styles = StyleSheet.create({
   },
   disabledSection: {
     opacity: 0.5,
+  },
+  checkboxRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+    marginTop: 8,
+    marginBottom: 4,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 4,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#FFFFFF',
+  },
+  checkboxActive: {
+    backgroundColor: '#10B981',
+    borderColor: '#10B981',
+  },
+  checkboxLabel: {
+    fontSize: 14,
+    color: '#374151',
   },
 });

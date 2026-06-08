@@ -61,7 +61,9 @@ function GarmentDetailScreen() {
     : garment.season || 'all_season';
   const seasonLabel = SEASONS.find(s => s.value === seasonValue)?.label || formatEnumValue(seasonValue);
   const styleLabel = garment.style
-    ? GARMENT_STYLES.find(s => s.value === garment.style)?.label || formatEnumValue(garment.style)
+    ? (Array.isArray(garment.style)
+        ? garment.style.map(s => GARMENT_STYLES.find(st => st.value === s)?.label || formatEnumValue(s)).join(', ')
+        : GARMENT_STYLES.find(s => s.value === garment.style)?.label || formatEnumValue(garment.style))
     : null;
   const categoryLabel = GARMENT_CATEGORIES.find(c => c.value === garment.category)?.label || formatEnumValue(garment.category);
 

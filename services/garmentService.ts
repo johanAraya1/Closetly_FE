@@ -143,6 +143,10 @@ export const createGarment = async (
       formData.append('brand', sanitizedBrand);
     }
     
+    if (garmentData.style && garmentData.style.length > 0) {
+      formData.append('style', JSON.stringify(garmentData.style));
+    }
+    
     if (garmentData.size) {
       formData.append('size', garmentData.size);
     }
@@ -244,6 +248,10 @@ export const updateGarment = async (
     }
     if (updates.size !== undefined) body.size = updates.size;
     if (updates.notes !== undefined) body.notes = sanitizeNotes(updates.notes);
+    
+    if (updates.style !== undefined) {
+      body.style = updates.style;
+    }
     
     if (updates.season !== undefined) {
       body.season = updates.season;
