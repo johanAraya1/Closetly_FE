@@ -243,7 +243,16 @@ export default function CreateGarmentScreen() {
   }, [t, pickImage, capturePhoto, showTip, setAiDetected]);
 
   const handleCreate = useCallback(async () => {
-    if (!validate() || !user) {
+    if (!user) {
+      Alert.alert(
+        t('common.error'),
+        'Your session has expired. Please go back and log in again.',
+        [{ text: t('common.ok') }]
+      );
+      return;
+    }
+
+    if (!validate()) {
       Alert.alert(
         t('garments.create.incompleteTitle'),
         t('garments.create.incompleteMessage'),
