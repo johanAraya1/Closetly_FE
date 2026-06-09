@@ -20,7 +20,13 @@ import { apiClient } from '@/utils/apiClient';
  */
 export const registerForPushNotifications = async (): Promise<string | null> => {
   try {
-    // 1. Solo dispositivos físicos soportan push notifications
+    // 1. En web no hay push notifications nativas (requiere VAPID y service worker)
+    if (Platform.OS === 'web') {
+      console.log('[PushNotification] Skipping — web platform');
+      return null;
+    }
+
+    // 2. Solo dispositivos físicos soportan push notifications
     if (!isDevice) {
       console.log('[PushNotification] Skipping — simulator/emulator detected');
       return null;

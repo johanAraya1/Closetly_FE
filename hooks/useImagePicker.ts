@@ -29,8 +29,12 @@ export const useImagePicker = (): UseImagePickerReturn => {
       const uri = await pickImageFromGallery({ crop });
       if (uri) {
         setImageUri(uri);
+      } else {
+        // Si no hay error pero tampoco URI, la selección fue cancelada o falló silenciosamente
+        console.log('[useImagePicker] pickImageFromGallery returned null (cancelled or silent failure)');
       }
     } catch (error) {
+      console.error('[useImagePicker] Error picking image:', error);
       Alert.alert('Error', 'Failed to pick image');
     }
   };

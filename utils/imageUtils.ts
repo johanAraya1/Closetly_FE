@@ -5,6 +5,7 @@
 
 import * as ImageManipulator from 'expo-image-manipulator';
 import * as ImagePicker from 'expo-image-picker';
+import { Platform } from 'react-native';
 import { IMAGE_CONFIG } from '@/lib/constants';
 
 /**
@@ -54,14 +55,27 @@ export const pickImageFromGallery = async (
   try {
     const { crop = false, aspect } = options;
 
+    // En web, expo-image-picker usa <input type="file"> del browser
+    // No necesita permisos especiales, pero requestMediaLibraryPermissionsAsync
+    // puede devolver 'undetermined' en algunos contextos
+    if (Platform.OS === 'web') {
+      console.log('[ImageUtils] Opening gallery on web');
+    }
+
     // Solicitar permisos
     const { status } = await ImagePicker.requestMediaLibraryPermissionsAsync();
+    console.log('[ImageUtils] Media permission status:', status);
     
     if (status !== 'granted') {
-      throw new Error('Permission to access gallery was denied');
+      // En web, el permiso puede no estar soportado; intentar de todas formas
+      if (Platform.OS !== 'web') {
+        throw new Error('Permission to access gallery was denied');
+      }
+      console.log('[ImageUtils] Proceeding without explicit permission on web');
     }
 
     // Abrir galería
+    console.log('[ImageUtils] Launching image library...');
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: crop,
@@ -69,14 +83,24 @@ export const pickImageFromGallery = async (
       quality: 1,
     });
 
+    console.log('[ImageUtils] Gallery result:', result.canceled ? 'cancelled' : 'selected', result.assets?.length, 'assets');
+
     if (!result.canceled && result.assets[0]) {
+      console.log('[ImageUtils] Image URI type:', typeof result.assets[0].uri, 'length:', result.assets[0].uri?.length);
       // Optimizar imagen antes de devolverla
-      return await optimizeImage(result.assets[0].uri);
+      const optimized = await optimizeImage(result.assets[0].uri);
+      console.log('[ImageUtils] Optimized URI:', optimized ? 'success' : 'null');
+      return optimized;
     }
 
+    console.log('[ImageUtils] No image selected');
     return null;
   } catch (error) {
-    console.error('Error picking image:', error);
+    console.error('[ImageUtils] Error picking image:', error);
+    console.log('[ImageUtils] Error details:', JSON.stringify({
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack?.split('\n').slice(0, 3).join('\n') : 'N/A',
+    }));
     return null;
   }
 };
