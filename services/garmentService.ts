@@ -127,69 +127,118 @@ export const createGarment = async (
       return { error: 'Invalid name: potential security issue detected' };
     }
     
-    // Crear FormData para enviar la imagen
+    // Build common body fields
+    const bodyFields: Record<string, any> = {
+      name: sanitizedName,
+      category: garmentData.category,
+      season: garmentData.season,
+    };
+    
+    if (sanitizedColor) bodyFields.color = sanitizedColor;
+    if (sanitizedBrand) bodyFields.brand = sanitizedBrand;
+    if (garmentData.style && garmentData.style.length > 0) bodyFields.style = garmentData.style;
+    if (garmentData.size) bodyFields.size = garmentData.size;
+    if (sanitizedNotes) bodyFields.notes = sanitizedNotes;
+    bodyFields.isPublic = garmentData.isPublic ?? false;
+    if (garmentData.isPublic && garmentData.listingType) {
+      bodyFields.listingType = garmentData.listingType;
+    }
+    
+    // On web, send JSON with base64 image to avoid Multer issues on Vercel serverless
+    if (Platform.OS === 'web') {
+      if (garmentData.image_url) {
+        const imageUri = garmentData.image_url;
+        // Convert image URI to base64 string
+        if (imageUri.startsWith('data:')) {
+          // Already a data URI — extract base64 part
+          const base64Match = imageUri.match(/^data:image\/\w+;base64,(.+)$/);
+          if (base64Match) {
+            bodyFields.imageBase64 = base64Match[1];
+          }
+        } else {
+          // Blob URI — fetch and convert to base64
+          const blobResp = await fetch(imageUri);
+          const blob = await blobResp.blob();
+          const base64 = await new Promise<string>((resolve, reject) => {
+            const reader = new FileReader();
+            reader.onloadend = () => {
+              const result = reader.result as string;
+              const base64Match = result.match(/^data:image\/\w+;base64,(.+)$/);
+              resolve(base64Match ? base64Match[1] : result);
+            };
+            reader.onerror = reject;
+            reader.readAsDataURL(blob);
+          });
+          bodyFields.imageBase64 = base64;
+        }
+      }
+      
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+      
+      const response = await fetchWithTimeout(`${API_URL}/garments`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(bodyFields),
+        timeout: 30000,
+      });
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        return { error: `Error al crear prenda (${response.status})` };
+      }
+      
+      const result = await response.json();
+      const garment = result.data || result;
+      if (garment) {
+        garment.image_url = garment.imageUrl || garment.image_url || garment.image || '';
+      }
+      
+      return { data: garment };
+    }
+    
+    // On mobile, use FormData (React Native handles native file URIs)
     const formData = new FormData();
     formData.append('name', sanitizedName);
     formData.append('category', garmentData.category);
+    formData.append('season', garmentData.season as string);
     
-    const seasonValue = garmentData.season;
-    formData.append('season', seasonValue as string);
-    
-    if (sanitizedColor) {
-      formData.append('color', sanitizedColor);
-    }
-    
-    if (sanitizedBrand) {
-      formData.append('brand', sanitizedBrand);
-    }
-    
+    if (sanitizedColor) formData.append('color', sanitizedColor);
+    if (sanitizedBrand) formData.append('brand', sanitizedBrand);
     if (garmentData.style && garmentData.style.length > 0) {
       formData.append('style', JSON.stringify(garmentData.style));
     }
+    if (garmentData.size) formData.append('size', garmentData.size);
+    if (sanitizedNotes) formData.append('notes', sanitizedNotes);
     
-    if (garmentData.size) {
-      formData.append('size', garmentData.size);
-    }
-    
-    if (sanitizedNotes) {
-      formData.append('notes', sanitizedNotes);
-    }
-    
-    // Agregar imagen si existe
+    // Append image on mobile
     if (garmentData.image_url) {
-      const imageUri = garmentData.image_url;
-      if (Platform.OS === 'web') {
-        // En web, FormData nativo del browser no entiende { uri, type, name }
-        // Convertir el blob/data URI a un objeto File
-        const response = await fetch(imageUri);
-        const blob = await response.blob();
-        formData.append('image', blob, 'garment.jpg');
-      } else {
-        // En mobile, React Native FormData soporta referencias a archivos nativos
-        // No usamos fetch() porque no funciona con file:// URIs en RN
-        formData.append('image', {
-          uri: imageUri,
-          type: 'image/jpeg',
-          name: 'garment.jpg',
-        } as any);
-      }
+      formData.append('image', {
+        uri: garmentData.image_url,
+        type: 'image/jpeg',
+        name: 'garment.jpg',
+      } as any);
     }
     
-    // Append visibility fields
     formData.append('is_public', String(garmentData.isPublic ?? false));
     if (garmentData.isPublic && garmentData.listingType) {
       formData.append('listing_type', garmentData.listingType);
     }
     
     const headers: Record<string, string> = {};
-    
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
-    }    const response = await fetchWithTimeout(`${API_URL}/garments`, {
+    }
+    
+    const response = await fetchWithTimeout(`${API_URL}/garments`, {
       method: 'POST',
       headers,
       body: formData,
-      timeout: 30000, // 30 segundos (subida de imagen)
+      timeout: 30000,
     });
 
     if (!response.ok) {
