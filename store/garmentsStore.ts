@@ -146,7 +146,8 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => {
         isLoading: false,
         error: result.error,
       }));
-      return null;
+      // Throw so the caller's catch block shows the real BE error
+      throw new Error(result.error);
     }
 
     if (result.data) {
@@ -160,7 +161,7 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => {
       return result.data;
     }
 
-    return null;
+    throw new Error('Unknown error creating garment');
   },
 
   updateGarment: async (id: string, updates: UpdateGarmentDTO, token?: string) => {
@@ -170,7 +171,7 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => {
     
     if (result.error) {
       set({ isLoading: false, error: result.error });
-      return false;
+      throw new Error(result.error);
     }
 
     if (result.data) {
@@ -183,7 +184,7 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => {
       return true;
     }
 
-    return false;
+    throw new Error('Unknown error updating garment');
   },
 
   deleteGarment: async (id: string, token?: string) => {

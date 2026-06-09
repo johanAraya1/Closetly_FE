@@ -188,8 +188,14 @@ export const createGarment = async (
       });
       
       if (!response.ok) {
-        const errorText = await response.text();
-        return { error: `Error al crear prenda (${response.status})` };
+        let errorText = '';
+        try { errorText = await response.text(); } catch {}
+        let detail = '';
+        try {
+          const errJson = JSON.parse(errorText);
+          detail = errJson.message || errJson.error || '';
+        } catch {}
+        return { error: `Error al crear prenda (${response.status}): ${detail || errorText}` };
       }
       
       const result = await response.json();
@@ -242,8 +248,14 @@ export const createGarment = async (
     });
 
     if (!response.ok) {
-      const errorText = await response.text();
-      return { error: `Error al crear prenda (${response.status})` };
+      let errorText = '';
+      try { errorText = await response.text(); } catch {}
+      let detail = '';
+      try {
+        const errJson = JSON.parse(errorText);
+        detail = errJson.message || errJson.error || '';
+      } catch {}
+      return { error: `Error al crear prenda (${response.status}): ${detail || errorText}` };
     }
 
     const result = await response.json();
