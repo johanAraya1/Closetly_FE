@@ -21,6 +21,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { useOutfits } from '@/hooks/useOutfits';
 import { useCalendar } from '@/hooks/useCalendar';
+import { useCalendarStore } from '@/store/calendarStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS, FONT_SIZES, SEASONS } from '@/lib/constants';
 import { EmptyState, Loading, withScreenErrorBoundary } from '@/components';
@@ -38,7 +39,7 @@ export default function LogTodayScreen() {
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
   const { outfits, isLoading: loadingOutfits } = useOutfits(true);
-  const { entries, logOutfit, error: storeError, clearError } = useCalendar();
+  const { entries, logOutfit, clearError } = useCalendar();
 
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -93,8 +94,32 @@ export default function LogTodayScreen() {
   // Handle log
   const handleLog = useCallback(async () => {
     if (!selectedOutfitId) return;
+    setIsLogging(true);
+    clearError();
 
-    // Check if same outfit was already logged on dates near the target
+    // 1. Check if date already has an outfit logged
+    const existingEntry = entries.find((e) => e.date === targetDate);
+    if (existingEntry) {
+      const replace = await new Promise<boolean>((resolve) => {
+        Alert.alert(
+          t('calendar.existingOutfitTitle'),
+          t('calendar.existingOutfitMessage', {
+            name: existingEntry.outfit.name,
+            date: formattedDate,
+          }),
+          [
+            { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+            { text: t('calendar.existingOutfitAction'), onPress: () => resolve(true) },
+          ],
+        );
+      });
+      if (!replace) {
+        setIsLogging(false);
+        return;
+      }
+    }
+
+    // 2. Warn if same outfit was logged on nearby dates (optional — user can still proceed)
     const targetMs = new Date(targetDate + 'T00:00:00').getTime();
     const sameOutfitEntries = entries.filter(
       (e) => e.outfit.id === selectedOutfitId,
@@ -106,7 +131,6 @@ export default function LogTodayScreen() {
     });
 
     if (nearbyEntries.length > 0) {
-      // Warn the user before logging the same outfit again
       const datesStr = nearbyEntries
         .map((e) => {
           const d = new Date(e.date + 'T00:00:00');
@@ -118,7 +142,7 @@ export default function LogTodayScreen() {
         })
         .join(', ');
 
-      return new Promise<void>((resolve) => {
+      const proceed = await new Promise<boolean>((resolve) => {
         Alert.alert(
           t('calendar.repeatTitle'),
           t('calendar.repeatMessage', {
@@ -126,32 +150,19 @@ export default function LogTodayScreen() {
             date: formattedDate,
           }),
           [
-            {
-              text: t('common.cancel'),
-              style: 'cancel',
-              onPress: () => resolve(),
-            },
-            {
-              text: t('planner.useAgain') || 'Log anyway',
-              onPress: async () => {
-                await doLog();
-                resolve();
-              },
-            },
+            { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+            { text: t('planner.useAgain'), onPress: () => resolve(true) },
           ],
         );
       });
+      if (!proceed) {
+        setIsLogging(false);
+        return;
+      }
     }
 
-    await doLog();
-  }, [selectedOutfitId, targetDate, entries, logOutfit, storeError, t, router, clearError, formattedDate]);
-
-  const doLog = useCallback(async () => {
-    setIsLogging(true);
-    clearError();
-
-    const success = await logOutfit(selectedOutfitId!, targetDate);
-
+    // 3. Log it
+    const success = await logOutfit(selectedOutfitId, targetDate);
     if (success) {
       Alert.alert(
         t('common.success'),
@@ -164,12 +175,12 @@ export default function LogTodayScreen() {
         ],
       );
     } else {
-      const errorMsg = storeError || t('common.error');
-      Alert.alert(t('common.error'), errorMsg);
+      const freshError = useCalendarStore.getState().error || t('common.error');
+      Alert.alert(t('common.error'), freshError);
     }
 
     setIsLogging(false);
-  }, [selectedOutfitId, targetDate, logOutfit, storeError, t, router, clearError, formattedDate]);
+  }, [selectedOutfitId, targetDate, entries, logOutfit, t, router, clearError, formattedDate]);
 
   // Render outfit item
   const renderOutfitItem = useCallback(

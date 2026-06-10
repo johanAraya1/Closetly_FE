@@ -482,8 +482,28 @@ export default function OutfitDetailScreen() {
                 onPress={async () => {
                   if (!outfit || isLoggingToCalendar) return;
 
-                  // Check for same outfit on nearby dates
                   const store = useCalendarStore.getState();
+
+                  // 1. Check if date already has an outfit
+                  const existingEntry = store.entries.find((e) => e.date === selectedDate);
+                  if (existingEntry) {
+                    const replace = await new Promise<boolean>((resolve) => {
+                      Alert.alert(
+                        t('calendar.existingOutfitTitle'),
+                        t('calendar.existingOutfitMessage', {
+                          name: existingEntry.outfit.name,
+                          date: selectedDate,
+                        }),
+                        [
+                          { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+                          { text: t('calendar.existingOutfitAction'), onPress: () => resolve(true) },
+                        ],
+                      );
+                    });
+                    if (!replace) return;
+                  }
+
+                  // 2. Warn about nearby dates (optional)
                   const targetMs = new Date(selectedDate + 'T00:00:00').getTime();
                   const nearbyEntries = store.entries.filter((e) => {
                     if (e.outfit.id !== outfit.id) return false;
@@ -513,14 +533,14 @@ export default function OutfitDetailScreen() {
                         }),
                         [
                           { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
-                          { text: t('planner.useAgain') || 'Log anyway', onPress: () => resolve(true) },
+                          { text: t('planner.useAgain'), onPress: () => resolve(true) },
                         ],
                       );
                     });
-
                     if (!proceed) return;
                   }
 
+                  // 3. Log it
                   setIsLoggingToCalendar(true);
                   try {
                     await store.logOutfit(outfit.id, selectedDate);
