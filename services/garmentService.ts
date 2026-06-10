@@ -106,37 +106,6 @@ export const getGarments = async (
 };
 
 /**
- * Obtiene una prenda por su ID
- */
-export const getGarmentById = async (id: string, token?: string, signal?: AbortSignal): Promise<ApiResponse<Garment>> => {
-  try {
-    const authToken = token || await tokenService.getAccessToken();
-    if (!authToken) {
-      return { error: 'No authentication token' };
-    }
-
-    const response = await fetchWithTimeout(`${API_URL}/garments?id=eq.${id}`, {
-      method: 'GET',
-      headers: {
-        'Content-Type': 'application/json',
-        'Authorization': `Bearer ${authToken}`,
-      },
-      timeout: 10000,
-      signal,
-    });
-
-    if (!response.ok) {
-      return { error: `Error al cargar prenda (${response.status})` };
-    }
-
-    const result = await response.json();
-    return { data: result.data || result };
-  } catch (error) {
-    return { error: error instanceof Error ? error.message : 'Unknown error' };
-  }
-};
-
-/**
  * Crea una nueva prenda
  */
 export const createGarment = async (
