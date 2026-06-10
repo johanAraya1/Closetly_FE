@@ -1,9 +1,9 @@
 /**
  * Calendar Screen
- * Calendario mensual de outfits con marcadores, detalle diario y navegación entre meses
+ * Calendario mensual de outfits con marcadores de color y navegación directa al outfit
  */
 
-import React, { useEffect, useState, useMemo, useCallback } from 'react';
+import React, { useEffect, useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -11,7 +11,6 @@ import {
   StyleSheet,
   ScrollView,
   RefreshControl,
-  Alert,
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
@@ -22,7 +21,47 @@ import { useCalendar } from '@/hooks/useCalendar';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS, FONT_SIZES } from '@/lib/constants';
 import { EmptyState, Loading, withScreenErrorBoundary } from '@/components';
-import { OutfitShareCard } from '@/components/OutfitShareCard';
+import type { CalendarLogEntry } from '@/types';
+
+// Map common color names to hex values for calendar markers
+const COLOR_MAP: Record<string, string> = {
+  red: '#DC2626',
+  rojo: '#DC2626',
+  blue: '#2563EB',
+  azul: '#2563EB',
+  green: '#16A34A',
+  verde: '#16A34A',
+  yellow: '#EAB308',
+  amarillo: '#EAB308',
+  black: '#111827',
+  negro: '#111827',
+  white: '#FFFFFF',
+  blanco: '#FFFFFF',
+  gray: '#6B7280',
+  gris: '#6B7280',
+  grey: '#6B7280',
+  brown: '#92400E',
+  marrón: '#92400E',
+  marron: '#92400E',
+  pink: '#EC4899',
+  rosa: '#EC4899',
+  purple: '#8B5CF6',
+  morado: '#8B5CF6',
+  orange: '#F97316',
+  naranja: '#F97316',
+  beige: '#D4A574',
+  navy: '#1E3A5F',
+  marino: '#1E3A5F',
+  teal: '#0D9488',
+  mint: '#A7F3D0',
+};
+
+function getOutfitColor(entry: CalendarLogEntry): string {
+  const garments = entry.outfit?.garments || [];
+  if (garments.length === 0) return COLORS.primary;
+  const colorText = garments[0].color?.toLowerCase().trim() || '';
+  return COLOR_MAP[colorText] || COLORS.primary;
+}
 
 export default function CalendarScreen() {
   const router = useRouter();
@@ -34,57 +73,58 @@ export default function CalendarScreen() {
     selectedMonth,
     selectedYear,
     loadMonth,
-    deleteLog,
     navigateMonth,
     clearError,
   } = useCalendar();
 
-  const [selectedDate, setSelectedDate] = useState<string | null>(null);
-  const [refreshing, setRefreshing] = useState(false);
+  const [refreshing, setRefreshing] = React.useState(false);
 
   // Load initial month on mount
   useEffect(() => {
     loadMonth(selectedMonth, selectedYear);
   }, []);
 
-  // Build marked dates from entries
+  // Build entry map for quick lookup + color map
+  const entryByDate = useMemo(() => {
+    const map: Record<string, CalendarLogEntry> = {};
+    entries.forEach((entry) => {
+      map[entry.date] = entry;
+    });
+    return map;
+  }, [entries]);
+
+  // Build marked dates with garment colors
   const markedDates = useMemo(() => {
     const marks: Record<string, any> = {};
+    const today = new Date().toISOString().split('T')[0];
 
     entries.forEach((entry) => {
+      const color = getOutfitColor(entry);
       marks[entry.date] = {
-        selected: entry.date === selectedDate,
-        selectedColor: entry.date === selectedDate ? COLORS.primary : undefined,
+        selected: true,
+        selectedColor: color,
         marked: true,
-        dotColor: COLORS.primary,
+        dotColor: color,
       };
     });
 
-    // Ensure selected date is visible (with or without dot)
-    if (selectedDate) {
-      if (marks[selectedDate]) {
-        marks[selectedDate] = {
-          ...marks[selectedDate],
-          selected: true,
-          selectedColor: COLORS.primary,
-        };
-      } else {
-        marks[selectedDate] = {
-          selected: true,
-          selectedColor: '#E5E7EB',
-          marked: false,
-        };
-      }
+    // Ensure today is visually distinct
+    if (marks[today]) {
+      marks[today] = {
+        ...marks[today],
+        selected: true,
+        selectedColor: marks[today].selectedColor,
+      };
+    } else {
+      marks[today] = {
+        selected: true,
+        selectedColor: COLORS.primary + '20',
+        marked: false,
+      };
     }
 
     return marks;
-  }, [entries, selectedDate]);
-
-  // Current selected entry (if any)
-  const selectedEntry = useMemo(() => {
-    if (!selectedDate) return null;
-    return entries.find((e) => e.date === selectedDate) || null;
-  }, [entries, selectedDate]);
+  }, [entries]);
 
   // Format month label
   const monthLabel = useMemo(() => {
@@ -95,10 +135,16 @@ export default function CalendarScreen() {
     });
   }, [selectedMonth, selectedYear]);
 
-  // Day press handler
-  const handleDayPress = useCallback((day: { dateString: string }) => {
-    setSelectedDate(day.dateString);
-  }, []);
+  // Day press — navigate to outfit detail if logged
+  const handleDayPress = useCallback(
+    (day: { dateString: string }) => {
+      const entry = entryByDate[day.dateString];
+      if (entry) {
+        router.push(`/outfits/${entry.outfit.id}`);
+      }
+    },
+    [entryByDate, router],
+  );
 
   // Month change from swipe
   const handleMonthChange = useCallback(
@@ -114,41 +160,6 @@ export default function CalendarScreen() {
     await loadMonth(selectedMonth, selectedYear);
     setRefreshing(false);
   }, [loadMonth, selectedMonth, selectedYear]);
-
-  // Delete confirmation
-  const handleDelete = useCallback(
-    (entry: { id: string; date: string }) => {
-      Alert.alert(
-        t('calendar.removeConfirm', { date: entry.date }),
-        '',
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-            text: t('common.delete'),
-            style: 'destructive',
-            onPress: async () => {
-              const success = await deleteLog(entry.id);
-              if (success) {
-                setSelectedDate(null);
-              }
-            },
-          },
-        ],
-      );
-    },
-    [t, deleteLog],
-  );
-
-  // Format date for display
-  const formatDate = useCallback((dateStr: string) => {
-    const date = new Date(dateStr + 'T00:00:00');
-    return date.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
-  }, []);
 
   // ---- Loading state ----
   if (isLoading && entries.length === 0) {
@@ -217,6 +228,14 @@ export default function CalendarScreen() {
           <Ionicons name="add" size={28} color={COLORS.primary} />
         </TouchableOpacity>
       </View>
+
+      {/* ===== Legend ===== */}
+      {entries.length > 0 && (
+        <View style={styles.legend}>
+          <View style={styles.legendDot} />
+          <Text style={styles.legendText}>{t('calendar.tapToViewOutfit')}</Text>
+        </View>
+      )}
 
       <ScrollView
         style={styles.scrollView}
@@ -315,7 +334,7 @@ export default function CalendarScreen() {
         )}
 
         {/* ===== Empty month state ===== */}
-        {!isLoading && entries.length === 0 && !selectedDate && (
+        {!isLoading && entries.length === 0 && (
           <EmptyState
             icon="calendar-outline"
             title={t('calendar.emptyMonth')}
@@ -323,105 +342,6 @@ export default function CalendarScreen() {
             actionLabel={t('calendar.logOutfit')}
             onAction={() => router.push('/calendar/log-today')}
           />
-        )}
-
-        {/* ===== Selected day detail ===== */}
-        {selectedDate && (
-          <View style={styles.dayDetail}>
-            {/* Detail header */}
-            <View style={styles.dayDetailHeader}>
-              <Ionicons
-                name="calendar"
-                size={18}
-                color={COLORS.gray[600]}
-              />
-              <Text style={styles.dayDetailTitle}>
-                {formatDate(selectedDate)}
-              </Text>
-              <TouchableOpacity
-                onPress={() => setSelectedDate(null)}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <Ionicons name="close" size={22} color={COLORS.gray[500]} />
-              </TouchableOpacity>
-            </View>
-
-            {selectedEntry ? (
-              <View style={styles.dayDetailContent}>
-                {/* Outfit card */}
-                <View style={styles.shareCardContainer}>
-                  <OutfitShareCard
-                    outfit={selectedEntry.outfit}
-                    garments={selectedEntry.outfit.garments || []}
-                  />
-                </View>
-
-                {/* Action buttons */}
-                <View style={styles.dayActions}>
-                  <TouchableOpacity
-                    style={styles.viewOutfitButton}
-                    onPress={() =>
-                      router.push(`/outfits/${selectedEntry.outfit.id}`)
-                    }
-                  >
-                    <Ionicons
-                      name="eye-outline"
-                      size={20}
-                      color={COLORS.white}
-                    />
-                    <Text style={styles.viewOutfitText}>
-                      {t('outfits.detailTitle')}
-                    </Text>
-                  </TouchableOpacity>
-
-                  {selectedEntry.outfit && (
-                    <TouchableOpacity
-                      style={styles.removeButton}
-                      onPress={() => handleDelete(selectedEntry)}
-                    >
-                      <Ionicons
-                        name="trash-outline"
-                        size={20}
-                        color={COLORS.error}
-                      />
-                      <Text style={styles.removeButtonText}>
-                        {t('calendar.removeOutfit')}
-                      </Text>
-                    </TouchableOpacity>
-                  )}
-                </View>
-              </View>
-            ) : (
-              /* No outfit for this day */
-              <View style={styles.noOutfitDay}>
-                <Ionicons
-                  name="calendar-outline"
-                  size={48}
-                  color={COLORS.gray[300]}
-                />
-                <Text style={styles.noOutfitText}>
-                  {t('calendar.noOutfitsForDay')}
-                </Text>
-                <TouchableOpacity
-                  style={styles.logOutfitCta}
-                  onPress={() =>
-                    router.push(
-                      `/calendar/log-today?date=${selectedDate}`,
-                    )
-                  }
-                >
-                  <Ionicons
-                    name="add-circle-outline"
-                    size={20}
-                    color={COLORS.white}
-                  />
-                  <Text style={styles.logOutfitCtaText}>
-                    {t('calendar.logOutfit')}
-                  </Text>
-                </TouchableOpacity>
-              </View>
-            )}
-          </View>
         )}
       </ScrollView>
     </SafeAreaView>
@@ -549,107 +469,25 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
   },
 
-  // Day detail section
-  dayDetail: {
-    marginTop: 8,
-    marginHorizontal: 16,
-    marginBottom: 32,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    borderWidth: 1,
-    borderColor: COLORS.gray[100],
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 8,
-    elevation: 4,
-    overflow: 'hidden',
-  },
-  dayDetailHeader: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    borderBottomWidth: 1,
-    borderBottomColor: COLORS.gray[100],
-    gap: 8,
-  },
-  dayDetailTitle: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.gray[700],
-    flex: 1,
-  },
-  dayDetailContent: {
-    padding: 16,
-    gap: 16,
-  },
-  shareCardContainer: {
-    alignItems: 'center',
-  },
-
-  // Day action buttons
-  dayActions: {
-    flexDirection: 'row',
-    gap: 12,
-  },
-  viewOutfitButton: {
-    flex: 1,
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
-    backgroundColor: COLORS.primary,
-    paddingVertical: 12,
-    borderRadius: 10,
-  },
-  viewOutfitText: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: '#FFFFFF',
-  },
-  removeButton: {
+  // Legend
+  legend: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 20,
-    borderRadius: 10,
-    borderWidth: 1,
-    borderColor: COLORS.error,
+    paddingVertical: 6,
+    marginHorizontal: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray[100],
   },
-  removeButtonText: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '600',
-    color: COLORS.error,
-  },
-
-  // No outfit day state
-  noOutfitDay: {
-    alignItems: 'center',
-    paddingVertical: 32,
-    paddingHorizontal: 24,
-    gap: 12,
-  },
-  noOutfitText: {
-    fontSize: FONT_SIZES.md,
-    color: COLORS.gray[500],
-    textAlign: 'center',
-  },
-  logOutfitCta: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    justifyContent: 'center',
-    gap: 8,
+  legendDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
     backgroundColor: COLORS.primary,
-    paddingHorizontal: 24,
-    paddingVertical: 12,
-    borderRadius: 10,
   },
-  logOutfitCtaText: {
-    fontSize: FONT_SIZES.md,
-    fontWeight: '600',
-    color: '#FFFFFF',
+  legendText: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray[500],
   },
 });

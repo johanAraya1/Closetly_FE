@@ -528,6 +528,7 @@ const i18n = new I18n({
       errorLoad: 'Could not load calendar',
       removeOutfit: 'Remove',
       errorLog: 'Could not log outfit',
+      tapToViewOutfit: 'Tap a colored day to view that outfit',
     },
   },
   es: {
@@ -1049,6 +1050,7 @@ const i18n = new I18n({
       errorLoad: 'No se pudo cargar el calendario',
       removeOutfit: 'Quitar',
       errorLog: 'No se pudo registrar el outfit',
+      tapToViewOutfit: 'Tocá un día coloreado para ver ese outfit',
     },
   },
 });

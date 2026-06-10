@@ -163,7 +163,7 @@ function HomeScreen() {
 
         {/* What I wore today — Calendar Card */}
         <TouchableOpacity
-          onPress={() => router.push('/calendar/log-today')}
+          onPress={() => router.push('/calendar')}
           style={styles.calendarCard}
         >
           <View style={styles.calendarCardContent}>
