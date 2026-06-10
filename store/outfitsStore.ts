@@ -114,7 +114,7 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
 
     loadOutfitById: async (id: string) => {
       const signal = abortPrevious();
-      set({ isLoading: true, error: null });
+      set({ isLoading: true, error: null, currentOutfit: null });
       
       const result = await outfitService.getOutfitById(id, signal);
       

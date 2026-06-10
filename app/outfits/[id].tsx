@@ -473,9 +473,49 @@ export default function OutfitDetailScreen() {
                 style={[styles.shareButton, isLoggingToCalendar && { opacity: 0.7 }]}
                 onPress={async () => {
                   if (!outfit || isLoggingToCalendar) return;
+
+                  // Check for same outfit on nearby dates
+                  const store = useCalendarStore.getState();
+                  const targetMs = new Date(selectedDate + 'T00:00:00').getTime();
+                  const nearbyEntries = store.entries.filter((e) => {
+                    if (e.outfit.id !== outfit.id) return false;
+                    const entryMs = new Date(e.date + 'T00:00:00').getTime();
+                    const diffDays = Math.abs((targetMs - entryMs) / 86400000);
+                    return diffDays <= 3 && diffDays > 0;
+                  });
+
+                  if (nearbyEntries.length > 0) {
+                    const datesStr = nearbyEntries
+                      .map((e) => {
+                        const d = new Date(e.date + 'T00:00:00');
+                        return d.toLocaleDateString('en-US', {
+                          weekday: 'short',
+                          month: 'short',
+                          day: 'numeric',
+                        });
+                      })
+                      .join(', ');
+
+                    const proceed = await new Promise<boolean>((resolve) => {
+                      Alert.alert(
+                        t('calendar.repeatTitle'),
+                        t('calendar.repeatMessage', {
+                          dates: datesStr,
+                          date: selectedDate,
+                        }),
+                        [
+                          { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+                          { text: t('planner.useAgain') || 'Log anyway', onPress: () => resolve(true) },
+                        ],
+                      );
+                    });
+
+                    if (!proceed) return;
+                  }
+
                   setIsLoggingToCalendar(true);
                   try {
-                    await useCalendarStore.getState().logOutfit(outfit.id, selectedDate);
+                    await store.logOutfit(outfit.id, selectedDate);
                     setShowLogDatePicker(false);
                     Alert.alert(t('common.success'), t('calendar.loggedSuccess', { date: selectedDate }));
                   } catch (err) {
