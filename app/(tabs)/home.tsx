@@ -161,6 +161,23 @@ function HomeScreen() {
           </View>
         )}
 
+        {/* What I wore today — Calendar Card */}
+        <TouchableOpacity
+          onPress={() => router.push('/calendar/log-today')}
+          style={styles.calendarCard}
+        >
+          <View style={styles.calendarCardContent}>
+            <View style={[styles.calendarIcon, { backgroundColor: '#8B5CF6' + '20' }]}>
+              <Ionicons name="calendar-outline" size={24} color="#8B5CF6" />
+            </View>
+            <View style={styles.calendarCardText}>
+              <Text style={styles.calendarCardTitle}>{t('home.logTodayCard')}</Text>
+              <Text style={styles.calendarCardHint}>{t('home.logTodayCardHint')}</Text>
+            </View>
+            <Ionicons name="chevron-forward" size={20} color="#9CA3AF" />
+          </View>
+        </TouchableOpacity>
+
         {/* Quick Actions */}
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>
@@ -709,6 +726,45 @@ const styles = StyleSheet.create({
     fontSize: 12,
     color: '#6B7280',
     lineHeight: 18,
+  },
+
+  // Calendar Card
+  calendarCard: {
+    marginHorizontal: 20,
+    marginBottom: 12,
+    backgroundColor: 'white',
+    borderRadius: 16,
+    padding: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 8,
+    elevation: 3,
+  },
+  calendarCardContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+  },
+  calendarIcon: {
+    width: 48,
+    height: 48,
+    borderRadius: 14,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  calendarCardText: {
+    flex: 1,
+  },
+  calendarCardTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 2,
+  },
+  calendarCardHint: {
+    fontSize: 13,
+    color: '#6B7280',
   },
 });
 

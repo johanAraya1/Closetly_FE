@@ -75,7 +75,7 @@ Chain strategy: pending
 
 ## Phase 5: FE — Integrations (Home + Outfit Detail)
 
-- [ ] **5.1** Modify `app/(tabs)/home.tsx` — add "What I wore today" card; navigates to log-today or /calendar based on today's status. (~30 lines)
+- [x] **5.1** Modify `app/(tabs)/home.tsx` — add "What I wore today" card; navigates to log-today or /calendar based on today's status. (~30 lines)
   - AC: Card renders; tap navigates correctly (REQ-CAL-FE-6).
-- [ ] **5.2** Modify `app/outfits/[id].tsx` — add "Log" button in actions section + date picker modal + log handler + success toast. (~80 lines)
+- [x] **5.2** Modify `app/outfits/[id].tsx` — add "Log" button in actions section + date picker modal + log handler + success toast. (~80 lines)
   - AC: Button renders; log flow works end-to-end (REQ-CAL-FE-5).

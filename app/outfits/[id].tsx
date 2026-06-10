@@ -26,6 +26,7 @@ import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
 import { OutfitShareCard } from '@/components/OutfitShareCard';
 import { COLORS } from '@/lib/constants';
+import { useCalendarStore } from '@/store/calendarStore';
 import type { GarmentSeason } from '@/types';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
@@ -63,6 +64,8 @@ export default function OutfitDetailScreen() {
   const [showShareModal, setShowShareModal] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
+  const [showLogDatePicker, setShowLogDatePicker] = useState(false);
+  const todayFormatted = new Date().toISOString().split('T')[0];
   const shareCardRef = useRef<ViewShot>(null);
 
   // Load outfit on mount
@@ -112,6 +115,12 @@ export default function OutfitDetailScreen() {
       setShowShareModal(false);
     }
   }, [outfit, t]);
+
+  // --- Log to Calendar ---
+  const handleLogToCalendar = useCallback(() => {
+    if (!outfit) return;
+    setShowLogDatePicker(true);
+  }, [outfit]);
 
   // --- Favorite Toggle ---
   const handleToggleFavorite = useCallback(async () => {
@@ -326,6 +335,12 @@ export default function OutfitDetailScreen() {
             <Text style={styles.actionText}>{t('outfits.share')}</Text>
           </TouchableOpacity>
 
+          {/* Log to Calendar Button */}
+          <TouchableOpacity style={styles.actionButton} onPress={handleLogToCalendar}>
+            <Ionicons name="calendar-outline" size={22} color={COLORS.gray[500]} />
+            <Text style={styles.actionText}>{t('calendar.logOutfit')}</Text>
+          </TouchableOpacity>
+
           {/* Delete Button */}
           <TouchableOpacity
             style={[styles.actionButton, styles.deleteButton]}
@@ -395,6 +410,59 @@ export default function OutfitDetailScreen() {
                     <Text style={styles.shareButtonText}>{t('outfits.share')}</Text>
                   </>
                 )}
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
+
+      {/* ===== Log to Calendar Modal ===== */}
+      <Modal
+        visible={showLogDatePicker}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowLogDatePicker(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.modalContainer}>
+            <TouchableOpacity
+              style={styles.modalClose}
+              onPress={() => setShowLogDatePicker(false)}
+            >
+              <Ionicons name="close" size={28} color={COLORS.gray[600]} />
+            </TouchableOpacity>
+
+            <Text style={styles.modalTitle}>
+              {t('calendar.logOutfitFor', { date: todayFormatted })}
+            </Text>
+
+            <Text style={{ fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 20 }}>
+              {todayFormatted}
+            </Text>
+
+            <View style={styles.modalActions}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => setShowLogDatePicker(false)}
+              >
+                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.shareButton}
+                onPress={async () => {
+                  if (!outfit) return;
+                  try {
+                    await useCalendarStore.getState().logOutfit(outfit.id, todayFormatted);
+                    setShowLogDatePicker(false);
+                    Alert.alert(t('common.success'), t('calendar.loggedSuccess', { date: todayFormatted }));
+                  } catch (err) {
+                    Alert.alert(t('common.error'), t('collections.errorDelete'));
+                  }
+                }}
+              >
+                <Ionicons name="calendar-outline" size={20} color={COLORS.white} />
+                <Text style={styles.shareButtonText}>{t('calendar.logOutfit')}</Text>
               </TouchableOpacity>
             </View>
           </View>
