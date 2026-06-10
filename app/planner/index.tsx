@@ -3,7 +3,7 @@
  * Planificador semanal donde el usuario asigna outfits a cada día (Lun-Dom)
  */
 
-import React, { useEffect, useState, useCallback } from 'react';
+import React, { useEffect, useState, useCallback, useMemo } from 'react';
 import {
   View,
   Text,
@@ -203,6 +203,29 @@ function PlannerScreen() {
     );
   };
 
+  // Determine which outfits are already assigned to other days this week
+  const assignedOutfitIds = useMemo(() => {
+    const ids = new Set<string>();
+    if (selectedDay === null) return ids;
+    for (const day of plan) {
+      if (day.dayOfWeek !== selectedDay && day.outfit) {
+        ids.add(day.outfit.id);
+      }
+    }
+    return ids;
+  }, [plan, selectedDay]);
+
+  const enforceNoRepeat = outfits.length >= 7;
+
+  // Find which day an outfit is already assigned to (for display)
+  const getDayForOutfit = (outfitId: string): string | null => {
+    const day = plan.find(
+      (d) => d.dayOfWeek !== selectedDay && d.outfit?.id === outfitId,
+    );
+    if (!day) return null;
+    return t(`planner.${DAY_KEYS[day.dayOfWeek]}`);
+  };
+
   // Outfit picker modal
   const renderPickerModal = () => (
     <Modal
@@ -269,42 +292,71 @@ function PlannerScreen() {
               data={outfits}
               keyExtractor={(item) => item.id}
               contentContainerStyle={styles.outfitList}
-              renderItem={({ item }: { item: Outfit }) => (
-                <TouchableOpacity
-                  style={styles.outfitItem}
-                  activeOpacity={0.7}
-                  onPress={() => handleSelectOutfit(item.id)}
-                >
-                  {/* Garment mini preview */}
-                  <View style={styles.outfitItemPreviews}>
-                    {(item.garments ?? []).slice(0, 3).map((g) => (
-                      <View key={g.id} style={styles.outfitItemThumb}>
-                        <Image
-                          source={{ uri: g.imageUrl }}
-                          style={styles.outfitItemThumbImage}
-                          resizeMode="cover"
-                        />
-                      </View>
-                    ))}
-                    {(!item.garments || item.garments.length === 0) && (
-                      <View style={[styles.outfitItemThumb, styles.outfitItemThumbEmpty]}>
-                        <Ionicons name="shirt-outline" size={18} color={COLORS.gray[300]} />
-                      </View>
-                    )}
-                  </View>
-                  <View style={styles.outfitItemInfo}>
-                    <Text style={styles.outfitItemName} numberOfLines={1}>
-                      {item.name}
-                    </Text>
-                    {item.occasion && (
-                      <Text style={styles.outfitItemOccasion} numberOfLines={1}>
-                        {item.occasion}
+              renderItem={({ item }: { item: Outfit }) => {
+                const isUsedElsewhere = enforceNoRepeat && assignedOutfitIds.has(item.id);
+                const usedDay = isUsedElsewhere ? getDayForOutfit(item.id) : null;
+
+                return (
+                  <TouchableOpacity
+                    style={[
+                      styles.outfitItem,
+                      isUsedElsewhere && styles.outfitItemUsed,
+                    ]}
+                    activeOpacity={0.7}
+                    onPress={() => {
+                      if (isUsedElsewhere) {
+                        Alert.alert(
+                          t('planner.repeatTitle') || 'Outfit already used',
+                          t('planner.repeatMessage') || `This outfit is already planned for ${usedDay}. Do you want to use it again?`,
+                          [
+                            { text: t('common.cancel'), style: 'cancel' },
+                            {
+                              text: t('planner.useAgain') || 'Use anyway',
+                              onPress: () => handleSelectOutfit(item.id),
+                            },
+                          ],
+                        );
+                      } else {
+                        handleSelectOutfit(item.id);
+                      }
+                    }}
+                  >
+                    {/* Garment mini preview */}
+                    <View style={styles.outfitItemPreviews}>
+                      {(item.garments ?? []).slice(0, 3).map((g) => (
+                        <View key={g.id} style={styles.outfitItemThumb}>
+                          <Image
+                            source={{ uri: g.imageUrl }}
+                            style={styles.outfitItemThumbImage}
+                            resizeMode="cover"
+                          />
+                        </View>
+                      ))}
+                      {(!item.garments || item.garments.length === 0) && (
+                        <View style={[styles.outfitItemThumb, styles.outfitItemThumbEmpty]}>
+                          <Ionicons name="shirt-outline" size={18} color={COLORS.gray[300]} />
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.outfitItemInfo}>
+                      <Text style={styles.outfitItemName} numberOfLines={1}>
+                        {item.name}
                       </Text>
-                    )}
-                  </View>
-                  <Ionicons name="chevron-forward" size={20} color={COLORS.gray[400]} />
-                </TouchableOpacity>
-              )}
+                      {item.occasion && (
+                        <Text style={styles.outfitItemOccasion} numberOfLines={1}>
+                          {item.occasion}
+                        </Text>
+                      )}
+                      {isUsedElsewhere && usedDay && (
+                        <Text style={styles.outfitItemUsedLabel}>
+                          {t('planner.alreadyInDay') || `Already in ${usedDay}`}
+                        </Text>
+                      )}
+                    </View>
+                    <Ionicons name="chevron-forward" size={20} color={COLORS.gray[400]} />
+                  </TouchableOpacity>
+                );
+              }}
             />
           )}
         </View>
@@ -733,6 +785,14 @@ const styles = StyleSheet.create({
   outfitItemOccasion: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.gray[500],
+  },
+  outfitItemUsed: {
+    opacity: 0.65,
+  },
+  outfitItemUsedLabel: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.warning,
+    marginTop: 2,
   },
 });
 

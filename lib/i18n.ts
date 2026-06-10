@@ -510,6 +510,10 @@ const i18n = new I18n({
       pickOutfit: 'Choose Outfit',
       clearDay: 'Clear day',
       saving: 'Saving...',
+      alreadyInDay: 'Already in {{day}}',
+      repeatTitle: 'Outfit already used',
+      repeatMessage: 'This outfit is already planned for {{day}}. Do you want to use it again?',
+      useAgain: 'Use anyway',
     },
     calendar: {
       title: 'Outfit Calendar',
@@ -1032,6 +1036,10 @@ const i18n = new I18n({
       pickOutfit: 'Elegir Outfit',
       clearDay: 'Limpiar día',
       saving: 'Guardando...',
+      alreadyInDay: 'Ya está en {{day}}',
+      repeatTitle: 'Outfit ya usado',
+      repeatMessage: 'Este outfit ya está planificado para {{day}}. ¿Querés usarlo de nuevo?',
+      useAgain: 'Usar de todas formas',
     },
     calendar: {
       title: 'Calendario de Outfits',
