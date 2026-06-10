@@ -6,6 +6,7 @@
 import { API_URL } from '@/lib/constants';
 import { tokenService } from './tokenService';
 import { fetchWithTimeout } from '@/utils/fetchUtils';
+import { apiCache } from '@/utils/apiCache';
 import { sanitizeName, sanitizeBrand, sanitizeColor, sanitizeNotes, isInputSafe } from '@/utils/sanitize';
 import { Platform } from 'react-native';
 import type { 
@@ -15,8 +16,23 @@ import type {
   ApiResponse 
 } from '@/types';
 
+const GARMENTS_CACHE_PREFIX = 'garments:';
+const CACHE_TTL = 5 * 60 * 1000;
+
+function garmentsCacheKey(userId: string, limit?: number, offset?: number): string {
+  return `${GARMENTS_CACHE_PREFIX}${userId}:l${limit ?? 'all'}:o${offset ?? 0}`;
+}
+
+export const invalidateGarmentsCache = (userId?: string): void => {
+  if (userId) {
+    apiCache.invalidate(`${GARMENTS_CACHE_PREFIX}${userId}`);
+  } else {
+    apiCache.invalidate(GARMENTS_CACHE_PREFIX);
+  }
+};
+
 /**
- * Obtiene todas las prendas del usuario
+ * Obtiene todas las prendas del usuario (con caché)
  */
 export const getGarments = async (
   userId: string,
@@ -25,6 +41,13 @@ export const getGarments = async (
   offset?: number,
   signal?: AbortSignal,
 ): Promise<ApiResponse<Garment[]> & { total?: number; hasMore?: boolean }> => {
+  const cacheKey = garmentsCacheKey(userId, limit, offset);
+
+  const cached = apiCache.get<ApiResponse<Garment[]> & { total?: number; hasMore?: boolean }>(cacheKey);
+  if (cached && !signal?.aborted) {
+    return cached;
+  }
+
   try {
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -52,23 +75,31 @@ export const getGarments = async (
 
     const result = await response.json();
     
-    // Handle both paginated and non-paginated responses
+    let garments: any[];
+    let total: number;
+    let hasMore: boolean;
+
     if (result.data !== undefined && Array.isArray(result.data)) {
-      // Paginated response from backend: { data: [...], total, hasMore }
-      const garments = result.data.map((item: any) => ({
+      garments = result.data.map((item: any) => ({
         ...item,
         image_url: item.imageUrl || item.image_url || item.image || '',
       }));
-      return { data: garments, total: result.total, hasMore: result.hasMore };
+      total = result.total ?? garments.length;
+      hasMore = result.hasMore ?? false;
+    } else {
+      garments = (result || []).map((item: any) => ({
+        ...item,
+        image_url: item.imageUrl || item.image_url || item.image || '',
+      }));
+      total = garments.length;
+      hasMore = false;
     }
 
-    // Fallback: plain array response
-    const garments = (result || []).map((item: any) => ({
-      ...item,
-      image_url: item.imageUrl || item.image_url || item.image || '',
-    }));
-    
-    return { data: garments, total: garments.length, hasMore: false };
+    const responseData = { data: garments, total, hasMore };
+    if (!signal?.aborted) {
+      apiCache.set(cacheKey, responseData, CACHE_TTL);
+    }
+    return responseData;
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Unknown error' };
   }
@@ -203,6 +234,9 @@ export const createGarment = async (
       if (garment) {
         garment.image_url = garment.imageUrl || garment.image_url || garment.image || '';
       }
+
+      invalidateGarmentsCache(userId);
+      if (garment?.id) apiCache.invalidate(`garment:${garment.id}`);
       
       return { data: garment };
     }
@@ -260,11 +294,13 @@ export const createGarment = async (
 
     const result = await response.json();
     
-    // Mapear la respuesta del backend al formato del frontend
     const garment = result.data || result;
     if (garment) {
       garment.image_url = garment.imageUrl || garment.image_url || garment.image || '';
     }
+
+    invalidateGarmentsCache(userId);
+    if (garment?.id) apiCache.invalidate(`garment:${garment.id}`);
     
     return { data: garment };
   } catch (error) {
@@ -342,12 +378,14 @@ export const updateGarment = async (
 
     const result = await response.json();
     
-    // Mapear la respuesta del backend al formato del frontend
     const garment = result.data || result;
     if (garment) {
       garment.image_url = garment.imageUrl || garment.image_url || garment.image || '';
     }
-    
+
+    invalidateGarmentsCache();
+    apiCache.invalidate(`garment:${id}`);
+
     return { data: garment };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Error desconocido' };
@@ -355,13 +393,42 @@ export const updateGarment = async (
 };
 
 /**
- * Elimina una prenda
+ * Obtiene una prenda por su ID (con caché)
  */
-export const deleteGarment = async (id: string, token?: string): Promise<ApiResponse<void>> => {
-  try {
-    const headers: Record<string, string> = {
+export const getGarmentById = async (id: string, token?: string, signal?: AbortSignal): Promise<ApiResponse<Garment>> => {
+  const cacheKey = `garment:${id}`;
+
+  const cached = apiCache.get<ApiResponse<Garment>>(cacheKey);
+  if (cached && !signal?.aborted) {
+    return cached;
+  }
+
+  const authToken = token || await tokenService.getAccessToken();
+  if (!authToken) {
+    return { error: 'No authentication token' };
+  }
+
+  const response = await fetchWithTimeout(`${API_URL}/garments?id=eq.${id}`, {
+    method: 'GET',
+    headers: {
       'Content-Type': 'application/json',
-    };
+      'Authorization': `Bearer ${authToken}`,
+    },
+    timeout: 10000,
+    signal,
+  });
+
+  if (!response.ok) {
+    return { error: `Error al cargar prenda (${response.status})` };
+  }
+
+  const result = await response.json();
+  const data = result.data || result;
+  if (!signal?.aborted) {
+    apiCache.set(cacheKey, { data }, CACHE_TTL);
+  }
+  return { data };
+};
     
     if (token) {
       headers['Authorization'] = `Bearer ${token}`;
@@ -376,8 +443,9 @@ export const deleteGarment = async (id: string, token?: string): Promise<ApiResp
       return { error: `Error al eliminar prenda (${response.status})` };
     }
 
-    const result = await response.json();
-    
+    invalidateGarmentsCache();
+    apiCache.invalidate(`garment:${id}`);
+
     return { data: undefined };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Unknown error' };

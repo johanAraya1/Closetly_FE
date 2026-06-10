@@ -21,7 +21,7 @@ interface OutfitsState {
   error: string | null;
   
   // Actions
-  loadOutfits: (userId: string) => Promise<void>;
+  loadOutfits: (userId: string, limit?: number) => Promise<void>;
   loadMoreOutfits: (userId: string) => Promise<void>;
   loadOutfitById: (id: string) => Promise<void>;
   createOutfit: (userId: string, data: CreateOutfitDTO, garments?: Garment[]) => Promise<Outfit | null>;
@@ -61,11 +61,12 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
       _abortController = null;
     },
 
-    loadOutfits: async (userId: string) => {
+    loadOutfits: async (userId: string, limit?: number) => {
       const signal = abortPrevious();
       set({ isLoading: true, error: null, page: 0, hasMore: false });
 
-      const result = await outfitService.getOutfits(userId, DEFAULT_PAGE_LIMIT, 0, signal);
+      const pageLimit = limit ?? DEFAULT_PAGE_LIMIT;
+      const result = await outfitService.getOutfits(userId, pageLimit, 0, signal);
 
       if (signal.aborted) return;
       if (result.error) {

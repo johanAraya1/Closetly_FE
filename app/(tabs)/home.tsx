@@ -20,7 +20,7 @@ import { withScreenErrorBoundary } from '@/components';
 function HomeScreen() {
   const router = useRouter();
   const { profile, user, logout } = useAuth();
-  const { outfits, isLoading, loadOutfits } = useOutfits();
+  const { outfits, isLoading, loadOutfits } = useOutfits(true, 3);
   const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
   const [expandedSuggestion, setExpandedSuggestion] = useState<string | null>(null);
@@ -65,7 +65,7 @@ function HomeScreen() {
   });
 
   const favoriteOutfits = outfits.filter((o) => o.is_favorite);
-  const recentOutfits = outfits.slice(0, 5);
+  const recentOutfits = outfits.slice(0, 3);
   const displayName = useMemo(() => {
     const name =
       profile?.username ||

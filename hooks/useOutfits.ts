@@ -8,7 +8,7 @@ import { useEffect, useRef } from 'react';
 import { useOutfitsStore } from '@/store/outfitsStore';
 import { useAuth } from './useAuth';
 
-export const useOutfits = (autoLoad: boolean = false) => {
+export const useOutfits = (autoLoad: boolean = false, limit?: number) => {
   const { user } = useAuth();
   const hasLoadedRef = useRef(false);
   const {
@@ -33,14 +33,14 @@ export const useOutfits = (autoLoad: boolean = false) => {
 
   useEffect(() => {
     if (autoLoad && user?.id && !hasLoadedRef.current) {
-      loadOutfits(user.id);
+      loadOutfits(user.id, limit);
       hasLoadedRef.current = true;
     }
 
     return () => {
       cancelRequests();
     };
-  }, [user?.id, autoLoad]);
+  }, [user?.id, autoLoad, limit]);
 
   return {
     outfits,

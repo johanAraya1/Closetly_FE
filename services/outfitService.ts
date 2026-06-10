@@ -7,6 +7,7 @@ import { API_URL } from '@/lib/constants';
 import { apiClient } from '@/utils/apiClient';
 import { fetchWithTimeout } from '@/utils/fetchUtils';
 import { tokenService } from '@/services/tokenService';
+import { apiCache } from '@/utils/apiCache';
 import { sanitizeName, sanitizeNotes, isInputSafe } from '@/utils/sanitize';
 import type { 
   Outfit, 
@@ -15,6 +16,9 @@ import type {
   ApiResponse,
   Garment 
 } from '@/types';
+
+const CACHE_TTL = 5 * 60 * 1000; // 5 minutos
+const OUTFITS_CACHE_PREFIX = 'outfits:';
 
 /**
  * Normaliza un outfit de la API (camelCase de BE) al formato del frontend (snake_case donde aplica)
@@ -26,15 +30,21 @@ const normalizeOutfit = (outfit: any): any => ({
 });
 
 /**
- * Obtiene todos los outfits del usuario con sus prendas
+ * Builds a cache key for outfit queries
  */
-export const getOutfits = async (
+function outfitsCacheKey(userId: string, limit?: number, offset?: number): string {
+  return `${OUTFITS_CACHE_PREFIX}${userId}:l${limit ?? 'all'}:o${offset ?? 0}`;
+}
+
+/**
+ * Fetch raw outfits from the API (used internally, cached wrapper)
+ */
+async function fetchOutfits(
   userId: string,
   limit?: number,
   offset?: number,
   signal?: AbortSignal,
-): Promise<ApiResponse<Outfit[]> & { total?: number; hasMore?: boolean }> => {
-  // Obtener los outfits básicos (con fetchWithTimeout para acceder a campos paginados)
+): Promise<ApiResponse<Outfit[]> & { total?: number; hasMore?: boolean }> {
   const token = await tokenService.getAccessToken();
 
   let url = `${API_URL}/outfits?user_id=eq.${userId}&order=created_at.desc`;
@@ -61,18 +71,15 @@ export const getOutfits = async (
 
   const result = await response.json();
 
-  // Handle both paginated and non-paginated responses
   let outfits: any[];
   let total: number;
   let hasMore: boolean;
 
   if (result.data !== undefined && Array.isArray(result.data)) {
-    // Paginated response: { data: [...], total, hasMore }
     outfits = result.data.map(normalizeOutfit);
     total = result.total ?? outfits.length;
     hasMore = result.hasMore ?? false;
   } else if (Array.isArray(result)) {
-    // Plain array (backwards compatibility)
     outfits = result.map(normalizeOutfit);
     total = outfits.length;
     hasMore = false;
@@ -80,47 +87,87 @@ export const getOutfits = async (
     return { data: [], total: 0, hasMore: false, error: 'Unexpected response format' };
   }
 
-  // Recolectar todos los garmentIds ÚNICOS de los outfits de esta página
+  // Load garments batch
   const allGarmentIds = [...new Set(
     outfits.flatMap((o: any) => o.garmentIds || [])
   )];
 
-  // Si no hay prendas que buscar, devolver tal cual
   if (allGarmentIds.length === 0) {
     return { data: outfits.map((o: any) => ({ ...o, garments: [] })), total, hasMore };
   }
 
-  // UNA SOLA request batch para TODAS las prendas
   const garmentsResponse = await apiClient.get<any[]>(
     `/garments?id=in.(${allGarmentIds.join(',')})`,
     { signal }
   );
 
   if (!garmentsResponse.data || garmentsResponse.error) {
-    // Si falla la batch, devolver outfits sin prendas en vez de error total
     console.warn('⚠️ No se pudieron cargar las prendas de los outfits:', garmentsResponse.error);
     return { data: outfits.map((o: any) => ({ ...o, garments: [] })), total, hasMore };
   }
 
-  // Indexar prendas por ID para lookup O(1)
   const garmentsMap = new Map<string, any>(
     garmentsResponse.data.map((g: any) => [g.id, g])
   );
 
-  // Asignar prendas a cada outfit usando el mapa
   const outfitsWithGarments = outfits.map((outfit: any) => ({
     ...outfit,
     garments: (outfit.garmentIds || []).map((id: string) => garmentsMap.get(id)).filter(Boolean),
   }));
-  
+
   return { data: outfitsWithGarments, total, hasMore };
+}
+
+/**
+ * Obtiene outfits del usuario con caché.
+ * Home screen usa limit=3 para los recientes.
+ */
+export const getOutfits = async (
+  userId: string,
+  limit?: number,
+  offset?: number,
+  signal?: AbortSignal,
+): Promise<ApiResponse<Outfit[]> & { total?: number; hasMore?: boolean }> => {
+  const cacheKey = outfitsCacheKey(userId, limit, offset);
+
+  // Skip cache if signal is already aborted
+  if (signal?.aborted) {
+    return { data: [], total: 0, hasMore: false };
+  }
+
+  // If we have a signal and no limit, still try cache first
+  const cached = apiCache.get<ApiResponse<Outfit[]> & { total?: number; hasMore?: boolean }>(cacheKey);
+  if (cached && !signal?.aborted) {
+    return cached;
+  }
+
+  const result = await fetchOutfits(userId, limit, offset, signal);
+  if (!result.error && !signal?.aborted) {
+    apiCache.set(cacheKey, result, CACHE_TTL);
+  }
+  return result;
+};
+
+/** Invalida toda la caché de outfits para un usuario */
+export const invalidateOutfitsCache = (userId?: string): void => {
+  if (userId) {
+    apiCache.invalidate(`${OUTFITS_CACHE_PREFIX}${userId}`);
+  } else {
+    apiCache.invalidate(OUTFITS_CACHE_PREFIX);
+  }
 };
 
 /**
- * Obtiene un outfit por ID con sus prendas
+ * Obtiene un outfit por ID con sus prendas (con caché)
  */
 export const getOutfitById = async (id: string, signal?: AbortSignal): Promise<ApiResponse<Outfit>> => {
-  // Obtener el outfit básico
+  const cacheKey = `outfit:${id}`;
+
+  const cached = apiCache.get<ApiResponse<Outfit>>(cacheKey);
+  if (cached && !signal?.aborted) {
+    return cached;
+  }
+
   const outfitResponse = await apiClient.get<any[]>(`/outfits?id=eq.${id}`, { signal });
   
   if (!outfitResponse.data || !outfitResponse.data[0] || outfitResponse.error) {
@@ -129,12 +176,12 @@ export const getOutfitById = async (id: string, signal?: AbortSignal): Promise<A
   
   const outfit = normalizeOutfit(outfitResponse.data[0]);
   
-  // Si no tiene prendas, retornar tal cual
   if (!outfit.garmentIds || outfit.garmentIds.length === 0) {
-    return { data: { ...outfit, garments: [] } };
+    const result = { data: { ...outfit, garments: [] } as Outfit };
+    apiCache.set(cacheKey, result, CACHE_TTL);
+    return result;
   }
   
-  // UNA SOLA request batch para todas las prendas del outfit
   const garmentsResponse = await apiClient.get<any[]>(
     `/garments?id=in.(${outfit.garmentIds.join(',')})`,
     { signal }
@@ -142,10 +189,11 @@ export const getOutfitById = async (id: string, signal?: AbortSignal): Promise<A
 
   if (!garmentsResponse.data || garmentsResponse.error) {
     console.warn('⚠️ No se pudieron cargar las prendas del outfit:', garmentsResponse.error);
-    return { data: { ...outfit, garments: [] } };
+    const result = { data: { ...outfit, garments: [] } as Outfit };
+    if (!signal?.aborted) apiCache.set(cacheKey, result, CACHE_TTL);
+    return result;
   }
 
-  // Indexar prendas por ID para lookup O(1)
   const garmentsMap = new Map<string, any>(
     garmentsResponse.data.map((g: any) => [g.id, g])
   );
@@ -154,12 +202,11 @@ export const getOutfitById = async (id: string, signal?: AbortSignal): Promise<A
     .map((id: string) => garmentsMap.get(id))
     .filter(Boolean);
   
-  return {
-    data: {
-      ...outfit,
-      garments,
-    },
-  };
+  const result = { data: { ...outfit, garments } as Outfit };
+  if (!signal?.aborted) {
+    apiCache.set(cacheKey, result, CACHE_TTL);
+  }
+  return result;
 };
 
 /**
@@ -171,7 +218,6 @@ export const createOutfit = async (
 ): Promise<ApiResponse<Outfit>> => {
   const { garmentIds, ...outfitInfo } = outfitData;
   
-  // Sanitizar inputs
   const sanitizedName = sanitizeName(outfitInfo.name, 100);
   const nameCheck = isInputSafe(sanitizedName);
   if (!nameCheck.safe) {
@@ -179,7 +225,6 @@ export const createOutfit = async (
   }
   
   const sanitizedNotes = outfitInfo.notes ? sanitizeNotes(outfitInfo.notes) : undefined;
-
   const seasonValue = outfitInfo.season;
 
   const payload = {
@@ -194,6 +239,10 @@ export const createOutfit = async (
   
   if (result.error) return result as ApiResponse<Outfit>;
 
+  // Invalidate outfit list cache so next load picks up the new outfit
+  invalidateOutfitsCache(userId);
+  apiCache.invalidate(`outfit:${result.data?.id}`);
+
   return { data: normalizeOutfit(result.data) as Outfit };
 };
 
@@ -206,6 +255,11 @@ export const updateOutfit = async (
 ): Promise<ApiResponse<Outfit>> => {
   const result = await apiClient.put<any>(`/outfits/${id}`, updates);
   if (result.error) return result as ApiResponse<Outfit>;
+
+  // Invalidate caches
+  apiCache.invalidate(OUTFITS_CACHE_PREFIX);
+  apiCache.invalidate(`outfit:${id}`);
+
   return { data: normalizeOutfit(result.data) as Outfit };
 };
 
@@ -213,7 +267,12 @@ export const updateOutfit = async (
  * Elimina un outfit
  */
 export const deleteOutfit = async (id: string): Promise<ApiResponse<void>> => {
-  return apiClient.delete<void>(`/outfits/${id}`, { timeout: 10000 });
+  const result = await apiClient.delete<void>(`/outfits/${id}`, { timeout: 10000 });
+  if (!result.error) {
+    apiCache.invalidate(OUTFITS_CACHE_PREFIX);
+    apiCache.invalidate(`outfit:${id}`);
+  }
+  return result;
 };
 
 /**
@@ -225,6 +284,10 @@ export const toggleOutfitFavorite = async (
 ): Promise<ApiResponse<Outfit>> => {
   const result = await apiClient.put<any>(`/outfits/${id}/favorite`, { is_favorite: isFavorite }, { timeout: 10000 });
   if (result.error) return result as ApiResponse<Outfit>;
+
+  apiCache.invalidate(OUTFITS_CACHE_PREFIX);
+  apiCache.invalidate(`outfit:${id}`);
+
   return { data: normalizeOutfit(result.data) as Outfit };
 };
 

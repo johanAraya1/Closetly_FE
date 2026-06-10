@@ -4,7 +4,7 @@
  * y opción de editar.
  */
 
-import React, { useMemo } from 'react';
+import React, { useMemo, useState } from 'react';
 import {
   View,
   Text,
@@ -13,6 +13,9 @@ import {
   TouchableOpacity,
   StyleSheet,
   Dimensions,
+  Modal,
+  StatusBar,
+  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -30,6 +33,8 @@ function GarmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const { getGarmentById } = useGarments();
+  const [isFullscreen, setIsFullscreen] = useState(false);
+  const isMobile = Platform.OS !== 'web';
 
   const garment = useMemo(() => {
     if (!id) return null;
@@ -89,20 +94,26 @@ function GarmentDetailScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Full-width Image */}
-        <View style={styles.imageContainer}>
-          {imageUrl ? (
-            <Image
-              source={{ uri: imageUrl }}
-              style={styles.image}
-              resizeMode="contain"
-            />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="shirt-outline" size={64} color="#D1D5DB" />
-            </View>
-          )}
-        </View>
+        {/* Full-width Image — tap to expand on mobile */}
+        <TouchableOpacity
+          activeOpacity={isMobile ? 0.8 : 1}
+          onPress={() => isMobile && setIsFullscreen(true)}
+          disabled={!isMobile}
+        >
+          <View style={styles.imageContainer}>
+            {imageUrl ? (
+              <Image
+                source={{ uri: imageUrl }}
+                style={styles.image}
+                resizeMode="contain"
+              />
+            ) : (
+              <View style={styles.imagePlaceholder}>
+                <Ionicons name="shirt-outline" size={64} color="#D1D5DB" />
+              </View>
+            )}
+          </View>
+        </TouchableOpacity>
 
         {/* Info Card */}
         <View style={styles.infoCard}>
@@ -177,6 +188,36 @@ function GarmentDetailScreen() {
           <Text style={styles.editActionText}>{t('garments.detail.editGarment')}</Text>
         </TouchableOpacity>
       </ScrollView>
+
+      {/* Fullscreen Image Modal (mobile only) */}
+      {isMobile && (
+        <Modal
+          visible={isFullscreen}
+          transparent
+          animationType="fade"
+          statusBarTranslucent
+          onRequestClose={() => setIsFullscreen(false)}
+        >
+          <StatusBar barStyle="light-content" backgroundColor="#000000" />
+          <View style={styles.fullscreenBackdrop}>
+            <TouchableOpacity
+              style={styles.fullscreenClose}
+              onPress={() => setIsFullscreen(false)}
+              hitSlop={{ top: 16, bottom: 16, left: 16, right: 16 }}
+            >
+              <Ionicons name="close" size={32} color="#FFFFFF" />
+            </TouchableOpacity>
+
+            {imageUrl && (
+              <Image
+                source={{ uri: imageUrl }}
+                style={styles.fullscreenImage}
+                resizeMode="contain"
+              />
+            )}
+          </View>
+        </Modal>
+      )}
     </SafeAreaView>
   );
 }
@@ -411,6 +452,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+
+  // Fullscreen image
+  fullscreenBackdrop: {
+    flex: 1,
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenClose: {
+    position: 'absolute',
+    top: 50,
+    right: 20,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  fullscreenImage: {
+    width: Dimensions.get('window').width,
+    height: Dimensions.get('window').height,
   },
 });
 
