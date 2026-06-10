@@ -3,7 +3,7 @@
  * Calendario mensual de outfits con marcadores de color y navegación directa al outfit
  */
 
-import React, { useEffect, useMemo, useCallback } from 'react';
+import React, { useMemo, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,7 +16,7 @@ import {
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { CalendarList } from 'react-native-calendars';
+import { Calendar } from 'react-native-calendars';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS, FONT_SIZES } from '@/lib/constants';
@@ -79,11 +79,6 @@ export default function CalendarScreen() {
 
   const [refreshing, setRefreshing] = React.useState(false);
 
-  // Load initial month on mount
-  useEffect(() => {
-    loadMonth(selectedMonth, selectedYear);
-  }, []);
-
   // Build entry map for quick lookup + color map
   const entryByDate = useMemo(() => {
     const map: Record<string, CalendarLogEntry> = {};
@@ -144,14 +139,6 @@ export default function CalendarScreen() {
       }
     },
     [entryByDate, router],
-  );
-
-  // Month change from swipe
-  const handleMonthChange = useCallback(
-    (monthData: { month: number; year: number }) => {
-      loadMonth(monthData.month, monthData.year);
-    },
-    [loadMonth],
   );
 
   // Pull-to-refresh
@@ -266,17 +253,16 @@ export default function CalendarScreen() {
         </View>
 
         {/* ===== Calendar Grid ===== */}
-        <CalendarList
+        <Calendar
           current={`${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`}
           markedDates={markedDates}
           onDayPress={handleDayPress}
-          onMonthChange={handleMonthChange}
           firstDay={1}
-          pastScrollRange={12}
-          futureScrollRange={12}
-          scrollEnabled={true}
-          showScrollIndicator={false}
           hideArrows={true}
+          disableMonthChange={true}
+          hideExtraDays={true}
+          enableSwipeMonths={false}
+          disableMonthChange={true}
           theme={{
             backgroundColor: '#FFFFFF',
             calendarBackground: '#FFFFFF',
