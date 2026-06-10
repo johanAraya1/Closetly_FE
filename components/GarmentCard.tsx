@@ -43,7 +43,7 @@ export const GarmentCard = React.memo<GarmentCardProps>(({
     >
       <View style={{ width: '100%', aspectRatio: 1, backgroundColor: '#F9FAFB', justifyContent: 'center', alignItems: 'center', padding: 8, borderBottomWidth: 1, borderBottomColor: '#E5E7EB' }}>
         <Image
-          source={{ uri: garment.image_url }}
+          source={{ uri: (garment.imageUrls?.[0] || (garment as any).image_url || garment.imageUrl) }}
           style={{ width: '100%', height: '100%' }}
           resizeMode="contain"
         />

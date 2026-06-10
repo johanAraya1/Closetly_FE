@@ -17,6 +17,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { usePhotoTip } from '@/hooks/usePhotoTip';
 import { useAuthStore } from '@/store/authStore';
 import { GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES, COLORS } from '@/lib/constants';
+import { pickImageFromGallery, takePhoto } from '@/utils/imageUtils';
 import type { GarmentCategory, GarmentSeason, GarmentStyle, ListingType } from '@/types';
 
 export default function CreateGarmentScreen() {
@@ -50,6 +51,8 @@ export default function CreateGarmentScreen() {
   const [lastAnalyzedUri, setLastAnalyzedUri] = useState<string | null>(null);
   const [isEditMode, setIsEditMode] = useState(false);
   const [editImageUri, setEditImageUri] = useState<string | null>(null);
+  const [secondImageUri, setSecondImageUri] = useState<string | null>(null);
+  const [secondEditImageUri, setSecondEditImageUri] = useState<string | null>(null);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showEditSuccessModal, setShowEditSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
@@ -86,8 +89,9 @@ export default function CreateGarmentScreen() {
         setNotes(garment.notes || '');
         setIsPublic((garment as any).is_public ?? false);
         setListingType((garment as any).listing_type ?? null);
-        setEditImageUri(garment.image_url);
-        setLastAnalyzedUri(garment.image_url);
+        setEditImageUri((garment as any).image_url || garment.imageUrl);
+        setSecondEditImageUri((garment as any).imageUrls?.[1] || (garment as any).image_urls?.[1] || null);
+        setLastAnalyzedUri((garment as any).image_url || garment.imageUrl);
         setIsFormEnabled(true); // Habilitar formulario en modo edición
       }
     }
@@ -224,10 +228,18 @@ export default function CreateGarmentScreen() {
     return hasImage && hasName && hasBrand && hasColor && hasSeason;
   }, [imageUri, editImageUri, name, noBrand, brand, color, seasons]);
 
+  const activeFirstImageUri = imageUri || editImageUri;
+  const activeSecondImageUri = secondImageUri || secondEditImageUri;
+
   const handlePickImage = useCallback((isCamera: boolean) => {
     setAiDetected(false);
     showTip(() => isCamera ? capturePhoto(true) : pickImage(true));
   }, [pickImage, capturePhoto, showTip, setAiDetected]);
+
+  const handlePickSecondImage = useCallback(async (isCamera: boolean) => {
+    const uri = isCamera ? await takePhoto({ crop: true }) : await pickImageFromGallery({ crop: true });
+    if (uri) setSecondImageUri(uri);
+  }, []);
 
   const handleCreate = useCallback(async () => {
     if (!user) {
@@ -288,13 +300,14 @@ export default function CreateGarmentScreen() {
           category,
           brand: noBrand ? undefined : (brand.trim() || undefined),
           color: color.trim() || undefined,
-          season: seasonValue,
-          style: selectedStyles.length > 0 ? selectedStyles : undefined,
-          image_url: imageUrl || '',
-          notes: notes.trim() || undefined,
-          isPublic,
-          ...(isPublic && listingType ? { listingType } : {}),
-        }, token || undefined);
+            season: seasonValue,
+            style: selectedStyles.length > 0 ? selectedStyles : undefined,
+            imageUrl: imageUrl || '',
+            imageBackUrl: activeSecondImageUri || undefined,
+            notes: notes.trim() || undefined,
+            isPublic,
+            ...(isPublic && listingType ? { listingType } : {}),
+          }, token || undefined);
 
         setIsLoading(false);
 
@@ -388,6 +401,52 @@ export default function CreateGarmentScreen() {
               </View>
             )}
             {errors.image && <Text style={styles.errorText}>{errors.image}</Text>}
+          </View>
+
+          {/* Second Image (Back View) */}
+          <View style={styles.section}>
+            <Text style={styles.label}>{t('garments.create.backPhoto') || 'Back view (optional)'}</Text>
+            {activeSecondImageUri ? (
+              <View style={styles.secondImagePreviewContainer}>
+                <Image
+                  source={{ uri: activeSecondImageUri }}
+                  style={styles.secondImagePreview}
+                  resizeMode="contain"
+                />
+                <TouchableOpacity
+                  onPress={() => handlePickSecondImage(false)}
+                  style={styles.changeImageButtonSmall}
+                >
+                  <Ionicons name="camera" size={18} color={COLORS.primary} />
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => {
+                    setSecondImageUri(null);
+                    setSecondEditImageUri(null);
+                  }}
+                  style={styles.removeImageButton}
+                >
+                  <Ionicons name="close-circle" size={22} color="#EF4444" />
+                </TouchableOpacity>
+              </View>
+            ) : (
+              <View style={styles.secondImagePickerRow}>
+                <TouchableOpacity
+                  onPress={() => handlePickSecondImage(false)}
+                  style={styles.secondImagePickerButton}
+                >
+                  <Ionicons name="images-outline" size={24} color="#9CA3AF" />
+                  <Text style={styles.secondImagePickerText}>{t('garments.create.chooseFromGallery')}</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={() => handlePickSecondImage(true)}
+                  style={styles.secondImagePickerButton}
+                >
+                  <Ionicons name="camera-outline" size={24} color="#9CA3AF" />
+                  <Text style={styles.secondImagePickerText}>{t('garments.create.takePhoto')}</Text>
+                </TouchableOpacity>
+              </View>
+            )}
           </View>
 
           {!isFormEnabled && !isEditMode && imageUri && (
@@ -587,6 +646,8 @@ export default function CreateGarmentScreen() {
               setIsPublic(false);
               setListingType(null);
               setEditImageUri(null);
+              setSecondImageUri(null);
+              setSecondEditImageUri(null);
               setLastAnalyzedUri(null);
               setAiDetected(false);
               resetImage();
@@ -760,6 +821,57 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.25,
     shadowRadius: 3.84,
     elevation: 5,
+  },
+  secondImagePreviewContainer: {
+    position: 'relative',
+    width: '100%',
+    height: 160,
+  },
+  secondImagePreview: {
+    width: '100%',
+    height: '100%',
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+  },
+  changeImageButtonSmall: {
+    position: 'absolute',
+    bottom: 12,
+    right: 12,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    padding: 8,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.25,
+    shadowRadius: 3.84,
+    elevation: 5,
+  },
+  removeImageButton: {
+    position: 'absolute',
+    top: 8,
+    right: 8,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 2,
+  },
+  secondImagePickerRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  secondImagePickerButton: {
+    flex: 1,
+    borderWidth: 2,
+    borderStyle: 'dashed',
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    padding: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  secondImagePickerText: {
+    color: '#6B7280',
+    marginTop: 4,
+    fontSize: 12,
   },
   imagePickerRow: {
     flexDirection: 'row',

@@ -19,8 +19,47 @@ import type {
 const GARMENTS_CACHE_PREFIX = 'garments:';
 const CACHE_TTL = 5 * 60 * 1000;
 
+/**
+ * Normaliza los campos de imagen de una prenda para garantizar consistencia
+ * entre API antigua (imageUrl) y nueva (imageUrls).
+ */
+function normalizeGarment(item: any): any {
+  const imageUrls = item.imageUrls || item.image_urls || [];
+  const imageUrl = item.imageUrl || item.image_url || item.image || (Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls[0] : '');
+  return {
+    ...item,
+    imageUrl,
+    image_url: imageUrl,
+    imageUrls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
+    image_urls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
+  };
+}
+
 function garmentsCacheKey(userId: string, limit?: number, offset?: number): string {
   return `${GARMENTS_CACHE_PREFIX}${userId}:l${limit ?? 'all'}:o${offset ?? 0}`;
+}
+
+/**
+ * Convierte una URI de imagen a base64 string (web only).
+ */
+async function uriToBase64(uri: string): Promise<string> {
+  if (uri.startsWith('data:')) {
+    const base64Match = uri.match(/^data:image\/\w+;base64,(.+)$/);
+    if (base64Match) return base64Match[1];
+    return uri;
+  }
+  const blobResp = await fetch(uri);
+  const blob = await blobResp.blob();
+  return new Promise<string>((resolve, reject) => {
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      const result = reader.result as string;
+      const base64Match = result.match(/^data:image\/\w+;base64,(.+)$/);
+      resolve(base64Match ? base64Match[1] : result);
+    };
+    reader.onerror = reject;
+    reader.readAsDataURL(blob);
+  });
 }
 
 export const invalidateGarmentsCache = (userId?: string): void => {
@@ -80,17 +119,11 @@ export const getGarments = async (
     let hasMore: boolean;
 
     if (result.data !== undefined && Array.isArray(result.data)) {
-      garments = result.data.map((item: any) => ({
-        ...item,
-        image_url: item.imageUrl || item.image_url || item.image || '',
-      }));
+      garments = result.data.map((item: any) => normalizeGarment(item));
       total = result.total ?? garments.length;
       hasMore = result.hasMore ?? false;
     } else {
-      garments = (result || []).map((item: any) => ({
-        ...item,
-        image_url: item.imageUrl || item.image_url || item.image || '',
-      }));
+      garments = (result || []).map((item: any) => normalizeGarment(item));
       total = garments.length;
       hasMore = false;
     }
@@ -146,31 +179,12 @@ export const createGarment = async (
     
     // On web, send JSON with base64 image to avoid Multer issues on Vercel serverless
     if (Platform.OS === 'web') {
-      if (garmentData.image_url) {
-        const imageUri = garmentData.image_url;
-        // Convert image URI to base64 string
-        if (imageUri.startsWith('data:')) {
-          // Already a data URI — extract base64 part
-          const base64Match = imageUri.match(/^data:image\/\w+;base64,(.+)$/);
-          if (base64Match) {
-            bodyFields.imageBase64 = base64Match[1];
-          }
-        } else {
-          // Blob URI — fetch and convert to base64
-          const blobResp = await fetch(imageUri);
-          const blob = await blobResp.blob();
-          const base64 = await new Promise<string>((resolve, reject) => {
-            const reader = new FileReader();
-            reader.onloadend = () => {
-              const result = reader.result as string;
-              const base64Match = result.match(/^data:image\/\w+;base64,(.+)$/);
-              resolve(base64Match ? base64Match[1] : result);
-            };
-            reader.onerror = reject;
-            reader.readAsDataURL(blob);
-          });
-          bodyFields.imageBase64 = base64;
-        }
+      const firstImage = garmentData.imageUrl || (garmentData as any).image_url || '';
+      if (firstImage) {
+        bodyFields.imageBase64 = await uriToBase64(firstImage);
+      }
+      if (garmentData.imageBackUrl) {
+        bodyFields.imageBase64Back = await uriToBase64(garmentData.imageBackUrl);
       }
       
       const headers: Record<string, string> = {
@@ -199,14 +213,11 @@ export const createGarment = async (
       }
       
       const result = await response.json();
-      const garment = result.data || result;
-      if (garment) {
-        garment.image_url = garment.imageUrl || garment.image_url || garment.image || '';
-      }
+      const garment = normalizeGarment(result.data || result);
 
       invalidateGarmentsCache(userId);
       if (garment?.id) apiCache.invalidate(`garment:${garment.id}`);
-      
+       
       return { data: garment };
     }
     
@@ -224,12 +235,20 @@ export const createGarment = async (
     if (garmentData.size) formData.append('size', garmentData.size);
     if (sanitizedNotes) formData.append('notes', sanitizedNotes);
     
-    // Append image on mobile
-    if (garmentData.image_url) {
+    // Append images on mobile
+    const mobileFirstImage = garmentData.imageUrl || (garmentData as any).image_url || '';
+    if (mobileFirstImage) {
       formData.append('image', {
-        uri: garmentData.image_url,
+        uri: mobileFirstImage,
         type: 'image/jpeg',
         name: 'garment.jpg',
+      } as any);
+    }
+    if (garmentData.imageBackUrl) {
+      formData.append('fileBack', {
+        uri: garmentData.imageBackUrl,
+        type: 'image/jpeg',
+        name: 'garment-back.jpg',
       } as any);
     }
     
@@ -263,10 +282,7 @@ export const createGarment = async (
 
     const result = await response.json();
     
-    const garment = result.data || result;
-    if (garment) {
-      garment.image_url = garment.imageUrl || garment.image_url || garment.image || '';
-    }
+    const garment = normalizeGarment(result.data || result);
 
     invalidateGarmentsCache(userId);
     if (garment?.id) apiCache.invalidate(`garment:${garment.id}`);
@@ -347,10 +363,7 @@ export const updateGarment = async (
 
     const result = await response.json();
     
-    const garment = result.data || result;
-    if (garment) {
-      garment.image_url = garment.imageUrl || garment.image_url || garment.image || '';
-    }
+    const garment = normalizeGarment(result.data || result);
 
     invalidateGarmentsCache();
     apiCache.invalidate(`garment:${id}`);

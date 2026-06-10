@@ -4,7 +4,7 @@
  * y opción de editar.
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useRef, useCallback } from 'react';
 import {
   View,
   Text,
@@ -16,6 +16,7 @@ import {
   Modal,
   StatusBar,
   Platform,
+  FlatList,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -34,6 +35,8 @@ function GarmentDetailScreen() {
   const { t } = useTranslation();
   const { getGarmentById } = useGarments();
   const [isFullscreen, setIsFullscreen] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
+  const carouselRef = useRef<FlatList>(null);
   const isMobile = Platform.OS !== 'web';
 
   const garment = useMemo(() => {
@@ -60,6 +63,11 @@ function GarmentDetailScreen() {
   }
 
   const imageUrl = (garment as any).image_url || garment.imageUrl || '';
+  const images = (garment as any).imageUrls?.length
+    ? (garment as any).imageUrls
+    : (garment as any).image_urls?.length
+    ? (garment as any).image_urls
+    : [imageUrl].filter(Boolean);
   const isPublic = (garment as any).is_public ?? garment.isPublic ?? false;
   const seasonValue = Array.isArray(garment.season)
     ? garment.season[0]
@@ -94,26 +102,56 @@ function GarmentDetailScreen() {
         style={styles.scrollView}
         contentContainerStyle={styles.scrollContent}
       >
-        {/* Full-width Image — tap to expand on mobile */}
-        <TouchableOpacity
-          activeOpacity={isMobile ? 0.8 : 1}
-          onPress={() => isMobile && setIsFullscreen(true)}
-          disabled={!isMobile}
-        >
-          <View style={styles.imageContainer}>
-            {imageUrl ? (
-              <Image
-                source={{ uri: imageUrl }}
-                style={styles.image}
-                resizeMode="contain"
-              />
-            ) : (
-              <View style={styles.imagePlaceholder}>
-                <Ionicons name="shirt-outline" size={64} color="#D1D5DB" />
-              </View>
+        {/* Image Carousel — tap to expand on mobile */}
+        <View style={styles.carouselContainer}>
+          <FlatList
+            ref={carouselRef}
+            data={images}
+            horizontal
+            pagingEnabled
+            showsHorizontalScrollIndicator={false}
+            keyExtractor={(_: string, i: number) => String(i)}
+            onMomentumScrollEnd={(e) => {
+              const index = Math.round(e.nativeEvent.contentOffset.x / SCREEN_WIDTH);
+              setCurrentImageIndex(index);
+            }}
+            renderItem={({ item }) => (
+              <TouchableOpacity
+                activeOpacity={isMobile ? 0.8 : 1}
+                onPress={() => isMobile && setIsFullscreen(true)}
+                disabled={!isMobile}
+                style={styles.carouselItem}
+              >
+                <Image
+                  source={{ uri: item }}
+                  style={styles.carouselImage}
+                  resizeMode="contain"
+                />
+              </TouchableOpacity>
             )}
-          </View>
-        </TouchableOpacity>
+            ListEmptyComponent={
+              <View style={styles.carouselItem}>
+                <View style={styles.imagePlaceholder}>
+                  <Ionicons name="shirt-outline" size={64} color="#D1D5DB" />
+                </View>
+              </View>
+            }
+          />
+          {/* Dots indicator */}
+          {images.length > 1 && (
+            <View style={styles.dotsContainer}>
+              {(images as string[]).map((_: string, i: number) => (
+                <View
+                  key={i}
+                  style={[
+                    styles.dot,
+                    i === currentImageIndex ? styles.dotActive : styles.dotInactive,
+                  ]}
+                />
+              ))}
+            </View>
+          )}
+        </View>
 
         {/* Info Card */}
         <View style={styles.infoCard}>
@@ -208,12 +246,45 @@ function GarmentDetailScreen() {
               <Ionicons name="close" size={32} color="#FFFFFF" />
             </TouchableOpacity>
 
-            {imageUrl && (
-              <Image
-                source={{ uri: imageUrl }}
-                style={styles.fullscreenImage}
-                resizeMode="contain"
+            {images.length > 0 && (
+              <FlatList
+                data={images}
+                horizontal
+                pagingEnabled
+                showsHorizontalScrollIndicator={false}
+                initialScrollIndex={currentImageIndex}
+                getItemLayout={(_, index) => ({
+                  length: Dimensions.get('window').width,
+                  offset: Dimensions.get('window').width * index,
+                  index,
+                })}
+                onMomentumScrollEnd={(e) => {
+                  const index = Math.round(e.nativeEvent.contentOffset.x / Dimensions.get('window').width);
+                  setCurrentImageIndex(index);
+                }}
+                renderItem={({ item }) => (
+                  <Image
+                    source={{ uri: item }}
+                    style={styles.fullscreenImage}
+                    resizeMode="contain"
+                  />
+                )}
               />
+            )}
+
+            {/* Dots on fullscreen too */}
+            {images.length > 1 && (
+              <View style={styles.fullscreenDots}>
+                {(images as string[]).map((_: string, i: number) => (
+                  <View
+                    key={i}
+                    style={[
+                      styles.fullscreenDot,
+                      i === currentImageIndex ? styles.fullscreenDotActive : styles.fullscreenDotInactive,
+                    ]}
+                  />
+                ))}
+              </View>
             )}
           </View>
         </Modal>
@@ -307,18 +378,46 @@ const styles = StyleSheet.create({
     fontSize: 16,
     color: '#9CA3AF',
   },
-  imageContainer: {
+  carouselContainer: {
     width: SCREEN_WIDTH,
     height: SCREEN_WIDTH,
     backgroundColor: '#FFFFFF',
-    justifyContent: 'center',
-    alignItems: 'center',
     borderBottomWidth: 1,
     borderBottomColor: '#F3F4F6',
   },
-  image: {
+  carouselItem: {
+    width: SCREEN_WIDTH,
+    height: SCREEN_WIDTH,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  carouselImage: {
     width: '100%',
     height: '100%',
+  },
+  dotsContainer: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
+    gap: 6,
+  },
+  dot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  dotActive: {
+    backgroundColor: COLORS.primary,
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  dotInactive: {
+    backgroundColor: '#D1D5DB',
   },
   imagePlaceholder: {
     width: '100%',
@@ -476,6 +575,30 @@ const styles = StyleSheet.create({
   fullscreenImage: {
     width: Dimensions.get('window').width,
     height: Dimensions.get('window').height,
+  },
+  fullscreenDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: 40,
+    left: 0,
+    right: 0,
+    gap: 8,
+  },
+  fullscreenDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  fullscreenDotActive: {
+    backgroundColor: '#FFFFFF',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  fullscreenDotInactive: {
+    backgroundColor: 'rgba(255, 255, 255, 0.4)',
   },
 });
 

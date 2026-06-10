@@ -81,6 +81,7 @@ export interface Garment {
   season?: GarmentSeason | GarmentSeason[];
   style?: GarmentStyle[];
   imageUrl: string;
+  imageUrls?: string[];
   notes?: string;
   isPublic?: boolean;
   listingType?: ListingType;
@@ -97,6 +98,8 @@ export interface CreateGarmentDTO {
   season?: GarmentSeason | GarmentSeason[];
   style?: GarmentStyle[];
   imageUrl: string;
+  imageUrls?: string[];
+  imageBackUrl?: string; // URL/URI for the second image (back view)
   notes?: string;
   isPublic?: boolean;
   listingType?: ListingType;

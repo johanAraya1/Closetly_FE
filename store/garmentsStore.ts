@@ -115,6 +115,8 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => {
   createGarment: async (userId: string, data: CreateGarmentDTO, token?: string) => {
     // Optimistic update: agregar prenda temporal
     const tempId = `temp-${Date.now()}`;
+    const firstImage = data.imageUrl || (data as any).image_url || '';
+    const secondImage = data.imageBackUrl || '';
     const optimisticGarment: Garment = {
       id: tempId,
       userId: userId,
@@ -123,7 +125,8 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => {
       brand: data.brand,
       color: data.color,
       season: data.season,
-      imageUrl: data.imageUrl || '',
+      imageUrl: firstImage,
+      imageUrls: [firstImage, secondImage].filter(Boolean) as string[],
       notes: data.notes,
       isPublic: data.isPublic ?? false,
       listingType: data.isPublic && data.listingType ? data.listingType : undefined,
