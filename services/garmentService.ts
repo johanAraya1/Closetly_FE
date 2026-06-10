@@ -398,10 +398,21 @@ export const getGarmentById = async (id: string, token?: string, signal?: AbortS
   }
   return { data };
 };
-    
-    if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
-    }    const response = await fetchWithTimeout(`${API_URL}/garments/${id}`, {
+
+/**
+ * Elimina una prenda
+ */
+export const deleteGarment = async (id: string, token?: string): Promise<ApiResponse<void>> => {
+  const headers: Record<string, string> = {
+    'Content-Type': 'application/json',
+  };
+  
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`;
+  }
+
+  try {
+    const response = await fetchWithTimeout(`${API_URL}/garments/${id}`, {
       method: 'DELETE',
       headers,
       timeout: 10000,
