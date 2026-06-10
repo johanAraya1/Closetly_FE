@@ -36,7 +36,7 @@ interface OutfitsState {
 const initialState = {
   outfits: [],
   currentOutfit: null,
-  isLoading: false,
+  isLoading: true,
   isLoadingMore: false,
   hasMore: false,
   page: 0,

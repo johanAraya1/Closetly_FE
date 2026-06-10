@@ -12,9 +12,12 @@ import { Button, Input, EmptyState, Modal, OutfitPreview } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useOutfits } from '@/hooks/useOutfits';
-import { SEASONS, COLORS, GARMENT_CATEGORIES } from '@/lib/constants';
+import { SEASONS, COLORS, GARMENT_CATEGORIES, OCCASIONS } from '@/lib/constants';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useSuggestionsStore } from '@/store/suggestionsStore';
+import { generateRandomOutfit } from '@/utils';
 import type { GarmentSeason, Garment } from '@/types';
+import type { Occasion } from '@/utils/randomOutfit';
 
 export default function CreateOutfitScreen() {
   const router = useRouter();
@@ -24,7 +27,7 @@ export default function CreateOutfitScreen() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [occasion, setOccasion] = useState('');
+  const [occasion, setOccasion] = useState('casual');
   const [season, setSeason] = useState<GarmentSeason>('all_season');
   const [selectedGarments, setSelectedGarments] = useState<Garment[]>([]);
   const [errors, setErrors] = useState<{ name?: string; garments?: string }>({});
@@ -32,6 +35,10 @@ export default function CreateOutfitScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
+  const [generationError, setGenerationError] = useState<string | null>(null);
+  const [hasGenerated, setHasGenerated] = useState(false);
+
+  const weather = useSuggestionsStore((state) => state.weather);
 
   const { t } = useTranslation();
 
@@ -62,6 +69,17 @@ export default function CreateOutfitScreen() {
       setSelectedGarments([...selectedGarments, garment]);
       setErrors({ ...errors, garments: undefined });
     }
+  };
+
+  const handleGenerateRandomOutfit = () => {
+    setGenerationError(null);
+    const result = generateRandomOutfit(garments, occasion as Occasion, weather);
+    if (result.error) {
+      setGenerationError(result.error);
+      return;
+    }
+    setSelectedGarments(result.outfit);
+    setHasGenerated(true);
   };
 
   // Filtrar prendas por categoría y búsqueda
@@ -185,14 +203,34 @@ export default function CreateOutfitScreen() {
             numberOfLines={3}
           />
 
-          {/* Ocasión */}
-          <Input
-            label={t('outfits.create.occasion')}
-            value={occasion}
-            onChangeText={setOccasion}
-            placeholder={t('outfits.create.occasionPlaceholder')}
-            maxLength={30}
-          />
+          {/* Ocasión — chip picker */}
+          <View style={styles.section}>
+            <Text style={styles.label}>{t('outfits.create.occasion')}</Text>
+            <ScrollView
+              horizontal
+              showsHorizontalScrollIndicator={false}
+              contentContainerStyle={styles.seasonScroll}
+            >
+              {OCCASIONS.map((o) => (
+                <TouchableOpacity
+                  key={o.value}
+                  onPress={() => {
+                    setOccasion(o.value);
+                    setHasGenerated(false);
+                    setGenerationError(null);
+                  }}
+                  style={[
+                    styles.chip,
+                    occasion === o.value ? styles.chipActiveSecondary : styles.chipInactive,
+                  ]}
+                >
+                  <Text style={occasion === o.value ? styles.chipTextActive : styles.chipTextInactive}>
+                    {o.label}
+                  </Text>
+                </TouchableOpacity>
+              ))}
+            </ScrollView>
+          </View>
 
           {/* Temporada */}
           <View style={styles.section}>
@@ -217,6 +255,35 @@ export default function CreateOutfitScreen() {
                 </TouchableOpacity>
               ))}
             </ScrollView>
+          </View>
+
+          {/* Generar Outfit Aleatorio */}
+          <View style={styles.section}>
+            {generationError && (
+              <View style={styles.generateErrorBanner}>
+                <Ionicons name="alert-circle" size={18} color="#EF4444" />
+                <Text style={styles.generateErrorText}>{generationError}</Text>
+              </View>
+            )}
+            {hasGenerated ? (
+              <TouchableOpacity
+                onPress={handleGenerateRandomOutfit}
+                style={styles.generateButton}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="refresh" size={20} color="#FFFFFF" style={styles.generateButtonIcon} />
+                <Text style={styles.generateButtonText}>Probar otro outfit</Text>
+              </TouchableOpacity>
+            ) : (
+              <TouchableOpacity
+                onPress={handleGenerateRandomOutfit}
+                style={styles.generateButton}
+                activeOpacity={0.8}
+              >
+                <Ionicons name="dice" size={20} color="#FFFFFF" style={styles.generateButtonIcon} />
+                <Text style={styles.generateButtonText}>🎲 Generar Outfit Aleatorio</Text>
+              </TouchableOpacity>
+            )}
           </View>
 
           {/* Outfit Preview - Muestra el outfit completo */}
@@ -382,10 +449,12 @@ export default function CreateOutfitScreen() {
               setShowSuccessModal(false);
               setName('');
               setDescription('');
-              setOccasion('');
+              setOccasion('casual');
               setSeason('all_season');
               setSelectedGarments([]);
               setErrors({});
+              setGenerationError(null);
+              setHasGenerated(false);
             },
             variant: 'primary',
           },
@@ -658,5 +727,45 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.1,
     shadowRadius: 4,
     elevation: 5,
+  },
+  generateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.secondary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    shadowColor: COLORS.secondary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  generateButtonIcon: {
+    marginRight: 8,
+  },
+  generateButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  generateErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+  },
+  generateErrorText: {
+    flex: 1,
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 10,
+    lineHeight: 20,
   },
 });

@@ -9,5 +9,6 @@ export * from './format';
 export * from './imageUtils';
 export * from './imageValidation';
 export * from './rateLimit';
+export * from './randomOutfit';
 export * from './sanitize';
 export * from './validation';

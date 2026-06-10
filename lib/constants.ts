@@ -3,7 +3,7 @@
  * Valores constantes utilizados en toda la aplicación
  */
 
-import type { ListingType } from '@/types';
+import type { ListingType, GarmentStyle } from '@/types';
 
 // API base URL (normalize: remove trailing slash). Supports multiple env var names
 const RAW_API_URL =
@@ -89,6 +89,24 @@ export const GARMENT_STYLES = [
   { value: 'bohemio', label: 'Bohemio' },
   { value: 'urbano', label: 'Urbano' },
 ];
+
+export const OCCASIONS = [
+  { value: 'casual', label: 'Casual' },
+  { value: 'formal', label: 'Formal' },
+  { value: 'work', label: 'Trabajo' },
+  { value: 'sport', label: 'Deporte' },
+  { value: 'date_night', label: 'Cita Nocturna' },
+  { value: 'travel', label: 'Viaje' },
+];
+
+export const OCCASION_STYLE_MAP: Record<string, GarmentStyle[]> = {
+  casual: ['casual', 'urbano', 'bohemio'],
+  formal: ['formal', 'elegante'],
+  work: ['formal', 'elegante', 'urbano'],
+  sport: ['deportivo'],
+  date_night: ['elegante', 'formal', 'urbano'],
+  travel: ['casual', 'urbano', 'deportivo'],
+};
 
 export const LISTING_TYPES: { value: ListingType; labelKey: string; descriptionKey: string; color: string }[] = [
   { value: 'sell', labelKey: 'garments.listingType.sell', descriptionKey: 'garments.listingType.sellDescription', color: '#10B981' },

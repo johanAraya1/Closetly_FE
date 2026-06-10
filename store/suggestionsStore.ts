@@ -23,6 +23,22 @@ interface SuggestionsState {
   clearSuggestions: () => void;
 }
 
+/**
+ * Deduplica sugerencias y limita a 3 outfits diferentes.
+ * Dos sugerencias son iguales si tienen los mismos garmentIds.
+ */
+function dedupeSuggestions(suggestions: Suggestion[]): Suggestion[] {
+  const seen = new Set<string>();
+  return suggestions
+    .filter((s) => {
+      const key = [...(s.garmentIds ?? [])].sort().join(',');
+      if (seen.has(key)) return false;
+      seen.add(key);
+      return true;
+    })
+    .slice(0, 3);
+}
+
 const initialState = {
   suggestions: [],
   garments: [],
@@ -37,7 +53,7 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
   ...initialState,
 
   fetchSuggestions: async (lat?: number, lon?: number) => {
-      set({ isLoading: true, error: null, message: null });
+    set({ isLoading: true, error: null, message: null });
 
     try {
       // If coordinates not provided, try to get them via expo-location
@@ -51,7 +67,7 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
             console.warn('⚠️ Location permission denied, fetching suggestions without location');
           } else {
             const position = await Location.getCurrentPositionAsync({
-              accuracy: Location.Accuracy.Low, // Low = ~3km, fast, no GPS needed
+              accuracy: Location.Accuracy.Low,
             });
             queryLat = position.coords.latitude;
             queryLon = position.coords.longitude;
@@ -66,14 +82,12 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
         endpoint += `?lat=${queryLat}&lon=${queryLon}`;
       }
 
-      // Add locale for localized AI responses
       const locale = i18n.locale;
       endpoint += `${endpoint.includes('?') ? '&' : '?'}locale=${locale}`;
 
       const result = await apiClient.get<SuggestionsResponse>(endpoint);
 
       if (result.error) {
-        // If failed with coordinates, try without them
         if (queryLat !== undefined && queryLon !== undefined) {
           console.warn('⚠️ Suggestions with coords failed, retrying without location');
           const fallbackResult = await apiClient.get<SuggestionsResponse>(`/outfits/suggestions?locale=${locale}`);
@@ -82,8 +96,9 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
             return;
           }
           if (fallbackResult.data) {
+            const deduped = dedupeSuggestions(fallbackResult.data.suggestions ?? []);
             set({
-              suggestions: fallbackResult.data.suggestions ?? [],
+              suggestions: deduped,
               garments: fallbackResult.data.garments ?? [],
               weather: fallbackResult.data.weather ?? null,
               message: fallbackResult.data.message ?? null,
@@ -98,8 +113,9 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
       }
 
       if (result.data) {
+        const deduped = dedupeSuggestions(result.data.suggestions ?? []);
         set({
-          suggestions: result.data.suggestions ?? [],
+          suggestions: deduped,
           garments: result.data.garments ?? [],
           weather: result.data.weather ?? null,
           message: result.data.message ?? null,
