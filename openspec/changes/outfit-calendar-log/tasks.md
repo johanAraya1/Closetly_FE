@@ -68,9 +68,9 @@ Chain strategy: pending
 
 ## Phase 4: FE — Calendar Screen + Log-Today Picker
 
-- [ ] **4.1** Create `app/calendar/index.tsx` — CalendarList with markedDates, month arrows, bottom sheet (OutfitShareCard + Remove), loading/error/empty states, pull-to-refresh, swipe navigation. (~500 lines)
+- [x] **4.1** Create `app/calendar/index.tsx` — CalendarList with markedDates, month arrows, bottom sheet (OutfitShareCard + Remove), loading/error/empty states, pull-to-refresh, swipe navigation. (~614 lines)
   - AC: All REQ-CAL-FE-2, FE-3, FE-4 scenarios pass.
-- [ ] **4.2** Create `app/calendar/log-today.tsx` — outfit picker that calls store.logOutfit then navigates to /calendar. (~150 lines)
+- [x] **4.2** Create `app/calendar/log-today.tsx` — outfit picker that calls store.logOutfit then navigates to /calendar. (~503 lines)
   - AC: User picks outfit → logged → navigated to calendar.
 
 ## Phase 5: FE — Integrations (Home + Outfit Detail)
