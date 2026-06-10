@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, Image, Alert, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, ScrollView, Image, Alert, TouchableOpacity, StyleSheet } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -224,35 +224,10 @@ export default function CreateGarmentScreen() {
     return hasImage && hasName && hasBrand && hasColor && hasSeason;
   }, [imageUri, editImageUri, name, noBrand, brand, color, seasons]);
 
-  const handlePickWithOption = useCallback((isCamera: boolean) => {
-    console.log('[CreateGarment] handlePickWithOption called, isCamera:', isCamera, 'platform:', Platform.OS);
-    console.log('[CreateGarment] isAnalyzing:', isAnalyzing, 'isFormEnabled:', isFormEnabled);
-
-    // En web, Alert.alert con m�s de 2 botones no funciona correctamente
-    // (React Native Web solo implementa window.alert y window.confirm)
-    if (Platform.OS === 'web') {
-      console.log('[CreateGarment] Web detected, bypassing Alert.alert, going directly to picker');
-      setAiDetected(false);
-      showTip(() => isCamera ? capturePhoto(false) : pickImage(false));
-      return;
-    }
-
-    Alert.alert(
-      t('garments.create.photo'),
-      t('garments.create.cropOption'),
-      [
-        { text: t('garments.create.useFull'), onPress: () => {
-          setAiDetected(false);
-          showTip(() => isCamera ? capturePhoto(false) : pickImage(false));
-        }},
-        { text: t('garments.create.useCrop'), onPress: () => {
-          setAiDetected(false);
-          showTip(() => isCamera ? capturePhoto(true) : pickImage(true));
-        }},
-        { text: t('common.cancel'), style: 'cancel' },
-      ]
-    );
-  }, [t, pickImage, capturePhoto, showTip, setAiDetected, isAnalyzing, isFormEnabled]);
+  const handlePickImage = useCallback((isCamera: boolean) => {
+    setAiDetected(false);
+    showTip(() => isCamera ? capturePhoto(true) : pickImage(true));
+  }, [pickImage, capturePhoto, showTip, setAiDetected]);
 
   const handleCreate = useCallback(async () => {
     if (!user) {
@@ -383,7 +358,7 @@ export default function CreateGarmentScreen() {
                     onPress={() => {
                       setLastAnalyzedUri(null);
                       setAiDetected(false);
-                      handlePickWithOption(false);
+                      handlePickImage(false);
                     }}
                     style={styles.changeImageButton}
                     disabled={isAnalyzing}
@@ -395,7 +370,7 @@ export default function CreateGarmentScreen() {
             ) : (
               <View style={styles.imagePickerRow}>
                 <TouchableOpacity
-                  onPress={() => handlePickWithOption(false)}
+                  onPress={() => handlePickImage(false)}
                   style={styles.imagePickerButton}
                   disabled={isAnalyzing}
                 >
@@ -403,7 +378,7 @@ export default function CreateGarmentScreen() {
                   <Text style={styles.imagePickerText}>{t('garments.create.chooseFromGallery')}</Text>
                 </TouchableOpacity>
                 <TouchableOpacity
-                  onPress={() => handlePickWithOption(true)}
+                  onPress={() => handlePickImage(true)}
                   style={styles.imagePickerButton}
                   disabled={isAnalyzing}
                 >
