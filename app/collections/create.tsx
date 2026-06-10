@@ -3,8 +3,8 @@
  * Pantalla para crear una nueva colección
  */
 
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image } from 'react-native';
+import React, { useState, useMemo } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, TextInput } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -13,7 +13,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useCollections } from '@/hooks/useCollections';
 import { useOutfits } from '@/hooks/useOutfits';
 import { useCollectionsStore } from '@/store/collectionsStore';
-import { COLORS } from '@/lib/constants';
+import { COLORS, SEASONS } from '@/lib/constants';
 import { validationMessages } from '@/utils/validation';
 import { useTranslation } from '@/hooks/useTranslation';
 
@@ -34,6 +34,33 @@ export default function CreateCollectionScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [searchQuery, setSearchQuery] = useState('');
+  const [occasionFilter, setOccasionFilter] = useState('');
+  const [seasonFilter, setSeasonFilter] = useState<string>('all');
+
+  // Filtros
+  const filteredOutfits = useMemo(() => {
+    return outfits.filter((outfit) => {
+      if (searchQuery && !outfit.name.toLowerCase().includes(searchQuery.toLowerCase())) {
+        return false;
+      }
+      if (occasionFilter && !(outfit.occasion || '').toLowerCase().includes(occasionFilter.toLowerCase())) {
+        return false;
+      }
+      if (seasonFilter !== 'all' && outfit.season !== seasonFilter) {
+        return false;
+      }
+      return true;
+    });
+  }, [outfits, searchQuery, occasionFilter, seasonFilter]);
+
+  const seasonLabels: Record<string, string> = useMemo(() => ({
+    spring: t('outfits.create.seasonSpring'),
+    summer: t('outfits.create.seasonSummer'),
+    fall: t('outfits.create.seasonFall'),
+    winter: t('outfits.create.seasonWinter'),
+    all_season: t('outfits.create.seasonAll'),
+  }), [t]);
 
   const toggleOutfit = (outfitId: string) => {
     setSelectedOutfits(prev => 
@@ -179,16 +206,80 @@ export default function CreateCollectionScreen() {
         <View style={styles.section}>
           <Text style={styles.sectionTitle}>{t('collections.create.selectOutfits', { count: selectedOutfits.length })}</Text>
           <Text style={styles.sectionSubtitle}>{t('collections.create.selectOutfitsSubtitle')}</Text>
+
+          {/* Filters */}
+          {outfits.length > 0 && (
+            <View style={styles.filterContainer}>
+              <View style={styles.searchRow}>
+                <View style={styles.searchInputWrapper}>
+                  <Ionicons name="search-outline" size={18} color="#9CA3AF" style={styles.searchIcon} />
+                  <TextInput
+                    style={styles.filterInput}
+                    placeholder={t('collections.filterByName')}
+                    placeholderTextColor="#9CA3AF"
+                    value={searchQuery}
+                    onChangeText={setSearchQuery}
+                  />
+                  {searchQuery ? (
+                    <TouchableOpacity onPress={() => setSearchQuery('')}>
+                      <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+
+              <View style={styles.filterRow}>
+                <View style={[styles.searchInputWrapper, { flex: 1 }]}>
+                  <Ionicons name="calendar-outline" size={18} color="#9CA3AF" style={styles.searchIcon} />
+                  <TextInput
+                    style={styles.filterInput}
+                    placeholder={t('collections.filterByOccasion')}
+                    placeholderTextColor="#9CA3AF"
+                    value={occasionFilter}
+                    onChangeText={setOccasionFilter}
+                  />
+                  {occasionFilter ? (
+                    <TouchableOpacity onPress={() => setOccasionFilter('')}>
+                      <Ionicons name="close-circle" size={18} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  ) : null}
+                </View>
+              </View>
+
+              {/* Season chips */}
+              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.chipsScroll}>
+                <TouchableOpacity
+                  style={[styles.chip, seasonFilter === 'all' && styles.chipActive]}
+                  onPress={() => setSeasonFilter('all')}
+                >
+                  <Text style={[styles.chipText, seasonFilter === 'all' && styles.chipTextActive]}>
+                    {t('collections.allSeasons')}
+                  </Text>
+                </TouchableOpacity>
+                {SEASONS.map((s) => (
+                  <TouchableOpacity
+                    key={s.value}
+                    style={[styles.chip, seasonFilter === s.value && styles.chipActive]}
+                    onPress={() => setSeasonFilter(seasonFilter === s.value ? 'all' : s.value)}
+                  >
+                    <Text style={[styles.chipText, seasonFilter === s.value && styles.chipTextActive]}>
+                      {seasonLabels[s.value] || s.label}
+                    </Text>
+                  </TouchableOpacity>
+                ))}
+              </ScrollView>
+            </View>
+          )}
           
-          {outfits.length === 0 ? (
+          {filteredOutfits.length === 0 ? (
             <View style={styles.emptyOutfits}>
               <Ionicons name="shirt-outline" size={40} color="#D1D5DB" />
-              <Text style={styles.emptyText}>{t('collections.create.noOutfits')}</Text>
-              <Text style={styles.emptySubtext}>{t('collections.create.noOutfitsSubtext')}</Text>
+              <Text style={styles.emptyText}>{outfits.length === 0 ? t('collections.create.noOutfits') : t('collections.emptyFilterResult')}</Text>
+              <Text style={styles.emptySubtext}>{outfits.length === 0 ? t('collections.create.noOutfitsSubtext') : t('collections.tryDifferentFilter')}</Text>
             </View>
           ) : (
             <View style={styles.outfitsGrid}>
-              {outfits.map((outfit) => {
+              {filteredOutfits.map((outfit) => {
                 const isSelected = selectedOutfits.includes(outfit.id);
                 const garments = outfit.garments || [];
                 const currentIndex = carouselIndexes[outfit.id] || 0;
@@ -268,9 +359,14 @@ export default function CreateCollectionScreen() {
                     {/* Outfit Info */}
                     <View style={styles.outfitInfo}>
                       <Text style={styles.outfitName} numberOfLines={1}>{outfit.name}</Text>
-                      <Text style={styles.outfitGarments}>
-                        {t('collections.create.garmentCount', { count: outfit.garments?.length || 0 })}
-                      </Text>
+                      <View style={styles.outfitMetaRow}>
+                        <Text style={styles.outfitGarments}>
+                          {t('collections.create.garmentCount', { count: outfit.garments?.length || 0 })}
+                        </Text>
+                        {outfit.occasion ? (
+                          <Text style={styles.outfitOccasion}>{outfit.occasion}</Text>
+                        ) : null}
+                      </View>
                     </View>
                   </TouchableOpacity>
                 );
@@ -279,21 +375,25 @@ export default function CreateCollectionScreen() {
           )}
         </View>
 
-        <View style={styles.createButtonContainer}>
-          {selectedOutfits.length < 2 && (
+        {selectedOutfits.length < 2 && selectedOutfits.length > 0 && (
+          <View style={styles.minOutfitsContainer}>
             <Text style={styles.minOutfitsText}>
               {t('collections.create.minOutfits', { count: selectedOutfits.length })}
             </Text>
-          )}
-          <Button
-            title={t('collections.create.button')}
-            onPress={handleCreate}
-            loading={isLoading}
-            disabled={!isValidForm}
-            fullWidth
-          />
-        </View>
+          </View>
+        )}
       </ScrollView>
+
+      {/* Botón sticky — siempre visible al fondo */}
+      <View style={styles.stickyButtonContainer}>
+        <Button
+          title={t('collections.create.button')}
+          onPress={handleCreate}
+          loading={isLoading}
+          disabled={!isValidForm}
+          fullWidth
+        />
+      </View>
 
       {/* Success Modal */}
       <Modal
@@ -571,14 +671,96 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     marginTop: 4,
   },
-  createButtonContainer: {
-    marginTop: 8,
+  filterContainer: {
+    marginBottom: 16,
+    gap: 8,
+  },
+  searchRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  searchInputWrapper: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'white',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    paddingHorizontal: 12,
+    height: 40,
+    flex: 1,
+  },
+  searchIcon: {
+    marginRight: 8,
+  },
+  filterInput: {
+    flex: 1,
+    fontSize: 14,
+    color: '#111827',
+    paddingVertical: 0,
+  },
+  filterRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  chipsScroll: {
+    flexGrow: 0,
+  },
+  chip: {
+    paddingHorizontal: 14,
+    paddingVertical: 6,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    marginRight: 8,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+  },
+  chipActive: {
+    backgroundColor: COLORS.primary,
+    borderColor: COLORS.primary,
+  },
+  chipText: {
+    fontSize: 13,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  chipTextActive: {
+    color: 'white',
+  },
+  outfitMetaRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  outfitOccasion: {
+    fontSize: 12,
+    color: COLORS.primary,
+    fontWeight: '500',
+    backgroundColor: '#EFF6FF',
+    paddingHorizontal: 8,
+    paddingVertical: 2,
+    borderRadius: 8,
+    overflow: 'hidden',
+  },
+  minOutfitsContainer: {
+    paddingHorizontal: 24,
+    paddingBottom: 8,
   },
   minOutfitsText: {
     fontSize: 14,
     color: '#EF4444',
-    textAlign: 'center',
-    marginBottom: 12,
     fontWeight: '500',
+  },
+  stickyButtonContainer: {
+    paddingHorizontal: 24,
+    paddingVertical: 12,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#E5E7EB',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: -2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 5,
   },
 });

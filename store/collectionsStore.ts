@@ -153,17 +153,48 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
       return false;
     }
 
+    // Refresh currentCollection if we're viewing this collection
+    const { currentCollection, collections } = get();
+    if (currentCollection?.id === collectionId) {
+      // Re-fetch full data to get the updated outfit list
+      await get().loadCollectionById(collectionId, currentCollection.userId);
+    }
+    // Also refresh collections list
+    if (collections.some(c => c.id === collectionId)) {
+      await get().loadCollections(currentCollection?.userId || collections.find(c => c.id === collectionId)?.userId || '');
+    }
+
     return true;
   },
 
   removeOutfitFromCollection: async (collectionId: string, outfitId: string) => {
     set({ error: null });
+
+    // Optimistic: remove from local state immediately
+    const { currentCollection } = get();
+    if (currentCollection?.id === collectionId && currentCollection.outfits) {
+      set({
+        currentCollection: {
+          ...currentCollection,
+          outfits: currentCollection.outfits.filter(o => o.id !== outfitId),
+        },
+      });
+    }
     
     const result = await collectionService.removeOutfitFromCollection(collectionId, outfitId);
     
     if (result.error) {
       set({ error: result.error });
+      // Rollback: re-fetch to restore
+      if (currentCollection?.id === collectionId) {
+        await get().loadCollectionById(collectionId, currentCollection.userId);
+      }
       return false;
+    }
+
+    // Re-fetch to ensure data consistency
+    if (currentCollection?.id === collectionId) {
+      await get().loadCollectionById(collectionId, currentCollection.userId);
     }
 
     return true;

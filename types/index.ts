@@ -159,6 +159,19 @@ export interface UpdateOutfitDTO {
   garmentIds?: string[];
 }
 
+// ==================== CALENDAR ====================
+
+export interface CalendarLogEntry {
+  id: string;
+  date: string;
+  outfit: Outfit;
+}
+
+export interface LogOutfitDTO {
+  outfitId: string;
+  date: string; // YYYY-MM-DD
+}
+
 // ==================== COLLECTION ====================
 
 export interface Collection {
