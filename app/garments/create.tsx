@@ -238,7 +238,10 @@ export default function CreateGarmentScreen() {
     showTip(() => isCamera ? capturePhoto(true) : pickImage(true));
   }, [pickImage, capturePhoto, showTip, setAiDetected]);
 
+  const MAX_IMAGES = 2;
+
   const handlePickExtraImage = useCallback(async () => {
+    if (allImages.length >= MAX_IMAGES) return;
     const uri = await pickImageFromGallery({ crop: true });
     if (uri) {
       if (isEditMode) {
@@ -247,7 +250,7 @@ export default function CreateGarmentScreen() {
         setExtraImageUris(prev => [...prev, uri]);
       }
     }
-  }, [isEditMode]);
+  }, [isEditMode, allImages.length]);
 
   const handleRemoveImage = useCallback((index: number) => {
     if (isEditMode) {
@@ -415,12 +418,14 @@ export default function CreateGarmentScreen() {
                       </TouchableOpacity>
                     </View>
                   ))}
-                  <TouchableOpacity
-                    onPress={() => handlePickExtraImage()}
-                    style={styles.addImageButton}
-                  >
-                    <Ionicons name="add-circle" size={32} color={COLORS.primary} />
-                  </TouchableOpacity>
+                  {allImages.length < MAX_IMAGES && (
+                    <TouchableOpacity
+                      onPress={() => handlePickExtraImage()}
+                      style={styles.addImageButton}
+                    >
+                      <Ionicons name="add-circle" size={32} color={COLORS.primary} />
+                    </TouchableOpacity>
+                  )}
                 </View>
               </View>
             ) : (
