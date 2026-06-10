@@ -161,54 +161,12 @@ export const invalidateOutfitsCache = (userId?: string): void => {
  * Obtiene un outfit por ID con sus prendas (con caché)
  */
 export const getOutfitById = async (id: string, signal?: AbortSignal): Promise<ApiResponse<Outfit>> => {
-  const cacheKey = `outfit:${id}`;
-
-  const cached = apiCache.get<ApiResponse<Outfit>>(cacheKey);
-  if (cached && !signal?.aborted) {
-    return cached;
-  }
-
-  // Usar la ruta RESTful de NestJS (/outfits/:id) en lugar de PostgREST-style (?id=eq.)
-  // La ruta correcta devuelve el objeto directo, no un array
-  const outfitResponse = await apiClient.get<any>(`/outfits/${id}`, { signal });
-  
-  if (!outfitResponse.data || outfitResponse.error) {
-    return outfitResponse as ApiResponse<Outfit>;
-  }
-  
-  const outfit = normalizeOutfit(outfitResponse.data);
-  
-  if (!outfit.garmentIds || outfit.garmentIds.length === 0) {
-    const result = { data: { ...outfit, garments: [] } as Outfit };
-    apiCache.set(cacheKey, result, CACHE_TTL);
-    return result;
-  }
-  
-  const garmentsResponse = await apiClient.get<any[]>(
-    `/garments?id=in.(${outfit.garmentIds.join(',')})`,
-    { signal }
-  );
-
-  if (!garmentsResponse.data || garmentsResponse.error) {
-    console.warn('⚠️ No se pudieron cargar las prendas del outfit:', garmentsResponse.error);
-    const result = { data: { ...outfit, garments: [] } as Outfit };
-    if (!signal?.aborted) apiCache.set(cacheKey, result, CACHE_TTL);
-    return result;
-  }
-
-  const garmentsMap = new Map<string, any>(
-    garmentsResponse.data.map((g: any) => [g.id, g])
-  );
-
-  const garments = outfit.garmentIds
-    .map((id: string) => garmentsMap.get(id))
-    .filter(Boolean);
-  
-  const result = { data: { ...outfit, garments } as Outfit };
-  if (!signal?.aborted) {
-    apiCache.set(cacheKey, result, CACHE_TTL);
-  }
-  return result;
+  // Nota: El BE no tiene GET /outfits/:id. Obtenemos del listado y filtramos.
+  const result = await getOutfits('', signal);
+  if (result.error) return result as ApiResponse<Outfit>;
+  const outfit = (result.data || []).find((o) => o.id === id);
+  if (!outfit) return { error: 'Outfit not found' };
+  return { data: outfit };
 };
 
 /**

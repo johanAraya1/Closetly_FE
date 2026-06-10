@@ -7,6 +7,7 @@ import { create } from 'zustand';
 import type { Outfit, Garment, CreateOutfitDTO, UpdateOutfitDTO } from '@/types';
 import * as outfitService from '@/services/outfitService';
 import { useGarmentsStore } from '@/store/garmentsStore';
+import { useAuthStore } from '@/store/authStore';
 
 const DEFAULT_PAGE_LIMIT = 20;
 
@@ -115,23 +116,42 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
     loadOutfitById: async (id: string) => {
       const signal = abortPrevious();
       set({ isLoading: true, error: null, currentOutfit: null });
-      console.log('🔍 [Store] loadOutfitById called with id:', id);
-      
-      const result = await outfitService.getOutfitById(id, signal);
-      
-      if (signal.aborted) {
-        console.log('🔍 [Store] loadOutfitById aborted for id:', id);
+
+      // Primero buscar en los outfits ya cargados (el listado ya trae prendas)
+      const state = get();
+      const existing = state.outfits.find((o) => o.id === id);
+      if (existing) {
+        console.log('🔍 [Store] loadOutfitById found in cache for id:', id, '- name:', existing.name);
+        set({ currentOutfit: existing, isLoading: false });
         return;
       }
+
+      console.log('🔍 [Store] loadOutfitById NOT in cache, fetching for id:', id);
+      
+      // Si no está en el store local, obtenerlo del listado general
+      // (el BE no tiene GET /outfits/:id, usamos el mismo endpoint de lista)
+      const userId = useAuthStore.getState().user?.id;
+      if (!userId) {
+        console.log('🔍 [Store] loadOutfitById ERROR: no userId available');
+        set({ isLoading: false, error: 'User not authenticated' });
+        return;
+      }
+      const result = await outfitService.getOutfits(userId, undefined, undefined, signal);
+      
+      if (signal.aborted) return;
       if (result.error) {
         console.log('🔍 [Store] loadOutfitById ERROR for id:', id, '-', result.error);
         set({ isLoading: false, error: result.error });
         return;
       }
 
-      if (result.data) {
-        console.log('🔍 [Store] loadOutfitById SUCCESS for id:', id, '- name:', result.data.name);
-        set({ currentOutfit: result.data, isLoading: false });
+      const outfit = (result.data || []).find((o) => o.id === id);
+      if (outfit) {
+        console.log('🔍 [Store] loadOutfitById found from list for id:', id, '- name:', outfit.name);
+        set({ currentOutfit: outfit, isLoading: false });
+      } else {
+        console.log('🔍 [Store] loadOutfitById NOT FOUND for id:', id);
+        set({ isLoading: false, error: 'Outfit not found' });
       }
     },
 
