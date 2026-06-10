@@ -153,6 +153,7 @@ function OutfitsScreen() {
   // Navegar a detalle del outfit
   const handleOutfitPress = useCallback(
     (outfit: Outfit) => {
+      console.log('🔍 [OutfitsList] tapping outfit:', JSON.stringify({ id: outfit.id, name: outfit.name }));
       router.push(`/outfits/${outfit.id}`);
     },
     [router]

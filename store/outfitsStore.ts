@@ -115,16 +115,22 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
     loadOutfitById: async (id: string) => {
       const signal = abortPrevious();
       set({ isLoading: true, error: null, currentOutfit: null });
+      console.log('🔍 [Store] loadOutfitById called with id:', id);
       
       const result = await outfitService.getOutfitById(id, signal);
       
-      if (signal.aborted) return;
+      if (signal.aborted) {
+        console.log('🔍 [Store] loadOutfitById aborted for id:', id);
+        return;
+      }
       if (result.error) {
+        console.log('🔍 [Store] loadOutfitById ERROR for id:', id, '-', result.error);
         set({ isLoading: false, error: result.error });
         return;
       }
 
       if (result.data) {
+        console.log('🔍 [Store] loadOutfitById SUCCESS for id:', id, '- name:', result.data.name);
         set({ currentOutfit: result.data, isLoading: false });
       }
     },
