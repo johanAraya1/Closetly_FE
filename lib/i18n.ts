@@ -533,6 +533,8 @@ const i18n = new I18n({
       removeOutfit: 'Remove',
       errorLog: 'Could not log outfit',
       tapToViewOutfit: 'Tap a colored day to view that outfit',
+      repeatTitle: 'Outfit already logged',
+      repeatMessage: 'You already logged this outfit on {{dates}}. Log it again for {{date}}?',
     },
   },
   es: {
@@ -1059,6 +1061,8 @@ const i18n = new I18n({
       removeOutfit: 'Quitar',
       errorLog: 'No se pudo registrar el outfit',
       tapToViewOutfit: 'Tocá un día coloreado para ver ese outfit',
+      repeatTitle: 'Outfit ya registrado',
+      repeatMessage: 'Ya registraste este outfit el {{dates}}. ¿Querés registrarlo de nuevo para el {{date}}?',
     },
   },
 });

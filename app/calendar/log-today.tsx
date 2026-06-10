@@ -38,7 +38,7 @@ export default function LogTodayScreen() {
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
   const { outfits, isLoading: loadingOutfits } = useOutfits(true);
-  const { logOutfit, error: storeError, clearError } = useCalendar();
+  const { entries, logOutfit, error: storeError, clearError } = useCalendar();
 
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState('');
@@ -94,21 +94,82 @@ export default function LogTodayScreen() {
   const handleLog = useCallback(async () => {
     if (!selectedOutfitId) return;
 
+    // Check if same outfit was already logged on dates near the target
+    const targetMs = new Date(targetDate + 'T00:00:00').getTime();
+    const sameOutfitEntries = entries.filter(
+      (e) => e.outfit.id === selectedOutfitId,
+    );
+    const nearbyEntries = sameOutfitEntries.filter((e) => {
+      const entryMs = new Date(e.date + 'T00:00:00').getTime();
+      const diffDays = Math.abs((targetMs - entryMs) / 86400000);
+      return diffDays <= 3 && diffDays > 0;
+    });
+
+    if (nearbyEntries.length > 0) {
+      // Warn the user before logging the same outfit again
+      const datesStr = nearbyEntries
+        .map((e) => {
+          const d = new Date(e.date + 'T00:00:00');
+          return d.toLocaleDateString('en-US', {
+            weekday: 'short',
+            month: 'short',
+            day: 'numeric',
+          });
+        })
+        .join(', ');
+
+      return new Promise<void>((resolve) => {
+        Alert.alert(
+          t('calendar.repeatTitle'),
+          t('calendar.repeatMessage', {
+            dates: datesStr,
+            date: formattedDate,
+          }),
+          [
+            {
+              text: t('common.cancel'),
+              style: 'cancel',
+              onPress: () => resolve(),
+            },
+            {
+              text: t('planner.useAgain') || 'Log anyway',
+              onPress: async () => {
+                await doLog();
+                resolve();
+              },
+            },
+          ],
+        );
+      });
+    }
+
+    await doLog();
+  }, [selectedOutfitId, targetDate, entries, logOutfit, storeError, t, router, clearError, formattedDate]);
+
+  const doLog = useCallback(async () => {
     setIsLogging(true);
     clearError();
 
-    const success = await logOutfit(selectedOutfitId, targetDate);
+    const success = await logOutfit(selectedOutfitId!, targetDate);
 
     if (success) {
-      router.replace(`/calendar?date=${targetDate}`);
+      Alert.alert(
+        t('common.success'),
+        t('calendar.loggedSuccess', { date: formattedDate }),
+        [
+          {
+            text: t('common.ok'),
+            onPress: () => router.replace(`/calendar?date=${targetDate}`),
+          },
+        ],
+      );
     } else {
-      // Read the error from the store (set by logOutfit on failure)
       const errorMsg = storeError || t('common.error');
       Alert.alert(t('common.error'), errorMsg);
     }
 
     setIsLogging(false);
-  }, [selectedOutfitId, targetDate, logOutfit, storeError, t, router, clearError]);
+  }, [selectedOutfitId, targetDate, logOutfit, storeError, t, router, clearError, formattedDate]);
 
   // Render outfit item
   const renderOutfitItem = useCallback(
