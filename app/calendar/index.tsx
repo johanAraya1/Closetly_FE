@@ -385,7 +385,7 @@ export default function CalendarScreen() {
                         color={COLORS.error}
                       />
                       <Text style={styles.removeButtonText}>
-                        {t('planner.removeOutfit')}
+                        {t('calendar.removeOutfit')}
                       </Text>
                     </TouchableOpacity>
                   )}

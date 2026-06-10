@@ -14,6 +14,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
+  TextInput,
   Dimensions,
   Platform,
 } from 'react-native';
@@ -65,6 +66,7 @@ export default function OutfitDetailScreen() {
   const [isSharing, setIsSharing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showLogDatePicker, setShowLogDatePicker] = useState(false);
+  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const todayFormatted = new Date().toISOString().split('T')[0];
   const shareCardRef = useRef<ViewShot>(null);
 
@@ -119,6 +121,7 @@ export default function OutfitDetailScreen() {
   // --- Log to Calendar ---
   const handleLogToCalendar = useCallback(() => {
     if (!outfit) return;
+    setSelectedDate(new Date().toISOString().split('T')[0]);
     setShowLogDatePicker(true);
   }, [outfit]);
 
@@ -433,12 +436,16 @@ export default function OutfitDetailScreen() {
             </TouchableOpacity>
 
             <Text style={styles.modalTitle}>
-              {t('calendar.logOutfitFor', { date: todayFormatted })}
+                  {t('calendar.logOutfitFor', { date: selectedDate })}
             </Text>
 
-            <Text style={{ fontSize: 24, fontWeight: '700', color: '#111827', marginBottom: 20 }}>
-              {todayFormatted}
-            </Text>
+              <TextInput
+                style={styles.dateInput}
+                value={selectedDate}
+                onChangeText={setSelectedDate}
+                placeholder="YYYY-MM-DD"
+                keyboardType="numbers-and-punctuation"
+              />
 
             <View style={styles.modalActions}>
               <TouchableOpacity
@@ -453,11 +460,12 @@ export default function OutfitDetailScreen() {
                 onPress={async () => {
                   if (!outfit) return;
                   try {
-                    await useCalendarStore.getState().logOutfit(outfit.id, todayFormatted);
+                    await useCalendarStore.getState().logOutfit(outfit.id, selectedDate);
                     setShowLogDatePicker(false);
-                    Alert.alert(t('common.success'), t('calendar.loggedSuccess', { date: todayFormatted }));
+                    Alert.alert(t('common.success'), t('calendar.loggedSuccess', { date: selectedDate }));
                   } catch (err) {
-                    Alert.alert(t('common.error'), t('collections.errorDelete'));
+                    const errorMsg = (err as any)?.message || t('calendar.errorLog');
+                    Alert.alert(t('common.error'), errorMsg);
                   }
                 }}
               >
@@ -796,5 +804,18 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: COLORS.white,
+  },
+
+  // Date input for calendar log
+  dateInput: {
+    fontSize: 24,
+    fontWeight: '700',
+    color: '#111827',
+    marginBottom: 20,
+    textAlign: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: COLORS.gray[200],
+    paddingVertical: 4,
+    minWidth: 140,
   },
 });

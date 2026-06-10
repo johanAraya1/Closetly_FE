@@ -521,6 +521,8 @@ const i18n = new I18n({
       errorLoad: 'Could not load calendar',
       logTodayCard: 'What did you wear today?',
       logTodayCardHint: 'Log today\'s outfit to your calendar',
+      removeOutfit: 'Remove',
+      errorLog: 'Could not log outfit',
     },
   },
   es: {
@@ -1035,6 +1037,8 @@ const i18n = new I18n({
       errorLoad: 'No se pudo cargar el calendario',
       logTodayCard: '¿Qué usaste hoy?',
       logTodayCardHint: 'Registrá el outfit de hoy en tu calendario',
+      removeOutfit: 'Quitar',
+      errorLog: 'No se pudo registrar el outfit',
     },
   },
 });
