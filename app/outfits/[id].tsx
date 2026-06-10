@@ -66,6 +66,7 @@ export default function OutfitDetailScreen() {
   const [isSharing, setIsSharing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const [showLogDatePicker, setShowLogDatePicker] = useState(false);
+  const [isLoggingToCalendar, setIsLoggingToCalendar] = useState(false);
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const todayFormatted = new Date().toISOString().split('T')[0];
   const shareCardRef = useRef<ViewShot>(null);
@@ -319,46 +320,55 @@ export default function OutfitDetailScreen() {
         </View>
 
         {/* ===== Actions ===== */}
-        <View style={styles.actionsSection}>
-          {/* Favorite Toggle */}
-          <TouchableOpacity style={styles.actionButton} onPress={handleToggleFavorite}>
-            <Ionicons
-              name={outfit.is_favorite ? 'heart' : 'heart-outline'}
-              size={22}
-              color={outfit.is_favorite ? COLORS.error : COLORS.gray[500]}
-            />
-            <Text style={[styles.actionText, outfit.is_favorite && { color: COLORS.error }]}>
-              {outfit.is_favorite ? t('outfits.favorites') : t('outfits.favorites')}
-            </Text>
-          </TouchableOpacity>
+        <Text style={styles.sectionTitle}>{t('outfits.actions')}</Text>
+        <View style={styles.actionsGrid}>
+          {/* Row 1 */}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.actionCard} onPress={handleToggleFavorite}>
+              <View style={[styles.actionIconCircle, { backgroundColor: '#FEE2E2' }]}>
+                <Ionicons
+                  name={outfit.is_favorite ? 'heart' : 'heart-outline'}
+                  size={22}
+                  color={outfit.is_favorite ? COLORS.error : '#DC2626'}
+                />
+              </View>
+              <Text style={styles.actionLabel}>{t('outfits.favorites')}</Text>
+            </TouchableOpacity>
 
-          {/* Share Button */}
-          <TouchableOpacity style={styles.actionButton} onPress={handleOpenShareModal}>
-            <Ionicons name="share-outline" size={22} color={COLORS.gray[500]} />
-            <Text style={styles.actionText}>{t('outfits.share')}</Text>
-          </TouchableOpacity>
+            <TouchableOpacity style={styles.actionCard} onPress={handleOpenShareModal}>
+              <View style={[styles.actionIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="share-outline" size={22} color="#2563EB" />
+              </View>
+              <Text style={styles.actionLabel}>{t('outfits.share')}</Text>
+            </TouchableOpacity>
+          </View>
 
-          {/* Log to Calendar Button */}
-          <TouchableOpacity style={styles.actionButton} onPress={handleLogToCalendar}>
-            <Ionicons name="calendar-outline" size={22} color={COLORS.gray[500]} />
-            <Text style={styles.actionText}>{t('calendar.logOutfit')}</Text>
-          </TouchableOpacity>
+          {/* Row 2 */}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.actionCard} onPress={handleLogToCalendar}>
+              <View style={[styles.actionIconCircle, { backgroundColor: '#F3E8FF' }]}>
+                <Ionicons name="calendar-outline" size={22} color="#8B5CF6" />
+              </View>
+              <Text style={styles.actionLabel}>{t('calendar.logOutfit')}</Text>
+            </TouchableOpacity>
 
-          {/* Delete Button */}
-          <TouchableOpacity
-            style={[styles.actionButton, styles.deleteButton]}
-            onPress={handleDelete}
-            disabled={isDeleting}
-          >
-            {isDeleting ? (
-              <ActivityIndicator size="small" color={COLORS.error} />
-            ) : (
-              <Ionicons name="trash-outline" size={22} color={COLORS.error} />
-            )}
-            <Text style={[styles.actionText, styles.deleteText]}>
-              {t('common.delete')}
-            </Text>
-          </TouchableOpacity>
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={handleDelete}
+              disabled={isDeleting}
+            >
+              <View style={[styles.actionIconCircle, { backgroundColor: '#FEE2E2' }]}>
+                {isDeleting ? (
+                  <ActivityIndicator size="small" color={COLORS.error} />
+                ) : (
+                  <Ionicons name="trash-outline" size={22} color="#DC2626" />
+                )}
+              </View>
+              <Text style={[styles.actionLabel, { color: '#DC2626' }]}>
+                {t('common.delete')}
+              </Text>
+            </TouchableOpacity>
+          </View>
         </View>
       </ScrollView>
 
@@ -431,34 +441,39 @@ export default function OutfitDetailScreen() {
             <TouchableOpacity
               style={styles.modalClose}
               onPress={() => setShowLogDatePicker(false)}
+              disabled={isLoggingToCalendar}
             >
               <Ionicons name="close" size={28} color={COLORS.gray[600]} />
             </TouchableOpacity>
 
+            <Ionicons name="calendar-outline" size={40} color={COLORS.primary} style={{ marginBottom: 12 }} />
             <Text style={styles.modalTitle}>
-                  {t('calendar.logOutfitFor', { date: selectedDate })}
+              {t('calendar.logOutfitFor', { date: selectedDate })}
             </Text>
 
-              <TextInput
-                style={styles.dateInput}
-                value={selectedDate}
-                onChangeText={setSelectedDate}
-                placeholder="YYYY-MM-DD"
-                keyboardType="numbers-and-punctuation"
-              />
+            <TextInput
+              style={styles.dateInput}
+              value={selectedDate}
+              onChangeText={setSelectedDate}
+              placeholder="YYYY-MM-DD"
+              keyboardType="numbers-and-punctuation"
+              editable={!isLoggingToCalendar}
+            />
 
             <View style={styles.modalActions}>
               <TouchableOpacity
                 style={styles.cancelButton}
                 onPress={() => setShowLogDatePicker(false)}
+                disabled={isLoggingToCalendar}
               >
                 <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={styles.shareButton}
+                style={[styles.shareButton, isLoggingToCalendar && { opacity: 0.7 }]}
                 onPress={async () => {
-                  if (!outfit) return;
+                  if (!outfit || isLoggingToCalendar) return;
+                  setIsLoggingToCalendar(true);
                   try {
                     await useCalendarStore.getState().logOutfit(outfit.id, selectedDate);
                     setShowLogDatePicker(false);
@@ -466,11 +481,19 @@ export default function OutfitDetailScreen() {
                   } catch (err) {
                     const errorMsg = (err as any)?.message || t('calendar.errorLog');
                     Alert.alert(t('common.error'), errorMsg);
+                  } finally {
+                    setIsLoggingToCalendar(false);
                   }
                 }}
               >
-                <Ionicons name="calendar-outline" size={20} color={COLORS.white} />
-                <Text style={styles.shareButtonText}>{t('calendar.logOutfit')}</Text>
+                {isLoggingToCalendar ? (
+                  <ActivityIndicator size="small" color={COLORS.white} />
+                ) : (
+                  <Ionicons name="calendar-outline" size={20} color={COLORS.white} />
+                )}
+                <Text style={styles.shareButtonText}>
+                  {isLoggingToCalendar ? t('common.saving') : t('calendar.logOutfit')}
+                </Text>
               </TouchableOpacity>
             </View>
           </View>
@@ -621,36 +644,40 @@ const styles = StyleSheet.create({
   },
 
   // ---- Actions ----
-  actionsSection: {
-    flexDirection: 'row',
-    marginTop: 24,
+  actionsGrid: {
+    marginTop: 4,
     marginHorizontal: 20,
-    backgroundColor: COLORS.white,
-    borderRadius: 12,
-    padding: 8,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 3,
-    elevation: 2,
+    gap: 8,
   },
-  actionButton: {
+  actionsRow: {
+    flexDirection: 'row',
+    gap: 8,
+  },
+  actionCard: {
     flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
-    justifyContent: 'center',
-    gap: 6,
-    paddingVertical: 12,
-    borderRadius: 8,
+    backgroundColor: COLORS.white,
+    borderRadius: 12,
+    padding: 14,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.06,
+    shadowRadius: 3,
+    elevation: 2,
   },
-  actionText: {
+  actionIconCircle: {
+    width: 40,
+    height: 40,
+    borderRadius: 20,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  actionLabel: {
     fontSize: 14,
     fontWeight: '600',
-    color: COLORS.gray[500],
-  },
-  deleteButton: {},
-  deleteText: {
-    color: COLORS.error,
+    color: COLORS.gray[700],
   },
 
   // ---- Loading Skeletons ----

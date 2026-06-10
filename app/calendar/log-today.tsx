@@ -260,10 +260,10 @@ export default function LogTodayScreen() {
           >
             <Ionicons name="chevron-back" size={24} color={COLORS.gray[700]} />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('calendar.logOutfit')}</Text>
-          <View style={{ width: 40 }} />
-        </View>
-        <Loading message={t('outfits.loading')} />
+        <Text style={styles.headerTitle}>{t('calendar.selectOutfit')}</Text>
+        <View style={{ width: 40 }} />
+      </View>
+      <Loading message={t('outfits.loading')} />
       </SafeAreaView>
     );
   }
@@ -278,7 +278,7 @@ export default function LogTodayScreen() {
         >
           <Ionicons name="chevron-back" size={24} color={COLORS.gray[700]} />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('calendar.logOutfit')}</Text>
+        <Text style={styles.headerTitle}>{t('calendar.selectOutfit')}</Text>
         <View style={{ width: 40 }} />
       </View>
 
