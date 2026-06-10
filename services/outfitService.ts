@@ -168,13 +168,15 @@ export const getOutfitById = async (id: string, signal?: AbortSignal): Promise<A
     return cached;
   }
 
-  const outfitResponse = await apiClient.get<any[]>(`/outfits?id=eq.${id}`, { signal });
+  // Usar la ruta RESTful de NestJS (/outfits/:id) en lugar de PostgREST-style (?id=eq.)
+  // La ruta correcta devuelve el objeto directo, no un array
+  const outfitResponse = await apiClient.get<any>(`/outfits/${id}`, { signal });
   
-  if (!outfitResponse.data || !outfitResponse.data[0] || outfitResponse.error) {
+  if (!outfitResponse.data || outfitResponse.error) {
     return outfitResponse as ApiResponse<Outfit>;
   }
   
-  const outfit = normalizeOutfit(outfitResponse.data[0]);
+  const outfit = normalizeOutfit(outfitResponse.data);
   
   if (!outfit.garmentIds || outfit.garmentIds.length === 0) {
     const result = { data: { ...outfit, garments: [] } as Outfit };
