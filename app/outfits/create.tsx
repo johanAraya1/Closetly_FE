@@ -15,6 +15,7 @@ import { useOutfits } from '@/hooks/useOutfits';
 import { SEASONS, COLORS, GARMENT_CATEGORIES, OCCASIONS } from '@/lib/constants';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
+import { useOutfitsStore } from '@/store/outfitsStore';
 import { generateRandomOutfit } from '@/utils';
 import type { GarmentSeason, Garment } from '@/types';
 import type { Occasion } from '@/utils/randomOutfit';
@@ -44,22 +45,38 @@ export default function CreateOutfitScreen() {
   // Pre-fill form in edit mode
   useEffect(() => {
     if (!isEditMode || !id) return;
-    setIsLoadingEdit(true);
-    loadOutfitById(id);
-  }, [isEditMode, id]);
 
-  // React to store change when outfit loads in edit mode
-  useEffect(() => {
-    if (!isEditMode || !currentOutfit || currentOutfit.id !== id) return;
-    setName(currentOutfit.name || '');
-    setDescription(currentOutfit.description || '');
-    setOccasion(currentOutfit.occasion || 'casual');
-    setSeason(currentOutfit.season || 'all_season');
-    if (currentOutfit.garments) {
-      setSelectedGarments(currentOutfit.garments);
+    const outfit = currentOutfit?.id === id ? currentOutfit : null;
+    if (outfit) {
+      // Already loaded (e.g. from detail screen), pre-fill immediately
+      setName(outfit.name || '');
+      setDescription(outfit.description || '');
+      setOccasion(outfit.occasion || 'casual');
+      setSeason(outfit.season || 'all_season');
+      if (outfit.garments) {
+        setSelectedGarments(outfit.garments);
+      }
+      setIsLoadingEdit(false);
+      return;
     }
-    setIsLoadingEdit(false);
-  }, [currentOutfit, isEditMode, id]);
+
+    // Not loaded yet — show spinner and load
+    (async () => {
+      setIsLoadingEdit(true);
+      await loadOutfitById(id);
+      const loaded = useOutfitsStore.getState().currentOutfit;
+      if (loaded && loaded.id === id) {
+        setName(loaded.name || '');
+        setDescription(loaded.description || '');
+        setOccasion(loaded.occasion || 'casual');
+        setSeason(loaded.season || 'all_season');
+        if (loaded.garments) {
+          setSelectedGarments(loaded.garments);
+        }
+      }
+      setIsLoadingEdit(false);
+    })();
+  }, [isEditMode, id]); // only on mount/id change, not on currentOutfit changes
 
   const weather = useSuggestionsStore((state) => state.weather);
 
