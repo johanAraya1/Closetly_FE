@@ -427,31 +427,6 @@ export default function OutfitDetailScreen() {
               <Text style={styles.actionLabel}>{t('outfits.share')}</Text>
             </TouchableOpacity>
           </View>
-        </View>
-
-        {/* ===== Actions ===== */}
-        <Text style={styles.sectionTitle}>{t('outfits.actions')}</Text>
-        <View style={styles.actionsGrid}>
-          {/* Row 1 */}
-          <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.actionCard} onPress={handleToggleFavorite}>
-              <View style={[styles.actionIconCircle, { backgroundColor: '#FEE2E2' }]}>
-                <Ionicons
-                  name={outfit.is_favorite ? 'heart' : 'heart-outline'}
-                  size={22}
-                  color={outfit.is_favorite ? COLORS.error : '#DC2626'}
-                />
-              </View>
-              <Text style={styles.actionLabel}>{t('outfits.favorites')}</Text>
-            </TouchableOpacity>
-
-            <TouchableOpacity style={styles.actionCard} onPress={handleOpenShareModal}>
-              <View style={[styles.actionIconCircle, { backgroundColor: '#DBEAFE' }]}>
-                <Ionicons name="share-outline" size={22} color="#2563EB" />
-              </View>
-              <Text style={styles.actionLabel}>{t('outfits.share')}</Text>
-            </TouchableOpacity>
-          </View>
 
           {/* Row 2 */}
           <View style={styles.actionsRow}>
