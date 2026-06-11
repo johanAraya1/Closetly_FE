@@ -154,19 +154,23 @@ export default function OutfitDetailScreen() {
       [
         { text: t('common.cancel'), style: 'cancel' },
         {
-          text: t('common.delete'),
-          style: 'destructive',
-          onPress: async () => {
-            setIsDeleting(true);
-            try {
-              await deleteOutfit(outfit.id);
-              router.back();
-            } catch (err) {
-              Alert.alert(t('common.error'), t('outfits.errorDelete'));
-            } finally {
-              setIsDeleting(false);
-            }
-          },
+            text: t('common.delete'),
+            style: 'destructive',
+            onPress: async () => {
+              setIsDeleting(true);
+              try {
+                const success = await deleteOutfit(outfit.id);
+                if (success) {
+                  router.back();
+                } else {
+                  Alert.alert(t('common.error'), t('outfits.errorDelete'));
+                }
+              } catch (err) {
+                Alert.alert(t('common.error'), t('outfits.errorDelete'));
+              } finally {
+                setIsDeleting(false);
+              }
+            },
         },
       ]
     );
@@ -484,8 +488,19 @@ export default function OutfitDetailScreen() {
 
                   const store = useCalendarStore.getState();
 
+                  // Asegurar que las entries del mes correcto están cargadas
+                  const targetDateObj = new Date(selectedDate + 'T00:00:00');
+                  const targetMonth = targetDateObj.getMonth() + 1;
+                  const targetYear = targetDateObj.getFullYear();
+                  if (store.selectedMonth !== targetMonth || store.selectedYear !== targetYear || store.entries.length === 0) {
+                    await store.loadMonth(targetMonth, targetYear);
+                  }
+
+                  // Volver a obtener state fresco después de loadMonth
+                  const freshStore = useCalendarStore.getState();
+
                   // 1. Check if date already has an outfit
-                  const existingEntry = store.entries.find((e) => e.date === selectedDate);
+                  const existingEntry = freshStore.entries.find((e) => e.date === selectedDate);
                   if (existingEntry) {
                     const replace = await new Promise<boolean>((resolve) => {
                       Alert.alert(
@@ -505,7 +520,7 @@ export default function OutfitDetailScreen() {
 
                   // 2. Warn about nearby dates (optional)
                   const targetMs = new Date(selectedDate + 'T00:00:00').getTime();
-                  const nearbyEntries = store.entries.filter((e) => {
+                  const nearbyEntries = freshStore.entries.filter((e) => {
                     if (e.outfit.id !== outfit.id) return false;
                     const entryMs = new Date(e.date + 'T00:00:00').getTime();
                     const diffDays = Math.abs((targetMs - entryMs) / 86400000);
@@ -543,7 +558,7 @@ export default function OutfitDetailScreen() {
                   // 3. Log it
                   setIsLoggingToCalendar(true);
                   try {
-                    await store.logOutfit(outfit.id, selectedDate);
+                    await freshStore.logOutfit(outfit.id, selectedDate);
                     setShowLogDatePicker(false);
                     Alert.alert(t('common.success'), t('calendar.loggedSuccess', { date: selectedDate }));
                   } catch (err) {

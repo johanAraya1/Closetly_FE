@@ -39,39 +39,9 @@ export default function LogTodayScreen() {
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
   const { outfits, isLoading: loadingOutfits } = useOutfits(true);
-  const { entries, logOutfit, clearError } = useCalendar();
+  const { entries, isLoading: calendarLoading, logOutfit, loadMonth, clearError } = useCalendar();
 
-  const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
-  const [searchQuery, setSearchQuery] = useState('');
-  const [seasonFilter, setSeasonFilter] = useState('all');
-  const [isLogging, setIsLogging] = useState(false);
-
-  const isSmallScreen = screenWidth < 600;
-  const numColumns = isSmallScreen ? 2 : 3;
-
-  // Filtered outfits
-  const filteredOutfits = useMemo(() => {
-    let filtered = outfits;
-
-    if (seasonFilter !== 'all') {
-      filtered = filtered.filter(
-        (o) => o.season === seasonFilter || seasonFilter === 'all',
-      );
-    }
-
-    if (searchQuery.trim()) {
-      const query = searchQuery.toLowerCase().trim();
-      filtered = filtered.filter(
-        (o) =>
-          o.name.toLowerCase().includes(query) ||
-          (o.occasion && o.occasion.toLowerCase().includes(query)),
-      );
-    }
-
-    return filtered;
-  }, [outfits, searchQuery, seasonFilter]);
-
-  // Format date for display
+  // Formatear fecha para display
   const formattedDate = useMemo(() => {
     const d = new Date(targetDate + 'T00:00:00');
     return d.toLocaleDateString('en-US', {
@@ -97,8 +67,18 @@ export default function LogTodayScreen() {
     setIsLogging(true);
     clearError();
 
+    // Asegurar que las entries del mes correcto están cargadas
+    const targetDateObj = new Date(targetDate + 'T00:00:00');
+    const targetMonth = targetDateObj.getMonth() + 1;
+    const targetYear = targetDateObj.getFullYear();
+    const state = useCalendarStore.getState();
+    if (state.selectedMonth !== targetMonth || state.selectedYear !== targetYear || state.entries.length === 0) {
+      await loadMonth(targetMonth, targetYear);
+    }
+
     // 1. Check if date already has an outfit logged
-    const existingEntry = entries.find((e) => e.date === targetDate);
+    const freshEntries = useCalendarStore.getState().entries;
+    const existingEntry = freshEntries.find((e) => e.date === targetDate);
     if (existingEntry) {
       const replace = await new Promise<boolean>((resolve) => {
         Alert.alert(
@@ -121,7 +101,7 @@ export default function LogTodayScreen() {
 
     // 2. Warn if same outfit was logged on nearby dates (optional — user can still proceed)
     const targetMs = new Date(targetDate + 'T00:00:00').getTime();
-    const sameOutfitEntries = entries.filter(
+    const sameOutfitEntries = freshEntries.filter(
       (e) => e.outfit.id === selectedOutfitId,
     );
     const nearbyEntries = sameOutfitEntries.filter((e) => {
@@ -180,7 +160,7 @@ export default function LogTodayScreen() {
     }
 
     setIsLogging(false);
-  }, [selectedOutfitId, targetDate, entries, logOutfit, t, router, clearError, formattedDate]);
+  }, [selectedOutfitId, targetDate, logOutfit, loadMonth, t, router, clearError, formattedDate]);
 
   // Render outfit item
   const renderOutfitItem = useCallback(
