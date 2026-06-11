@@ -427,16 +427,51 @@ export default function OutfitDetailScreen() {
               <Text style={styles.actionLabel}>{t('outfits.share')}</Text>
             </TouchableOpacity>
           </View>
+        </View>
+
+        {/* ===== Actions ===== */}
+        <Text style={styles.sectionTitle}>{t('outfits.actions')}</Text>
+        <View style={styles.actionsGrid}>
+          {/* Row 1 */}
+          <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.actionCard} onPress={handleToggleFavorite}>
+              <View style={[styles.actionIconCircle, { backgroundColor: '#FEE2E2' }]}>
+                <Ionicons
+                  name={outfit.is_favorite ? 'heart' : 'heart-outline'}
+                  size={22}
+                  color={outfit.is_favorite ? COLORS.error : '#DC2626'}
+                />
+              </View>
+              <Text style={styles.actionLabel}>{t('outfits.favorites')}</Text>
+            </TouchableOpacity>
+
+            <TouchableOpacity style={styles.actionCard} onPress={handleOpenShareModal}>
+              <View style={[styles.actionIconCircle, { backgroundColor: '#DBEAFE' }]}>
+                <Ionicons name="share-outline" size={22} color="#2563EB" />
+              </View>
+              <Text style={styles.actionLabel}>{t('outfits.share')}</Text>
+            </TouchableOpacity>
+          </View>
 
           {/* Row 2 */}
           <View style={styles.actionsRow}>
+            <TouchableOpacity style={styles.actionCard} onPress={() => router.push(`/outfits/create?id=${outfit.id}`)}>
+              <View style={[styles.actionIconCircle, { backgroundColor: '#FEF3C7' }]}>
+                <Ionicons name="pencil-outline" size={22} color="#D97706" />
+              </View>
+              <Text style={styles.actionLabel}>{t('common.edit')}</Text>
+            </TouchableOpacity>
+
             <TouchableOpacity style={styles.actionCard} onPress={handleLogToCalendar}>
               <View style={[styles.actionIconCircle, { backgroundColor: '#F3E8FF' }]}>
                 <Ionicons name="calendar-outline" size={22} color="#8B5CF6" />
               </View>
               <Text style={styles.actionLabel}>{t('calendar.logOutfit')}</Text>
             </TouchableOpacity>
+          </View>
 
+          {/* Row 3 */}
+          <View style={styles.actionsRow}>
             <TouchableOpacity
               style={styles.actionCard}
               onPress={handleDelete}

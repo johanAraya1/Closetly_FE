@@ -3,9 +3,9 @@
  * Pantalla para crear un nuevo outfit seleccionando prendas
  */
 
-import React, { useState, useMemo } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert, StyleSheet, TextInput } from 'react-native';
-import { useRouter } from 'expo-router';
+import React, { useState, useMemo, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Image, Alert, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, EmptyState, Modal, OutfitPreview } from '@/components';
@@ -21,9 +21,11 @@ import type { Occasion } from '@/utils/randomOutfit';
 
 export default function CreateOutfitScreen() {
   const router = useRouter();
+  const { id } = useLocalSearchParams<{ id?: string }>();
+  const isEditMode = !!id;
   const { user } = useAuth();
   const { garments } = useGarments(true);
-  const { createOutfit } = useOutfits();
+  const { createOutfit, updateOutfit, loadOutfitById, currentOutfit } = useOutfits();
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
@@ -33,10 +35,31 @@ export default function CreateOutfitScreen() {
   const [errors, setErrors] = useState<{ name?: string; garments?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [isLoadingEdit, setIsLoadingEdit] = useState(isEditMode);
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
+
+  // Pre-fill form in edit mode
+  useEffect(() => {
+    if (!isEditMode || !id) return;
+    setIsLoadingEdit(true);
+    loadOutfitById(id);
+  }, [isEditMode, id]);
+
+  // React to store change when outfit loads in edit mode
+  useEffect(() => {
+    if (!isEditMode || !currentOutfit || currentOutfit.id !== id) return;
+    setName(currentOutfit.name || '');
+    setDescription(currentOutfit.description || '');
+    setOccasion(currentOutfit.occasion || 'casual');
+    setSeason(currentOutfit.season || 'all_season');
+    if (currentOutfit.garments) {
+      setSelectedGarments(currentOutfit.garments);
+    }
+    setIsLoadingEdit(false);
+  }, [currentOutfit, isEditMode, id]);
 
   const weather = useSuggestionsStore((state) => state.weather);
 
@@ -125,23 +148,30 @@ export default function CreateOutfitScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
-  const handleCreate = async () => {
+  const handleSave = async () => {
     if (!validate() || !user) return;
 
     setIsLoading(true);
-
-    const outfit = await createOutfit(user.id, {
+    const data = {
       name: name.trim(),
       description: description.trim() || undefined,
       occasion: occasion.trim() || undefined,
       season,
       garmentIds: selectedGarments.map((g) => g.id),
-    }, selectedGarments);
+    };
 
-    setIsLoading(false);
-
-    if (outfit) {
-      setShowSuccessModal(true);
+    if (isEditMode && id) {
+      const success = await updateOutfit(id, data);
+      setIsLoading(false);
+      if (success) {
+        setShowSuccessModal(true);
+      }
+    } else {
+      const outfit = await createOutfit(user.id, data, selectedGarments);
+      setIsLoading(false);
+      if (outfit) {
+        setShowSuccessModal(true);
+      }
     }
   };
 
@@ -152,7 +182,7 @@ export default function CreateOutfitScreen() {
           <TouchableOpacity onPress={() => router.back()}>
             <Ionicons name="arrow-back" size={24} color="#111827" />
           </TouchableOpacity>
-          <Text style={styles.headerTitle}>{t('outfits.createOutfit')}</Text>
+          <Text style={styles.headerTitle}>{isEditMode ? t('outfits.editTitle') : t('outfits.createOutfit')}</Text>
         </View>
         <EmptyState
           icon="shirt-outline"
@@ -172,9 +202,14 @@ export default function CreateOutfitScreen() {
         <TouchableOpacity onPress={() => router.back()}>
           <Ionicons name="arrow-back" size={24} color="#111827" />
         </TouchableOpacity>
-        <Text style={styles.headerTitle}>{t('outfits.createOutfit')}</Text>
+        <Text style={styles.headerTitle}>{isEditMode ? t('outfits.editTitle') : t('outfits.createOutfit')}</Text>
       </View>
 
+      {isLoadingEdit ? (
+        <View style={styles.centerLoading}>
+          <ActivityIndicator size="large" color={COLORS.primary} />
+        </View>
+      ) : (
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.scrollContent}
@@ -424,12 +459,13 @@ export default function CreateOutfitScreen() {
 
         </View>
       </ScrollView>
+      )}
 
       {/* Botón sticky — siempre visible al fondo */}
       <View style={styles.stickyButtonContainer}>
         <Button
-          title={t('outfits.createOutfit')}
-          onPress={handleCreate}
+          title={isEditMode ? t('common.saveChanges') : t('outfits.createOutfit')}
+          onPress={handleSave}
           loading={isLoading}
           disabled={!isFormComplete || isLoading}
           fullWidth
@@ -440,9 +476,18 @@ export default function CreateOutfitScreen() {
       <Modal
         visible={showSuccessModal}
         type="success"
-        title={t('outfits.create.successTitle')}
-        message={t('outfits.create.successMessage')}
-        actions={[
+        title={isEditMode ? t('outfits.editSuccessTitle') : t('outfits.create.successTitle')}
+        message={isEditMode ? t('outfits.editSuccessMessage') : t('outfits.create.successMessage')}
+        actions={isEditMode ? [
+          {
+            text: t('outfits.editBackToDetail'),
+            onPress: () => {
+              setShowSuccessModal(false);
+              router.back();
+            },
+            variant: 'primary',
+          },
+        ] : [
           {
             text: t('outfits.create.createAnother'),
             onPress: () => {
@@ -497,6 +542,12 @@ const styles = StyleSheet.create({
   },
   scrollContent: {
     paddingBottom: 100,
+  },
+  centerLoading: {
+    flex: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 40,
   },
   formContainer: {
     padding: 20,
