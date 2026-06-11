@@ -290,8 +290,18 @@ function HomeScreen() {
             </ScrollView>
           )}
 
-          {/* Error state */}
-          {!suggestionsLoading && suggestionsError && (
+          {/* Warning sutil si hay error pero tenemos sugerencias cacheadas */}
+          {!suggestionsLoading && suggestionsError && suggestions.length > 0 && (
+            <View style={styles.suggestionsWarning}>
+              <Ionicons name="cloud-offline-outline" size={14} color={COLORS.gray[400]} />
+              <Text style={styles.suggestionsWarningText}>
+                {t('home.suggestionsStale')}
+              </Text>
+            </View>
+          )}
+
+          {/* Error state — solo cuando no hay sugerencias para mostrar */}
+          {!suggestionsLoading && suggestionsError && suggestions.length === 0 && (
             <View style={styles.suggestionsStatusContainer}>
               <Ionicons name="cloud-offline-outline" size={32} color={COLORS.gray[400]} />
               <Text style={styles.suggestionsStatusText}>
@@ -316,7 +326,7 @@ function HomeScreen() {
             </View>
           )}
 
-          {/* Suggestions carousel */}
+          {/* Suggestions carousel — siempre se muestra si hay sugerencias */}
           {!suggestionsLoading && suggestions.length > 0 && (
             <ScrollView
               horizontal
@@ -634,6 +644,19 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+  suggestionsWarning: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+    paddingHorizontal: 16,
+    marginBottom: 8,
+  },
+  suggestionsWarningText: {
+    fontSize: 12,
+    color: COLORS.gray[400],
   },
   suggestionSkeleton: {
     width: 200,

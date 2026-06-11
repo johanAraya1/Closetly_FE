@@ -39,6 +39,20 @@ function dedupeSuggestions(suggestions: Suggestion[]): Suggestion[] {
     .slice(0, 3);
 }
 
+/**
+ * Filtra mensajes técnicos para que no lleguen al usuario.
+ * Si el mensaje parece un error interno (tokens, quota, etc.), devuelve null
+ * para que la UI muestre el texto amigable por defecto.
+ */
+function sanitizeMessage(msg: string | null): string | null {
+  if (!msg) return null;
+  const technicalKeywords = /token|quota|limit|rate.?limit|429|500|timeout|exceeded|error|fail/i;
+  if (technicalKeywords.test(msg) || msg.length > 200) {
+    return null;
+  }
+  return msg;
+}
+
 const initialState = {
   suggestions: [],
   garments: [],
@@ -53,6 +67,17 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
   ...initialState,
 
   fetchSuggestions: async (lat?: number, lon?: number) => {
+    const state = get();
+
+    // Cache diario en FE: si ya tenemos sugerencias de hoy, no llamar a la API
+    if (state.lastUpdated && state.suggestions.length > 0) {
+      const today = new Date().toDateString();
+      const lastUpdateDay = new Date(state.lastUpdated).toDateString();
+      if (today === lastUpdateDay && !state.error) {
+        return;
+      }
+    }
+
     set({ isLoading: true, error: null, message: null });
 
     try {
@@ -101,7 +126,7 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
               suggestions: deduped,
               garments: fallbackResult.data.garments ?? [],
               weather: fallbackResult.data.weather ?? null,
-              message: fallbackResult.data.message ?? null,
+              message: sanitizeMessage(fallbackResult.data.message ?? null),
               isLoading: false,
               lastUpdated: new Date(),
             });
@@ -118,7 +143,7 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
           suggestions: deduped,
           garments: result.data.garments ?? [],
           weather: result.data.weather ?? null,
-          message: result.data.message ?? null,
+          message: sanitizeMessage(result.data.message ?? null),
           isLoading: false,
           lastUpdated: new Date(),
         });
