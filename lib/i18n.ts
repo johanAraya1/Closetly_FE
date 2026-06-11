@@ -1105,8 +1105,14 @@ const i18n = new I18n({
   },
 });
 
-// Configurar el locale por defecto
-i18n.locale = Localization.locale;
+// Configurar el locale por defecto.
+// i18n-js no hace matching automático de "es-CR" → "es".
+// Normalizamos: tomamos solo el código de idioma (primeros 2 chars)
+// y si existe en las traducciones, lo usamos. Sino, default a "en".
+const rawLocale = Localization.locale || 'en';
+const langCode = rawLocale.slice(0, 2);
+const supportedLocales = Object.keys(i18n.translations);
+i18n.locale = supportedLocales.includes(langCode) ? langCode : rawLocale;
 i18n.enableFallback = true;
 i18n.defaultLocale = 'en';
 
