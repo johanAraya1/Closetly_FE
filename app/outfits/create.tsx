@@ -3,7 +3,7 @@
  * Pantalla para crear un nuevo outfit seleccionando prendas
  */
 
-import React, { useState, useMemo, useEffect } from 'react';
+import React, { useState, useMemo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, Image, Alert, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -164,7 +164,12 @@ export default function CreateOutfitScreen() {
       const success = await updateOutfit(id, data);
       setIsLoading(false);
       if (success) {
+        // Show success briefly, then navigate back
         setShowSuccessModal(true);
+        setTimeout(() => {
+          setShowSuccessModal(false);
+          router.back();
+        }, 1200);
       }
     } else {
       const outfit = await createOutfit(user.id, data, selectedGarments);
@@ -478,16 +483,7 @@ export default function CreateOutfitScreen() {
         type="success"
         title={isEditMode ? t('outfits.editSuccessTitle') : t('outfits.create.successTitle')}
         message={isEditMode ? t('outfits.editSuccessMessage') : t('outfits.create.successMessage')}
-        actions={isEditMode ? [
-          {
-            text: t('outfits.editBackToDetail'),
-            onPress: () => {
-              setShowSuccessModal(false);
-              router.back();
-            },
-            variant: 'primary',
-          },
-        ] : [
+        actions={isEditMode ? [] : [
           {
             text: t('outfits.create.createAnother'),
             onPress: () => {
