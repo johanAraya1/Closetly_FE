@@ -29,6 +29,8 @@ import { OutfitShareCard } from '@/components/OutfitShareCard';
 import { COLORS } from '@/lib/constants';
 import { useCalendarStore } from '@/store/calendarStore';
 import type { GarmentSeason } from '@/types';
+import { getOutfitStats } from '@/services/statsService';
+import type { OutfitStats } from '@/services/statsService';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const isSmallScreen = SCREEN_WIDTH < 600;
@@ -70,6 +72,8 @@ export default function OutfitDetailScreen() {
   const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
   const todayFormatted = new Date().toISOString().split('T')[0];
   const shareCardRef = useRef<ViewShot>(null);
+  const [outfitStats, setOutfitStats] = useState<OutfitStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(false);
 
   // Load outfit on mount
   useEffect(() => {
@@ -92,6 +96,16 @@ export default function OutfitDetailScreen() {
       clearError();
     };
   }, []);
+
+  // Load stats when outfit is loaded
+  useEffect(() => {
+    if (!id) return;
+    setStatsLoading(true);
+    getOutfitStats(id)
+      .then(setOutfitStats)
+      .catch(() => setOutfitStats(null))
+      .finally(() => setStatsLoading(false));
+  }, [id]);
 
   const outfit = currentOutfit;
   const garments = outfit?.garments || [];
@@ -330,6 +344,65 @@ export default function OutfitDetailScreen() {
             </View>
           ) : null}
         </View>
+
+        {/* ===== Usage Stats Section ===== */}
+        {statsLoading ? (
+          <View style={styles.statsSection}>
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          </View>
+        ) : outfitStats ? (
+          <View style={styles.statsSection}>
+            <Text style={styles.statsSectionTitle}>{t('outfits.stats')}</Text>
+
+            {outfitStats.timesUsed > 0 ? (
+              <>
+                <View style={styles.statsGrid}>
+                  <View style={styles.statCard}>
+                    <Text style={styles.statValue}>{outfitStats.timesUsed}</Text>
+                    <Text style={styles.statLabel}>{t('outfits.timesUsed', { count: outfitStats.timesUsed })}</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Text style={styles.statValue}>{outfitStats.timesUsedLast7Days}</Text>
+                    <Text style={styles.statLabel}>{t('outfits.timesUsedLast7Days')}</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Text style={styles.statValue}>{outfitStats.timesUsedLast15Days}</Text>
+                    <Text style={styles.statLabel}>{t('outfits.timesUsedLast15Days')}</Text>
+                  </View>
+                  <View style={styles.statCard}>
+                    <Text style={styles.statValue}>{outfitStats.timesUsedLast30Days}</Text>
+                    <Text style={styles.statLabel}>{t('outfits.timesUsedLast30Days')}</Text>
+                  </View>
+                </View>
+
+                {outfitStats.monthlyHistory.length > 0 && (
+                  <>
+                    <Text style={styles.statsSubTitle}>{t('outfits.monthly')}</Text>
+                    <View style={styles.monthlyGrid}>
+                      {outfitStats.monthlyHistory.map((m) => {
+                        const monthName = new Date(m.year, m.month - 1).toLocaleString('default', { month: 'short' });
+                        return (
+                          <View key={`${m.year}-${m.month}`} style={styles.monthlyCard}>
+                            <Text style={styles.monthlyMonth}>{monthName} {m.year}</Text>
+                            <Text style={styles.monthlyCount}>{m.timesUsed}</Text>
+                          </View>
+                        );
+                      })}
+                    </View>
+                  </>
+                )}
+
+                {outfitStats.lastUsed && (
+                  <Text style={styles.lastUsedText}>
+                    {t('outfits.lastUsed')}: {new Date(outfitStats.lastUsed).toLocaleDateString()}
+                  </Text>
+                )}
+              </>
+            ) : (
+              <Text style={styles.noUsageText}>{t('outfits.neverUsed')}</Text>
+            )}
+          </View>
+        ) : null}
 
         {/* ===== Actions ===== */}
         <Text style={styles.sectionTitle}>{t('outfits.actions')}</Text>
@@ -927,5 +1000,91 @@ const styles = StyleSheet.create({
     borderBottomColor: COLORS.gray[200],
     paddingVertical: 4,
     minWidth: 140,
+  },
+
+  // --- Stats Section ---
+  statsSection: {
+    backgroundColor: COLORS.white,
+    marginHorizontal: 20,
+    marginTop: 16,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statsSectionTitle: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: COLORS.gray[900],
+    marginBottom: 16,
+  },
+  statsSubTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: COLORS.gray[700],
+    marginTop: 16,
+    marginBottom: 10,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
+  },
+  statCard: {
+    flex: 1,
+    minWidth: '46%',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 12,
+    padding: 14,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 28,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: COLORS.gray[500],
+    marginTop: 4,
+    textAlign: 'center',
+  },
+  monthlyGrid: {
+    flexDirection: 'row',
+    gap: 10,
+  },
+  monthlyCard: {
+    flex: 1,
+    backgroundColor: '#F0F9FF',
+    borderRadius: 10,
+    padding: 12,
+    alignItems: 'center',
+  },
+  monthlyMonth: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.gray[600],
+    textTransform: 'capitalize',
+  },
+  monthlyCount: {
+    fontSize: 20,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+    marginTop: 4,
+  },
+  lastUsedText: {
+    fontSize: 12,
+    color: COLORS.gray[400],
+    marginTop: 12,
+    textAlign: 'center',
+  },
+  noUsageText: {
+    fontSize: 14,
+    color: COLORS.gray[400],
+    textAlign: 'center',
+    paddingVertical: 8,
   },
 });

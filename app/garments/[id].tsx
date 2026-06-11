@@ -4,7 +4,7 @@
  * y opción de editar.
  */
 
-import React, { useMemo, useState, useRef, useCallback } from 'react';
+import React, { useMemo, useState, useRef, useCallback, useEffect } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   StatusBar,
   Platform,
   FlatList,
+  ActivityIndicator,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +27,8 @@ import { useGarments } from '@/hooks/useGarments';
 import { useTranslation } from '@/hooks/useTranslation';
 import { GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES, COLORS } from '@/lib/constants';
 import { formatEnumValue, getColorFromName } from '@/utils/format';
+import { getGarmentStats } from '@/services/statsService';
+import type { GarmentStats } from '@/services/statsService';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 
@@ -38,11 +41,23 @@ function GarmentDetailScreen() {
   const [currentImageIndex, setCurrentImageIndex] = useState(0);
   const carouselRef = useRef<FlatList>(null);
   const isMobile = Platform.OS !== 'web';
+  const [stats, setStats] = useState<GarmentStats | null>(null);
+  const [statsLoading, setStatsLoading] = useState(true);
 
   const garment = useMemo(() => {
     if (!id) return null;
     return getGarmentById(id);
   }, [id, getGarmentById]);
+
+  // Load stats
+  useEffect(() => {
+    if (!id) return;
+    setStatsLoading(true);
+    getGarmentStats(id)
+      .then(setStats)
+      .catch(() => setStats(null))
+      .finally(() => setStatsLoading(false));
+  }, [id]);
 
   if (!garment) {
     return (
@@ -206,6 +221,43 @@ function GarmentDetailScreen() {
                 value={styleLabel}
               />
             )}
+          </View>
+
+          {/* Stats Section */}
+          <View style={styles.statsSection}>
+            <Text style={styles.statsSectionTitle}>{t('stats.title')}</Text>
+            {statsLoading ? (
+              <ActivityIndicator size="small" color={COLORS.primary} />
+            ) : stats ? (
+              <View style={styles.statsGrid}>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{stats.totalOutfits}</Text>
+                  <Text style={styles.statLabel}>
+                    {t('garments.detail.inNOutfits', { count: stats.totalOutfits })}
+                  </Text>
+                </View>
+                <View style={styles.statCard}>
+                  <Text style={styles.statValue}>{stats.totalTimesUsed}</Text>
+                  <Text style={styles.statLabel}>{t('garments.detail.timesUsed')}</Text>
+                </View>
+                {stats.totalTimesUsed > 0 && (
+                  <>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statValue}>{stats.timesUsedLast7Days}</Text>
+                      <Text style={styles.statLabel}>{t('garments.detail.timesUsedLast7Days')}</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statValue}>{stats.timesUsedLast15Days}</Text>
+                      <Text style={styles.statLabel}>{t('garments.detail.timesUsedLast15Days')}</Text>
+                    </View>
+                    <View style={styles.statCard}>
+                      <Text style={styles.statValue}>{stats.timesUsedLast30Days}</Text>
+                      <Text style={styles.statLabel}>{t('garments.detail.timesUsedLast30Days')}</Text>
+                    </View>
+                  </>
+                )}
+              </View>
+            ) : null}
           </View>
 
           {/* Notes */}
@@ -551,6 +603,50 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '600',
     color: '#FFFFFF',
+  },
+
+  // Stats Section
+  statsSection: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 16,
+    borderRadius: 12,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.05,
+    shadowRadius: 8,
+    elevation: 2,
+  },
+  statsSectionTitle: {
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 12,
+  },
+  statsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  statCard: {
+    flex: 1,
+    minWidth: '45%',
+    backgroundColor: '#F9FAFB',
+    borderRadius: 10,
+    padding: 14,
+    alignItems: 'center',
+  },
+  statValue: {
+    fontSize: 24,
+    fontWeight: 'bold',
+    color: COLORS.primary,
+  },
+  statLabel: {
+    fontSize: 11,
+    color: '#6B7280',
+    marginTop: 4,
+    textAlign: 'center',
   },
 
   // Fullscreen image
