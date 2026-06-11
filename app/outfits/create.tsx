@@ -36,7 +36,11 @@ export default function CreateOutfitScreen() {
   const [errors, setErrors] = useState<{ name?: string; garments?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
-  const [isLoadingEdit, setIsLoadingEdit] = useState(isEditMode);
+  const [isLoadingEdit, setIsLoadingEdit] = useState(() => {
+    if (!isEditMode) return false;
+    // No mostrar loading si el outfit ya está cargado en el store
+    return useOutfitsStore.getState().currentOutfit?.id !== id;
+  });
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
   const [generationError, setGenerationError] = useState<string | null>(null);
@@ -181,12 +185,7 @@ export default function CreateOutfitScreen() {
       const success = await updateOutfit(id, data);
       setIsLoading(false);
       if (success) {
-        // Show success briefly, then navigate back
         setShowSuccessModal(true);
-        setTimeout(() => {
-          setShowSuccessModal(false);
-          router.back();
-        }, 1200);
       }
     } else {
       const outfit = await createOutfit(user.id, data, selectedGarments);
@@ -500,31 +499,44 @@ export default function CreateOutfitScreen() {
         type="success"
         title={isEditMode ? t('outfits.editSuccessTitle') : t('outfits.create.successTitle')}
         message={isEditMode ? t('outfits.editSuccessMessage') : t('outfits.create.successMessage')}
-        actions={isEditMode ? [] : [
-          {
-            text: t('outfits.create.createAnother'),
-            onPress: () => {
-              setShowSuccessModal(false);
-              setName('');
-              setDescription('');
-              setOccasion('casual');
-              setSeason('all_season');
-              setSelectedGarments([]);
-              setErrors({});
-              setGenerationError(null);
-              setHasGenerated(false);
-            },
-            variant: 'primary',
-          },
-          {
-            text: t('outfits.create.viewOutfits'),
-            onPress: () => {
-              setShowSuccessModal(false);
-              router.push('/(tabs)/home');
-            },
-            variant: 'secondary',
-          },
-        ]}
+        actions={
+          isEditMode
+            ? [
+                {
+                  text: t('outfits.editBackToDetail'),
+                  onPress: () => {
+                    setShowSuccessModal(false);
+                    router.back();
+                  },
+                  variant: 'primary' as const,
+                },
+              ]
+            : [
+                {
+                  text: t('outfits.create.createAnother'),
+                  onPress: () => {
+                    setShowSuccessModal(false);
+                    setName('');
+                    setDescription('');
+                    setOccasion('casual');
+                    setSeason('all_season');
+                    setSelectedGarments([]);
+                    setErrors({});
+                    setGenerationError(null);
+                    setHasGenerated(false);
+                  },
+                  variant: 'primary',
+                },
+                {
+                  text: t('outfits.create.viewOutfits'),
+                  onPress: () => {
+                    setShowSuccessModal(false);
+                    router.push('/(tabs)/home');
+                  },
+                  variant: 'secondary',
+                },
+              ]
+        }
       />
     </SafeAreaView>
   );

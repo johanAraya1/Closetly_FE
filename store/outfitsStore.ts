@@ -195,11 +195,20 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
     }
 
     if (result.data) {
+      // Populate garments from store (BE returns garmentIds only)
+      const updatedGarmentIds = (result.data as any).garmentIds as string[] | undefined;
+      const allGarments = useGarmentsStore.getState().garments;
+      const outfitGarments = updatedGarmentIds
+        ? allGarments.filter((g) => updatedGarmentIds.includes(g.id))
+        : [];
+
+      const updated = { ...result.data, garments: outfitGarments };
+
       set((state) => ({
         outfits: state.outfits.map((o) =>
-          o.id === id ? result.data! : o
+          o.id === id ? updated : o
         ),
-        currentOutfit: state.currentOutfit?.id === id ? result.data : state.currentOutfit,
+        currentOutfit: state.currentOutfit?.id === id ? updated : state.currentOutfit,
         isLoading: false,
       }));
       return true;
