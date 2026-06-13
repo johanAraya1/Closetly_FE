@@ -38,8 +38,11 @@ export default function CreateOutfitScreen() {
   const [showSuccessModal, setShowSuccessModal] = useState(false);
   const [isLoadingEdit, setIsLoadingEdit] = useState(() => {
     if (!isEditMode) return false;
-    // No mostrar loading si el outfit ya está cargado en el store
-    return useOutfitsStore.getState().currentOutfit?.id !== id;
+    const store = useOutfitsStore.getState();
+    // No mostrar loading si el outfit ya está cargado en caché
+    if (store.currentOutfit?.id === id) return false;
+    if (store.outfits.some((o) => o.id === id)) return false;
+    return true;
   });
   const [filterCategory, setFilterCategory] = useState<string>('all');
   const [searchQuery, setSearchQuery] = useState('');
@@ -226,11 +229,11 @@ export default function CreateOutfitScreen() {
         <Text style={styles.headerTitle}>{isEditMode ? t('outfits.editTitle') : t('outfits.createOutfit')}</Text>
       </View>
 
-      {isLoadingEdit ? (
-        <View style={styles.centerLoading}>
+      {isLoadingEdit && (
+        <View style={styles.editLoadingOverlay}>
           <ActivityIndicator size="large" color={COLORS.primary} />
         </View>
-      ) : (
+      )}
       <ScrollView 
         style={styles.scrollView} 
         contentContainerStyle={styles.scrollContent}
@@ -480,7 +483,6 @@ export default function CreateOutfitScreen() {
 
         </View>
       </ScrollView>
-      )}
 
       {/* Botón sticky — siempre visible al fondo */}
       <View style={styles.stickyButtonContainer}>
@@ -568,11 +570,16 @@ const styles = StyleSheet.create({
   scrollContent: {
     paddingBottom: 100,
   },
-  centerLoading: {
-    flex: 1,
+  editLoadingOverlay: {
+    position: 'absolute',
+    top: 60,
+    left: 0,
+    right: 0,
+    bottom: 80,
     justifyContent: 'center',
     alignItems: 'center',
-    padding: 40,
+    backgroundColor: 'rgba(244, 245, 247, 0.8)',
+    zIndex: 10,
   },
   formContainer: {
     padding: 20,

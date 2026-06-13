@@ -113,19 +113,24 @@ function HomeScreen() {
       // Don't save again if already saved
       if (savedSuggestionKeys.has(key)) return;
 
+      // Find the garments for this suggestion to pass to createOutfit
+      const matchedGarments = s.garmentIds
+        .map((id) => suggestionGarments.find((g) => g.id === id))
+        .filter(Boolean) as Garment[];
+
       const newOutfit = await createOutfit(user.id, {
         name: s.name,
         description: s.description || undefined,
         occasion: s.occasion || undefined,
         garmentIds: s.garmentIds,
-      });
+      }, matchedGarments);
       if (newOutfit) {
         setSavedOutfitIds((prev) => ({ ...prev, [key]: newOutfit.id }));
       }
     } finally {
       setIsSavingSuggestion(false);
     }
-  }, [user, createOutfit, savedSuggestionKeys]);
+  }, [user, createOutfit, savedSuggestionKeys, suggestionGarments]);
 
   const handleEditSuggestion = useCallback((outfitId: string) => {
     setSelectedSuggestion(null);
