@@ -9,7 +9,8 @@ import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, OutfitCard, Loading, EmptyState, SkeletonCard } from '@/components';
-import type { Garment } from '@/types';
+import { SuggestionDetailModal } from '@/components/SuggestionDetailModal';
+import type { Garment, Suggestion } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -17,14 +18,23 @@ import { COLORS } from '@/lib/constants';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
 import { withScreenErrorBoundary } from '@/components';
 
+/** Unique key for a suggestion based on its garment IDs */
+function suggestionKey(s: Pick<Suggestion, 'garmentIds'>): string {
+  return [...(s.garmentIds ?? [])].sort().join(',');
+}
+
 function HomeScreen() {
   const router = useRouter();
   const { profile, user, logout } = useAuth();
-  const { outfits, isLoading, loadOutfits } = useOutfits(true, 3);
+  const { outfits, isLoading, loadOutfits, createOutfit } = useOutfits(true, 3);
   const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
-  const [expandedSuggestion, setExpandedSuggestion] = useState<string | null>(null);
   const spinAnim = useRef(new Animated.Value(0)).current;
+
+  // Suggestion detail modal state
+  const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
+  const [isSavingSuggestion, setIsSavingSuggestion] = useState(false);
+  const [savedOutfitIds, setSavedOutfitIds] = useState<Record<string, string>>({});
 
   const {
     suggestions,
@@ -74,6 +84,53 @@ function HomeScreen() {
       t('auth.username');
     return name?.trim() || t('auth.username');
   }, [profile?.username, profile?.full_name, user?.email, t]);
+
+  // Track which suggestions have been saved as outfits
+  const savedSuggestionKeys = useMemo(() => {
+    const keys = new Set(Object.keys(savedOutfitIds));
+    // Also check existing outfits (loaded from API)
+    outfits.forEach((o) => {
+      const ids = o.garments?.map((g) => g.id) ?? [];
+      const key = [...ids].sort().join(',');
+      if (key) keys.add(key);
+    });
+    return keys;
+  }, [savedOutfitIds, outfits]);
+
+  const handleOpenSuggestion = useCallback((s: Suggestion) => {
+    setSelectedSuggestion(s);
+  }, []);
+
+  const handleCloseSuggestion = useCallback(() => {
+    setSelectedSuggestion(null);
+  }, []);
+
+  const handleSaveSuggestion = useCallback(async (s: Suggestion) => {
+    if (!user) return;
+    setIsSavingSuggestion(true);
+    try {
+      const key = suggestionKey(s);
+      // Don't save again if already saved
+      if (savedSuggestionKeys.has(key)) return;
+
+      const newOutfit = await createOutfit(user.id, {
+        name: s.name,
+        description: s.description || undefined,
+        occasion: s.occasion || undefined,
+        garmentIds: s.garmentIds,
+      });
+      if (newOutfit) {
+        setSavedOutfitIds((prev) => ({ ...prev, [key]: newOutfit.id }));
+      }
+    } finally {
+      setIsSavingSuggestion(false);
+    }
+  }, [user, createOutfit, savedSuggestionKeys]);
+
+  const handleEditSuggestion = useCallback((outfitId: string) => {
+    setSelectedSuggestion(null);
+    router.push(`/outfits/create?id=${outfitId}`);
+  }, [router]);
 
   const handleLogout = () => {
     Alert.alert(
@@ -334,19 +391,17 @@ function HomeScreen() {
               contentContainerStyle={styles.suggestionsScroll}
             >
               {suggestions.map((suggestion) => {
-                const isExpanded = expandedSuggestion === suggestion.name;
                 const matchedGarments = suggestion.garmentIds
                   .map((id) => suggestionGarments.find((g) => g.id === id))
                   .filter(Boolean) as Garment[];
+                const isSaved = savedSuggestionKeys.has(suggestionKey(suggestion));
 
                 return (
                   <TouchableOpacity
                     key={suggestion.name}
                     style={styles.suggestionCard}
                     activeOpacity={0.95}
-                    onPress={() =>
-                      setExpandedSuggestion(isExpanded ? null : suggestion.name)
-                    }
+                    onPress={() => handleOpenSuggestion(suggestion)}
                   >
                     {/* Garment images grid */}
                     {matchedGarments.length > 0 && (
@@ -370,29 +425,22 @@ function HomeScreen() {
                       </View>
                     )}
 
-                    {/* Name + occasion badge */}
+                    {/* Name + occasion badge + saved indicator */}
                     <View style={styles.suggestionInfo}>
                       <Text style={styles.suggestionName} numberOfLines={1}>
                         {suggestion.name}
                       </Text>
-                      <View style={styles.occasionBadge}>
-                        <Text style={styles.occasionText} numberOfLines={1}>
-                          {suggestion.occasion}
-                        </Text>
+                      <View style={styles.badgeRow}>
+                        <View style={styles.occasionBadge}>
+                          <Text style={styles.occasionText} numberOfLines={1}>
+                            {suggestion.occasion}
+                          </Text>
+                        </View>
+                        {isSaved && (
+                          <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                        )}
                       </View>
                     </View>
-
-                    {/* Expandable reasoning */}
-                    {isExpanded && suggestion.reasoning && (
-                      <View style={styles.reasoningContainer}>
-                        <Text style={styles.reasoningLabel}>
-                          {t('home.suggestionReason')}
-                        </Text>
-                        <Text style={styles.reasoningText}>
-                          {suggestion.reasoning}
-                        </Text>
-                      </View>
-                    )}
                   </TouchableOpacity>
                 );
               })}
@@ -449,6 +497,23 @@ function HomeScreen() {
           )}
         </View>
       </ScrollView>
+
+      {/* Suggestion Detail Modal */}
+      <SuggestionDetailModal
+        visible={!!selectedSuggestion}
+        suggestion={selectedSuggestion}
+        garments={suggestionGarments}
+        weather={weather}
+        isSaving={isSavingSuggestion}
+        savedOutfitId={
+          selectedSuggestion
+            ? savedOutfitIds[suggestionKey(selectedSuggestion)] ?? null
+            : null
+        }
+        onSave={handleSaveSuggestion}
+        onEdit={handleEditSuggestion}
+        onClose={handleCloseSuggestion}
+      />
     </SafeAreaView>
   );
 }
@@ -710,6 +775,11 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'space-between',
     gap: 8,
+  },
+  badgeRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
   },
   suggestionName: {
     fontSize: 14,

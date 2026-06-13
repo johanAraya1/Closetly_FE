@@ -18,6 +18,8 @@ export * from './SkeletonCard';
 export * from './AdminRoute';
 export * from './GarmentVisibilityForm';
 export * from './ListingTypeBadge';
+export * from './FullScreenImage';
+export * from './SuggestionDetailModal';
 export { default as OutfitPreview } from './OutfitPreview';
 export { default as OutfitShareCard } from './OutfitShareCard';
 
