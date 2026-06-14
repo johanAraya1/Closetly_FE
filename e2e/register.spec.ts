@@ -101,8 +101,8 @@ test.describe('Registro de usuario', () => {
     // Hacer submit
     await page.getByText(/crear cuenta|create account/i).last().click();
 
-    // Debería mostrar error de validación
-    const errorMsg = page.getByText(/email inválido|email no válido|invalid email/i).first();
+    // Debería mostrar error de validación (mensaje hardcodeado en validation.ts)
+    const errorMsg = page.getByText(/Please enter a valid email address/i).first();
     await expect(errorMsg).toBeVisible({ timeout: 5000 });
   });
 });
