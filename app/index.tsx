@@ -7,18 +7,21 @@ import { useEffect } from 'react';
 import { useRouter } from 'expo-router';
 import { View } from 'react-native';
 import { Loading } from '@/components';
+import { useAuth } from '@/hooks/useAuth';
 
 export default function Index() {
   const router = useRouter();
+  const { isAuthenticated } = useAuth();
 
   useEffect(() => {
-    // Redirigir directamente a onboarding después de un breve delay
+    // Con renderizado condicional, index se remonta cada vez que
+    // cambia isAuthenticated. Redirigir según estado actual.
     const timeout = setTimeout(() => {
-      router.replace('/(auth)/onboarding');
-    }, 1000);
+      router.replace(isAuthenticated ? '/(tabs)/home' : '/(auth)/onboarding');
+    }, 500);
     
     return () => clearTimeout(timeout);
-  }, []);
+  }, [isAuthenticated]);
 
   return (
     <View style={{ flex: 1, justifyContent: 'center', alignItems: 'center' }}>
