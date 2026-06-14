@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Alert, Animated, Easing, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing, Image } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -137,24 +137,11 @@ function HomeScreen() {
     router.push(`/outfits/create?id=${outfitId}`);
   }, [router]);
 
-  const handleLogout = () => {
-    Alert.alert(
-      t('auth.logout'),
-      '¿Seguro que quieres cerrar sesión?',
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-          text: t('auth.logout'),
-          style: 'destructive',
-          onPress: async () => {
-            await logout();
-            // No hace falta router.replace — el renderizado condicional
-            // en _layout.tsx desmonta (tabs) y monta (auth) automáticamente,
-            // e index.tsx redirige a /(auth)/onboarding.
-          },
-        },
-      ]
-    );
+  const handleLogout = async () => {
+    await logout();
+    // No hace falta router.replace — el renderizado condicional
+    // en _layout.tsx desmonta (tabs) y monta (auth) automáticamente,
+    // e index.tsx redirige a /(auth)/onboarding.
   };
 
   const onRefresh = useCallback(async () => {
