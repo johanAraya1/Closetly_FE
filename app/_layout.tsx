@@ -106,11 +106,23 @@ export default function RootLayout() {
 
   return (
     <ThemeProvider>
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
+      {/*
+       * Renderizado condicional: cuando cambia isAuthenticated,
+       * React desmonta el árbol viejo y monta el nuevo.
+       * Esto resuelve el freeze visual en web donde router.replace
+       * entre grupos de rutas no actualiza el DOM.
+       */}
+      {isAuthenticated ? (
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      ) : (
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="(auth)" />
+        </Stack>
+      )}
     </ThemeProvider>
   );
 }
