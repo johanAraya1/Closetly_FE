@@ -48,19 +48,25 @@ export default function RootLayout() {
     initializeApp();
   }, []);
 
-  // Navegación automática según estado de autenticación
+  // Sincronización de ruta cuando el árbol cambia por renderizado condicional.
+  // El renderizado condicional ya maneja el cambio de árbol (auth ↔ tabs).
+  // Este efecto maneja casos borde: cuando la URL actual no coincide con
+  // rutas válidas después del cambio de árbol, redirige al index raíz
+  // para que index.tsx resuelva el destino correcto.
   useEffect(() => {
     if (isLoading || !isAppReady || !isInitialized) return;
 
     const inAuthGroup = segments[0] === '(auth)';
     const inTabsGroup = segments[0] === '(tabs)';
 
-    if (!isAuthenticated && inTabsGroup) {
-      // Usuario no autenticado intentando acceder a tabs
-      router.replace('/(auth)/onboarding');
-    } else if (isAuthenticated && inAuthGroup) {
-      // Usuario autenticado en pantallas de auth
-      router.replace('/(tabs)/home');
+    if (isAuthenticated && inAuthGroup) {
+      // Autenticado pero en (auth): el árbol ya cambió a tabs, la URL
+      // vieja (/login, /register) no coincide con el nuevo árbol.
+      // Volvemos al index raíz para que index.tsx redirija correctamente.
+      router.replace('/');
+    } else if (!isAuthenticated && inTabsGroup) {
+      // No autenticado pero en (tabs): mismo caso, árbol cambió a auth.
+      router.replace('/');
     }
   }, [isAuthenticated, segments, isLoading, isAppReady, isInitialized]);
 
