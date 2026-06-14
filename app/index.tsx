@@ -18,7 +18,7 @@ export default function Index() {
     // cambia isAuthenticated. Redirigir según estado actual.
     const timeout = setTimeout(() => {
       router.replace(isAuthenticated ? '/(tabs)/home' : '/(auth)/onboarding');
-    }, 500);
+    }, 100);
     
     return () => clearTimeout(timeout);
   }, [isAuthenticated]);
