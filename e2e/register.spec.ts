@@ -96,7 +96,8 @@ test.describe('Registro de usuario', () => {
 
     // La API mockeada responde → app guarda token → window.location.href recarga
     // → app lee token de localStorage → redirige a (tabs)/home
-    await page.waitForURL('/(tabs)/home', { timeout: 15000 });
+    // La URL real en el browser es /home (Expo Router saca los route groups)
+    await page.waitForURL('/home', { timeout: 15000 });
 
     // Verificar que la home renderizó elementos de sesión
     await expect(homeLoaded(page)).toBeVisible({ timeout: 10000 });

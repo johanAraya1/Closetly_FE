@@ -35,7 +35,8 @@ test.describe('Inicio de sesión', () => {
     await page.getByText(/iniciar sesión|sign in/i).last().click();
 
     // Login exitoso → window.location.href recarga la página
-    await page.waitForURL('/(tabs)/home', { timeout: 15000 });
+    // La URL real en el browser es /home (Expo Router saca los route groups)
+    await page.waitForURL('/home', { timeout: 15000 });
 
     await expect(homeLoaded(page)).toBeVisible({ timeout: 10000 });
   });
@@ -91,9 +92,10 @@ test.describe('Inicio de sesión', () => {
   });
 
   test('link "Olvidé mi contraseña" navega a forgot-password', async ({ page }) => {
+    // RNW renderiza Text como display:inline, Playwright lo ve oculto.
+    // El click hace bubble al TouchableOpacity padre, usamos force.
     const forgotLink = page.getByText(/olvidé|olvidaste|forgot/i);
-    await expect(forgotLink).toBeVisible({ timeout: 5000 });
-    await forgotLink.click();
+    await forgotLink.click({ force: true });
 
     await expect(
       page.getByText(/olvidaste|forgot|restablecer|reset/i).first(),

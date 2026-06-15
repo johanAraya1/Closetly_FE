@@ -3,12 +3,16 @@
  *
  * Cobertura:
  * - Formulario renderiza campo de email
- * - Email inválido muestra error de validación
+ * - Email inválido muestra error de validación (Alert.alert en web)
  * - Email válido muestra mensaje de éxito (API mockeada)
  * - Link "Volver a iniciar sesión" funciona
  *
  * NOTA: el reset-password requiere access_token del hash de URL (Supabase magic link),
  * no podemos testearlo end-to-end.
+ *
+ * NOTA sobre Alert.alert en RNW web: React Native Web convierte Alert.alert()
+ * en window.alert() del browser nativo. El texto del diálogo NO está en el DOM,
+ * lo interceptamos con page.waitForEvent('dialog').
  */
 
 import { test, expect } from '@playwright/test';
@@ -27,18 +31,22 @@ test.describe('Olvidé mi contraseña', () => {
     const emailInput = page.getByPlaceholder(/@/);
     await expect(emailInput).toBeVisible({ timeout: 5000 });
 
-    const submitBtn = page.getByText(/enviar|send|restablecer|reset/i);
+    // Usamos regex que NO matchee el subtitle "send you a link to reset"
+    const submitBtn = page.getByText(/send reset|enviar link/i);
     await expect(submitBtn).toBeVisible();
   });
 
   test('email inválido muestra error', async ({ page }) => {
     await page.getByPlaceholder(/@/).fill('no-es-un-email');
-    await page.getByText(/enviar|send|restablecer|reset/i).last().click();
 
-    const errorMsg = page.getByText(
-      /Please enter a valid email address/i,
-    ).first();
-    await expect(errorMsg).toBeVisible({ timeout: 5000 });
+    // Alert.alert en RNW web → window.alert(). Interceptamos el dialog.
+    const [dialog] = await Promise.all([
+      page.waitForEvent('dialog', { timeout: 5000 }),
+      page.getByText(/send reset|enviar link/i).click(),
+    ]);
+
+    expect(dialog.message()).toMatch(/Please enter a valid email address/i);
+    await dialog.accept();
   });
 
   test('email válido muestra mensaje de éxito', async ({ page }) => {
@@ -46,7 +54,7 @@ test.describe('Olvidé mi contraseña', () => {
     await mockForgotPasswordApi(page);
 
     await page.getByPlaceholder(/@/).fill('test@example.com');
-    await page.getByText(/enviar|send|restablecer|reset/i).last().click();
+    await page.getByText(/send reset|enviar link/i).click();
 
     // La API mockeada responde → se muestra pantalla de éxito
     await expect(

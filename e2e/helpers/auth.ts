@@ -40,24 +40,22 @@ export function generateTestUser(): TestUser {
 
 function mockAuthResponse(user: TestUser) {
   return {
-    data: {
-      user: {
-        id: MOCK_USER_ID,
-        email: user.email,
-        role: 'user',
-      },
-      profile: {
-        id: MOCK_PROFILE_ID,
-        user_id: MOCK_USER_ID,
-        username: user.username,
-        full_name: user.fullName,
-        bio: null,
-        avatar_url: null,
-        is_public: false,
-      },
-      accessToken: FAKE_TOKEN,
-      refreshToken: FAKE_REFRESH,
+    user: {
+      id: MOCK_USER_ID,
+      email: user.email,
+      role: 'user',
     },
+    profile: {
+      id: MOCK_PROFILE_ID,
+      user_id: MOCK_USER_ID,
+      username: user.username,
+      full_name: user.fullName,
+      bio: null,
+      avatar_url: null,
+      is_public: false,
+    },
+    accessToken: FAKE_TOKEN,
+    refreshToken: FAKE_REFRESH,
   };
 }
 
@@ -113,16 +111,25 @@ const FAKE_PROFILE_JSON = JSON.stringify({
 });
 
 /** Inyecta una sesión falsa en localStorage para simular usuario autenticado.
- *  Debe llamarse ANTES de navegar a la página que requiere sesión. */
+ *  Debe llamarse ANTES de navegar a la página que requiere sesión.
+ *
+ *  IMPORTANTE: page.evaluate() corre en contexto del navegador. Las
+ *  constantes de Node.js (FAKE_TOKEN, etc.) NO existen ahí. Pasamos
+ *  los valores como argumentos explícitos. */
 export async function injectSession(page: Page) {
   // Navegar a cualquier página del mismo origen para tener acceso a localStorage
   await page.goto('/');
-  await page.evaluate(() => {
-    localStorage.setItem('auth_access_token', FAKE_TOKEN);
-    localStorage.setItem('auth_refresh_token', FAKE_REFRESH);
+  await page.evaluate(({ token, refresh, userJson, profileJson }) => {
+    localStorage.setItem('auth_access_token', token);
+    localStorage.setItem('auth_refresh_token', refresh);
     localStorage.setItem('auth_token_expiry', String(Date.now() + 86_400_000));
-    localStorage.setItem('auth_user', FAKE_USER_JSON);
-    localStorage.setItem('auth_profile', FAKE_PROFILE_JSON);
+    localStorage.setItem('auth_user', userJson);
+    localStorage.setItem('auth_profile', profileJson);
+  }, {
+    token: FAKE_TOKEN,
+    refresh: FAKE_REFRESH,
+    userJson: FAKE_USER_JSON,
+    profileJson: FAKE_PROFILE_JSON,
   });
 }
 
