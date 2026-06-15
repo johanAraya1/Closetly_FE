@@ -11,7 +11,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { generateTestUser, mockRegisterApi, homeLoaded } from './helpers/auth';
+import { generateTestUser, mockRegisterApi, mockOutfitsApi, homeLoaded } from './helpers/auth';
 
 test.describe('Registro de usuario', () => {
   test.beforeEach(async ({ page }) => {
@@ -67,8 +67,9 @@ test.describe('Registro de usuario', () => {
   test('registro exitoso redirige a home', async ({ page }) => {
     const user = generateTestUser();
 
-    // Mockear la API de registro
+    // Mockear APIs
     await mockRegisterApi(page, user);
+    await mockOutfitsApi(page);
 
     // Llenar formulario
     await page.getByPlaceholder(/@/).fill(user.email);

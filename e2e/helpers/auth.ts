@@ -133,6 +133,29 @@ export async function injectSession(page: Page) {
   });
 }
 
+// ─── Mock para Home API (outfits) ─────────────────────────────
+
+const MOCK_OUTFITS_RESPONSE = {
+  data: [],
+  total: 0,
+  hasMore: false,
+};
+
+/** Intercepta GET /outfits y retorna lista vacía.
+ *  La home screen llama useOutfits(true, 3) al montar, que hace
+ *  GET /outfits?user_id=...&limit=3. Si no se mockea, la llamada
+ *  va al backend real y puede demorar >10s, causando timeout en
+ *  la aserción homeLoaded. */
+export async function mockOutfitsApi(page: Page) {
+  await page.route('**/outfits*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify(MOCK_OUTFITS_RESPONSE),
+    });
+  });
+}
+
 // ─── Selectors ────────────────────────────────────────────────
 
 /** Botón de logout en el header de home (aria-label en DOM).
