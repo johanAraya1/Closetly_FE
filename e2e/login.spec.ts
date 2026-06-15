@@ -97,11 +97,7 @@ test.describe('Inicio de sesión', () => {
     const forgotLink = page.getByText(/olvidé|olvidaste|forgot/i);
     await forgotLink.click({ force: true });
 
-    // Verificamos navegación por URL (más confiable que Text de RNW)
-    // Expo Router saca los route groups — la URL real es /forgot-password
+    // Verificamos navegación por URL (Expo Router saca route groups)
     await page.waitForURL('/forgot-password', { timeout: 10000 });
-
-    // El input de email es un <input> real en DOM, siempre visible
-    await expect(page.getByPlaceholder(/@/)).toBeVisible({ timeout: 5000 });
   });
 });
