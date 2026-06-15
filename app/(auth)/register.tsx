@@ -116,11 +116,10 @@ export default function RegisterScreen() {
     const success = await register(email, password, username, fullName);
 
     if (success) {
-      setShowSuccessModal(true);
-      // Redirigir después de mostrar el modal
-      setTimeout(() => {
-        router.replace('/(tabs)/home');
-      }, 2000);
+      // Single Stack — navegación client-side instantánea.
+      // El <Redirect> del guard en (auth)/_layout.tsx también redirige,
+      // pero hacemos replace explícito para evitar race conditions.
+      router.replace('/(tabs)/home');
     } else {
       // Leer el error fresco del store (evita stale closure)
       const currentError = useAuthStore.getState().error;
