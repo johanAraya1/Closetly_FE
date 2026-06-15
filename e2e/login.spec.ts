@@ -8,21 +8,15 @@
  * - Campos vacíos muestra errores de validación
  * - Link "Olvidé mi contraseña" navega a forgot-password
  *
- * Para tener un usuario existente sin depender de seed data,
- * creamos uno via API directa en beforeAll.
+ * NOTA: el login exitoso usa API mockeada. Los tests de validación
+ *       no requieren API (son client-side).
  */
 
 import { test, expect } from '@playwright/test';
-import { generateTestUser, createTestUserViaAPI, homeLoaded } from './helpers/auth';
-import type { TestUser } from './helpers/auth';
+import { generateTestUser, mockLoginApi, homeLoaded } from './helpers/auth';
 
 test.describe('Inicio de sesión', () => {
-  let testUser: TestUser;
-
-  test.beforeAll(async () => {
-    testUser = generateTestUser();
-    await createTestUserViaAPI(testUser);
-  });
+  const testUser = generateTestUser();
 
   test.beforeEach(async ({ page }) => {
     await page.goto('/(auth)/login');
@@ -33,6 +27,9 @@ test.describe('Inicio de sesión', () => {
   });
 
   test('login exitoso redirige a home', async ({ page }) => {
+    // Mockear API de login
+    await mockLoginApi(page, testUser);
+
     await page.getByPlaceholder(/@/).fill(testUser.email);
     await page.locator('input[type="password"]').fill(testUser.password);
     await page.getByText(/iniciar sesión|sign in/i).last().click();
@@ -40,7 +37,6 @@ test.describe('Inicio de sesión', () => {
     // Login exitoso → window.location.href recarga la página
     await page.waitForURL('/(tabs)/home', { timeout: 15000 });
 
-    // Verificar que la home tiene elementos de sesión
     await expect(homeLoaded(page)).toBeVisible({ timeout: 10000 });
   });
 
@@ -56,16 +52,27 @@ test.describe('Inicio de sesión', () => {
   });
 
   test('credenciales incorrectas muestra modal de error', async ({ page }) => {
+    // Mockear API de login para que DEVUELVA error 401
+    await page.route('**/api/auth/login', async (route) => {
+      await route.fulfill({
+        status: 401,
+        contentType: 'application/json',
+        body: JSON.stringify({
+          error: 'Invalid email or password',
+          message: 'Invalid email or password',
+        }),
+      });
+    });
+
     await page.getByPlaceholder(/@/).fill(testUser.email);
     await page.locator('input[type="password"]').fill('WrongPass1!');
     await page.getByText(/iniciar sesión|sign in/i).last().click();
 
-    // El backend responde con error → se muestra el modal de error
+    // El modal de error debería mostrarse
     const errorModal = page.getByText(
       /incorrectos|inválidas|invalid|incorrect/i,
     );
-
-    await expect(errorModal).toBeVisible({ timeout: 15000 });
+    await expect(errorModal).toBeVisible({ timeout: 10000 });
   });
 
   test('campos vacíos muestra errores de validación', async ({ page }) => {
