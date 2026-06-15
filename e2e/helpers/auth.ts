@@ -135,9 +135,13 @@ export async function injectSession(page: Page) {
 
 // ─── Selectors ────────────────────────────────────────────────
 
-/** Botón de logout en el header de home (aria-label en DOM) */
+/** Botón de logout en el header de home (aria-label en DOM).
+ *  La traducción EN es "Log Out" (con espacio), la ES es "Cerrar Sesión".
+ *  RNW convierte accessibilityLabel → aria-label en el DOM. */
 export function homeLogoutButton(page: Page) {
-  return page.locator('[aria-label*="logout" i], [aria-label*="cerrar" i]');
+  return page.locator(
+    '[aria-label*="log out" i], [aria-label*="cerrar sesión" i]',
+  );
 }
 
 /** Indica que la home cargó: título de bienvenida o botón de logout */

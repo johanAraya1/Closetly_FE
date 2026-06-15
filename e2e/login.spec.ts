@@ -97,8 +97,10 @@ test.describe('Inicio de sesión', () => {
     const forgotLink = page.getByText(/olvidé|olvidaste|forgot/i);
     await forgotLink.click({ force: true });
 
-    await expect(
-      page.getByText(/olvidaste|forgot|restablecer|reset/i).first(),
-    ).toBeVisible({ timeout: 10000 });
+    // Verificamos navegación por URL (más confiable que Text de RNW)
+    await page.waitForURL('/(auth)/forgot-password', { timeout: 10000 });
+
+    // El input de email es un <input> real en DOM, siempre visible
+    await expect(page.getByPlaceholder(/@/)).toBeVisible({ timeout: 5000 });
   });
 });
