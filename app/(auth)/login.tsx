@@ -4,7 +4,16 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
+import {
+  View,
+  Text,
+  KeyboardAvoidingView,
+  Platform,
+  ScrollView,
+  StyleSheet,
+  TouchableOpacity,
+  ActivityIndicator,
+} from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -25,6 +34,7 @@ export default function LoginScreen() {
   const [errors, setErrors] = useState<{ email?: string; password?: string }>({});
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
+  const [isTransitioning, setIsTransitioning] = useState(false);
 
   const validate = () => {
     const newErrors: { email?: string; password?: string } = {};
@@ -52,12 +62,15 @@ export default function LoginScreen() {
       return;
     }
 
+    // Mostrar overlay de transición INMEDIATAMENTE al tocar el botón
+    setIsTransitioning(true);
+
     const success = await login(email, password);
 
-    if (success) {
-      router.replace('/(tabs)/home');
-    } else {
-      // Leer el error fresco del store (evita stale closure)
+    if (!success) {
+      // Si falla, ocultar overlay y mostrar error
+      setIsTransitioning(false);
+
       const currentError = useAuthStore.getState().error;
       let message = currentError || 'Error al iniciar sesión';
       if (currentError?.includes('401') || currentError?.includes('Unauthorized') || currentError?.includes('Invalid')) {
@@ -70,6 +83,9 @@ export default function LoginScreen() {
       setErrorMessage(message);
       setShowErrorModal(true);
     }
+    // Si es exitoso:
+    // - En web: window.location.href en _layout.tsx recarga la página → overlay desaparece
+    // - En native: el renderizado condicional desmonta este componente → overlay desaparece
   };
 
   return (
@@ -161,6 +177,19 @@ export default function LoginScreen() {
           },
         ]}
       />
+
+      {/* Overlay de transición: se muestra apenas toca el botón, dura
+          hasta que la página recarga (web) o el componente se desmonta (native) */}
+      {isTransitioning && (
+        <View style={styles.transitionOverlay}>
+          <View style={styles.transitionContent}>
+            <ActivityIndicator size="large" color="#62D9C7" />
+            <Text style={styles.transitionText}>
+              {t('auth.signIn')}...
+            </Text>
+          </View>
+        </View>
+      )}
     </SafeAreaView>
   );
 }
@@ -211,6 +240,22 @@ const styles = StyleSheet.create({
   forgotPasswordText: {
     color: '#62D9C7',
     fontSize: 14,
+    fontWeight: '500',
+  },
+  transitionOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(244, 245, 247, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 100,
+  },
+  transitionContent: {
+    alignItems: 'center',
+    gap: 16,
+  },
+  transitionText: {
+    fontSize: 16,
+    color: '#374151',
     fontWeight: '500',
   },
 });
