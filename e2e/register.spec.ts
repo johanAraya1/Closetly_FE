@@ -9,7 +9,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { generateTestUser, createTestUserViaAPI } from './helpers/auth';
+import { generateTestUser, createTestUserViaAPI, homeLoaded } from './helpers/auth';
 
 test.describe('Registro de usuario', () => {
   test.beforeEach(async ({ page }) => {
@@ -41,7 +41,7 @@ test.describe('Registro de usuario', () => {
     await expect(passwordInput).toBeVisible();
     await passwordInput.fill(generateTestUser().password);
 
-    // Esperar que aparezca confirmar password
+    // Esperar que aparezca confirmar password (se activa al cumplir criterios)
     await page.waitForTimeout(2000);
     const passwordCount = await page.locator('input[type="password"]').count();
     expect(passwordCount).toBeGreaterThanOrEqual(2);
@@ -79,7 +79,7 @@ test.describe('Registro de usuario', () => {
     const passwordInput = page.locator('input[type="password"]');
     await passwordInput.fill(user.password);
 
-    // Esperar confirm password
+    // Esperar confirm password (se activa tras cumplir criterios)
     await page.waitForTimeout(2000);
     const allPasswordInputs = page.locator('input[type="password"]');
     const count = await allPasswordInputs.count();
@@ -91,18 +91,11 @@ test.describe('Registro de usuario', () => {
     await page.getByText(/crear cuenta|create account/i).last().click();
 
     // En web, window.location.href recarga la página.
-    // Después del reload, la app init → lee token de localStorage → redirige a home.
-    // Esperar a que la home se renderice (header con "Bienvenido" / "Welcome" o icono de logout).
-    await page.waitForLoadState('networkidle');
+    // Después del reload, index.tsx redirige a (tabs)/home.
+    await page.waitForURL('/(tabs)/home', { timeout: 15000 });
 
-    // Verificar que estamos autenticados: el logout icon debería existir
-    const logoutIcon = page.locator('[accessibilityLabel*="logout" i], [accessibilityLabel*="cerrar" i]');
-    const homeTitle = page.getByText(/bienvenido|welcome back/i);
-
-    // Esperar hasta 15s que la home cargue (puede tardar por el full reload)
-    await expect(
-      logoutIcon.or(homeTitle).first(),
-    ).toBeVisible({ timeout: 15000 });
+    // Verificar que la home renderizó elementos de sesión
+    await expect(homeLoaded(page)).toBeVisible({ timeout: 10000 });
   });
 
   test('registro con email duplicado muestra error', async ({ page }) => {
@@ -125,9 +118,9 @@ test.describe('Registro de usuario', () => {
 
     await page.getByText(/crear cuenta|create account/i).last().click();
 
-    // Esperar que aparezca el modal de error
+    // Esperar que aparezca el modal de error (email already registered)
     const errorModal = page.getByText(
-      /already registered|ya registrado|ya existe|duplicado/i,
+      /already registered|ya registrado|ya existe|duplicado|already exists|email.*used/i,
     );
     await expect(errorModal).toBeVisible({ timeout: 15000 });
   });

@@ -10,9 +10,24 @@
  */
 
 import { request } from '@playwright/test';
-import type { APIRequestContext, Page } from '@playwright/test';
+import type { Page } from '@playwright/test';
 
-const API_BASE = process.env.EXPO_PUBLIC_API_URL || 'https://closetly-be.vercel.app/api';
+/**
+ * Normaliza la URL de la API igual que constants.ts.
+ * Si EXPO_PUBLIC_API_URL = 'https://closetly-be.vercel.app' → le agrega /api
+ * Si EXPO_PUBLIC_API_URL = 'https://closetly-be.vercel.app/api' → lo deja igual
+ */
+function resolveApiBase(): string {
+  const raw =
+    process.env.EXPO_PUBLIC_API_URL ||
+    process.env.NEXT_PUBLIC_API_URL ||
+    process.env.VITE_API_URL ||
+    'https://closetly-be.vercel.app';
+  const normalized = raw.replace(/\/+$/, '');
+  return /\/api$/i.test(normalized) ? normalized : `${normalized}/api`;
+}
+
+const API_BASE = resolveApiBase();
 
 export interface TestUser {
   email: string;
@@ -55,7 +70,7 @@ export async function createTestUserViaAPI(
   if (!res.ok()) {
     const body = await res.text().catch(() => '(no body)');
     throw new Error(
-      `createTestUserViaAPI failed (${res.status()}): ${body}`,
+      `createTestUserViaAPI failed (${res.status()}) to ${API_BASE}/auth/register: ${body}`,
     );
   }
 
@@ -78,13 +93,9 @@ export async function registerAndLogin(
   await page.waitForLoadState('networkidle');
 
   // Llenar formulario
-  const emailInput = page.getByPlaceholder(/@/);
-  await emailInput.fill(u.email);
+  await page.getByPlaceholder(/@/).fill(u.email);
+  await page.getByPlaceholder(/username|usuario/i).fill(u.username);
 
-  const usernameInput = page.getByPlaceholder(/username|usuario/i);
-  await usernameInput.fill(u.username);
-
-  // Full name: probar varios placeholders
   const fullNameInput = page.locator(
     'input[placeholder="John Doe"], ' +
     'input[placeholder="Juan Pérez"], ' +
@@ -92,14 +103,14 @@ export async function registerAndLogin(
   );
   await fullNameInput.fill(u.fullName);
 
-  // Password: el campo type="password"
+  // Primer campo password
   const passwordInput = page.locator('input[type="password"]');
   await passwordInput.fill(u.password);
 
-  // Esperar que aparezca el segundo campo de password (confirm)
+  // Esperar que aparezca confirm password (se activa al cumplir criterios)
   await page.waitForTimeout(2000);
 
-  // Escribir confirm password en el último input[type="password"]
+  // Llenar confirm password
   const allPasswordInputs = page.locator('input[type="password"]');
   const count = await allPasswordInputs.count();
   if (count >= 2) {
@@ -107,21 +118,19 @@ export async function registerAndLogin(
   }
 
   // Click en "Crear cuenta" / "Create account"
-  const submitBtn = page.getByText(/crear cuenta|create account/i).last();
-  await submitBtn.click();
+  await page.getByText(/crear cuenta|create account/i).last().click();
 
   // En web, el registro exitoso dispara window.location.href = '/' en _layout.tsx
-  // que recarga la página. Playwright espera la nueva navegación automáticamente.
-  // Después del reload, index.tsx redirige a (tabs)/home.
-  // Esperamos a que aparezca el header del home o el botón de logout.
-  await page.waitForLoadState('networkidle');
+  // que recarga la página. Después del reload index.tsx redirige a (tabs)/home.
+  // Esperar la URL final de home (full reload + client-side redirect).
+  await page.waitForURL('/(tabs)/home', { timeout: 15000 });
 
   return u;
 }
 
 /**
  * Loguea un usuario existente via UI.
- * Asume que la page ya está en /(auth)/login.
+ * Navega a login, completa el formulario, espera la redirección a home.
  */
 export async function loginAsUser(
   page: Page,
@@ -131,16 +140,27 @@ export async function loginAsUser(
   await page.goto('/(auth)/login');
   await page.waitForLoadState('networkidle');
 
-  const emailInput = page.getByPlaceholder(/@/);
-  await emailInput.fill(email);
+  await page.getByPlaceholder(/@/).fill(email);
+  await page.locator('input[type="password"]').fill(password);
+  await page.getByText(/iniciar sesión|sign in/i).last().click();
 
-  const passwordInput = page.locator('input[type="password"]');
-  await passwordInput.fill(password);
+  // Login exitoso → window.location.href recarga la página → home se renderiza
+  await page.waitForURL('/(tabs)/home', { timeout: 15000 });
+}
 
-  const submitBtn = page.getByText(/iniciar sesión|sign in/i).last();
-  await submitBtn.click();
+/**
+ * Selector para el botón de logout en el header de home.
+ * RNW renderiza accessibilityLabel como aria-label en el DOM.
+ */
+export function homeLogoutButton(page: Page) {
+  return page.locator('[aria-label*="logout" i], [aria-label*="cerrar" i]');
+}
 
-  // Esperar a que el login procese (window.location.href reload)
-  // Después del reload, la app carga la sesión desde localStorage y renderiza home
-  await page.waitForLoadState('networkidle');
+/**
+ * Selector para detectar que la home cargó: busca el título de bienvenida
+ * o el botón de logout (que solo existe cuando hay sesión).
+ */
+export function homeLoaded(page: Page) {
+  const title = page.getByText(/bienvenido|welcome back/i);
+  return title.or(homeLogoutButton(page)).first();
 }

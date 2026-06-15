@@ -6,13 +6,14 @@
  * - Email inválido muestra error de validación client-side
  * - Credenciales incorrectas muestra modal de error
  * - Campos vacíos muestra errores de validación
+ * - Link "Olvidé mi contraseña" navega a forgot-password
  *
  * Para tener un usuario existente sin depender de seed data,
  * creamos uno via API directa en beforeAll.
  */
 
 import { test, expect } from '@playwright/test';
-import { generateTestUser, createTestUserViaAPI } from './helpers/auth';
+import { generateTestUser, createTestUserViaAPI, homeLoaded } from './helpers/auth';
 import type { TestUser } from './helpers/auth';
 
 test.describe('Inicio de sesión', () => {
@@ -36,18 +37,11 @@ test.describe('Inicio de sesión', () => {
     await page.locator('input[type="password"]').fill(testUser.password);
     await page.getByText(/iniciar sesión|sign in/i).last().click();
 
-    // Login exitoso → window.location.href recarga la página → home se renderiza
-    await page.waitForLoadState('networkidle');
+    // Login exitoso → window.location.href recarga la página
+    await page.waitForURL('/(tabs)/home', { timeout: 15000 });
 
-    // Verificar que la home cargó
-    const logoutIcon = page.locator(
-      '[accessibilityLabel*="logout" i], [accessibilityLabel*="cerrar" i]',
-    );
-    const homeTitle = page.getByText(/bienvenido|welcome back/i);
-
-    await expect(
-      logoutIcon.or(homeTitle).first(),
-    ).toBeVisible({ timeout: 15000 });
+    // Verificar que la home tiene elementos de sesión
+    await expect(homeLoaded(page)).toBeVisible({ timeout: 10000 });
   });
 
   test('email inválido muestra error de validación', async ({ page }) => {
@@ -71,15 +65,12 @@ test.describe('Inicio de sesión', () => {
       /incorrectos|inválidas|invalid|incorrect/i,
     );
 
-    // Podría tardar un poco (llamada API)
     await expect(errorModal).toBeVisible({ timeout: 15000 });
   });
 
   test('campos vacíos muestra errores de validación', async ({ page }) => {
-    // Click submit sin llenar nada
     await page.getByText(/iniciar sesión|sign in/i).last().click();
 
-    // Esperar errores de validación client-side
     const emailError = page.getByText(
       /email.*required|required.*email|campo.*requerido|requerido.*campo/i,
     );
@@ -87,7 +78,6 @@ test.describe('Inicio de sesión', () => {
       /password.*required|required.*password|contraseña.*requerido/i,
     );
 
-    // Cualquiera de los dos está bien (o ambos)
     await expect(
       emailError.or(passwordError).first(),
     ).toBeVisible({ timeout: 5000 });
