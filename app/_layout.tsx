@@ -2,11 +2,14 @@
  * Root Layout
  * Layout raíz de la aplicación con expo-router
  * Inicializa sesión segura al arrancar la app
+ * 
+ * Single Stack — sin renderizado condicional.
+ * Los route guards en (auth) y (tabs) manejan las redirecciones.
  */
 
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
-import { Stack, useRouter, useSegments } from 'expo-router';
+import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { analytics } from '@/services/analyticsService';
@@ -26,9 +29,7 @@ analytics.init();
 setupNotificationHandler();
 
 export default function RootLayout() {
-  // TODOS los hooks deben estar al inicio (antes de cualquier return)
-  const { isAuthenticated, isLoading, loadSession, isInitialized } = useAuth();
-  const segments = useSegments();
+  const { isAuthenticated, loadSession, isInitialized } = useAuth();
   const router = useRouter();
   const [isAppReady, setIsAppReady] = useState(false);
 
@@ -47,36 +48,6 @@ export default function RootLayout() {
 
     initializeApp();
   }, []);
-
-  // Sincronización de ruta cuando el árbol cambia por renderizado condicional.
-  // El renderizado condicional ya maneja el cambio de árbol (auth ↔ tabs).
-  // Este efecto maneja casos borde: cuando la URL actual no coincide con
-  // rutas válidas después del cambio de árbol.
-  useEffect(() => {
-    if (isLoading || !isAppReady || !isInitialized) return;
-
-    const inAuthGroup = segments[0] === '(auth)';
-    const inTabsGroup = segments[0] === '(tabs)';
-
-    if (isAuthenticated && inAuthGroup) {
-      // Autenticado pero en (auth): el árbol ya cambió a tabs, la URL
-      // vieja (/login, /register) no coincide con el nuevo árbol.
-      if (Platform.OS === 'web') {
-        // En web, router.replace entre estado inconsistente no actualiza
-        // el DOM. window.location.href fuerza una navegación real del
-        // navegador que siempre funciona.
-        window.location.href = '/home';
-      } else {
-        router.replace('/');
-      }
-    } else if (!isAuthenticated && inTabsGroup) {
-      if (Platform.OS === 'web') {
-        window.location.href = '/onboarding';
-      } else {
-        router.replace('/');
-      }
-    }
-  }, [isAuthenticated, segments, isLoading, isAppReady, isInitialized]);
 
   // Configurar canal de notificaciones en Android (al arrancar)
   useEffect(() => {
@@ -121,22 +92,17 @@ export default function RootLayout() {
   return (
     <ThemeProvider>
       {/*
-       * Renderizado condicional: cuando cambia isAuthenticated,
-       * React desmonta el árbol viejo y monta el nuevo.
-       * Esto resuelve el freeze visual en web donde router.replace
-       * entre grupos de rutas no actualiza el DOM.
+       * Single Stack — todos los grupos de rutas conviven.
+       * Los route guards en (auth)/_layout.tsx y (tabs)/_layout.tsx
+       * redirigen según el estado de autenticación.
+       * Sin renderizado condicional → router.replace funciona
+       * correctamente SIN freezes en web.
        */}
-      {isAuthenticated ? (
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(tabs)" />
-        </Stack>
-      ) : (
-        <Stack screenOptions={{ headerShown: false }}>
-          <Stack.Screen name="index" />
-          <Stack.Screen name="(auth)" />
-        </Stack>
-      )}
+      <Stack screenOptions={{ headerShown: false }}>
+        <Stack.Screen name="index" />
+        <Stack.Screen name="(auth)" />
+        <Stack.Screen name="(tabs)" />
+      </Stack>
     </ThemeProvider>
   );
 }

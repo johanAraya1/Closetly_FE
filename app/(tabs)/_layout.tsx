@@ -1,15 +1,23 @@
 /**
  * Tabs Layout
  * Layout con tabs para navegación principal
+ * Route guard: si no está autenticado, redirige a onboarding.
  */
 
-import { Tabs } from 'expo-router';
+import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
+import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/hooks/useTranslation';
 
 export default function TabsLayout() {
+  const { isAuthenticated } = useAuth();
   const { t } = useTranslation();
+
+  // Si no está autenticado, no debería estar en tabs
+  if (!isAuthenticated) {
+    return <Redirect href="/(auth)/onboarding" />;
+  }
 
   return (
     <Tabs

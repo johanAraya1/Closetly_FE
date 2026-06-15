@@ -82,10 +82,12 @@ export default function LoginScreen() {
       }
       setErrorMessage(message);
       setShowErrorModal(true);
+      return;
     }
-    // Si es exitoso:
-    // - En web: window.location.href en _layout.tsx recarga la página → overlay desaparece
-    // - En native: el renderizado condicional desmonta este componente → overlay desaparece
+
+    // Éxito — navegación client-side instantánea.
+    // Sin full reload porque el Single Stack no desmonta el árbol.
+    router.replace('/(tabs)/home');
   };
 
   return (
