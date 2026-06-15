@@ -5,7 +5,7 @@
  */
 
 import { useEffect, useState } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, Platform } from 'react-native';
 import { Stack, useRouter, useSegments } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
 import { ThemeProvider } from '@/contexts/ThemeContext';
@@ -51,8 +51,7 @@ export default function RootLayout() {
   // Sincronización de ruta cuando el árbol cambia por renderizado condicional.
   // El renderizado condicional ya maneja el cambio de árbol (auth ↔ tabs).
   // Este efecto maneja casos borde: cuando la URL actual no coincide con
-  // rutas válidas después del cambio de árbol, redirige al index raíz
-  // para que index.tsx resuelva el destino correcto.
+  // rutas válidas después del cambio de árbol.
   useEffect(() => {
     if (isLoading || !isAppReady || !isInitialized) return;
 
@@ -62,11 +61,20 @@ export default function RootLayout() {
     if (isAuthenticated && inAuthGroup) {
       // Autenticado pero en (auth): el árbol ya cambió a tabs, la URL
       // vieja (/login, /register) no coincide con el nuevo árbol.
-      // Volvemos al index raíz para que index.tsx redirija correctamente.
-      router.replace('/');
+      if (Platform.OS === 'web') {
+        // En web, router.replace entre estado inconsistente no actualiza
+        // el DOM. window.location.href fuerza una navegación real del
+        // navegador que siempre funciona.
+        window.location.href = '/home';
+      } else {
+        router.replace('/');
+      }
     } else if (!isAuthenticated && inTabsGroup) {
-      // No autenticado pero en (tabs): mismo caso, árbol cambió a auth.
-      router.replace('/');
+      if (Platform.OS === 'web') {
+        window.location.href = '/onboarding';
+      } else {
+        router.replace('/');
+      }
     }
   }, [isAuthenticated, segments, isLoading, isAppReady, isInitialized]);
 
