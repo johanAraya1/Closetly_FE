@@ -86,13 +86,13 @@ export default function ResetPasswordScreen() {
   }, []);
 
   const handleResetPassword = async () => {
-    if (!newPassword || newPassword.length < 8) {
-      Alert.alert(t('common.error'), 'Password must be at least 8 characters');
+    if (!passwordCriteria.all) {
+      Alert.alert(t('common.error'), 'La contraseña no cumple todos los requisitos.');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert(t('common.error'), 'Passwords do not match');
+      Alert.alert(t('common.error'), 'Las contraseñas no coinciden.');
       return;
     }
 
