@@ -117,9 +117,9 @@ export default function LoginScreen() {
       // Si falla la persistencia, no bloquear el login
     }
 
-    // Éxito — navegación client-side instantánea.
-    // Sin full reload porque el Single Stack no desmonta el árbol.
-    router.replace('/(tabs)/home');
+    // El layout de auth ya tiene un <Redirect> que se activa cuando
+    // isAuthenticated cambia a true — no hacemos replace explícito
+    // para evitar la doble navegación que deja la pantalla colgada.
   };
 
   return (
@@ -247,6 +247,7 @@ const styles = StyleSheet.create({
     flex: 1,
     backgroundColor: '#F4F5F7',
     alignItems: 'center',
+    position: 'relative',
   },
   keyboardView: {
     flex: 1,
