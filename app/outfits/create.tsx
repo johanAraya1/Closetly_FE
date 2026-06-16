@@ -357,7 +357,7 @@ export default function CreateOutfitScreen() {
                 activeOpacity={0.8}
               >
                 <Ionicons name="dice" size={20} color="#FFFFFF" style={styles.generateButtonIcon} />
-                <Text style={styles.generateButtonText}>🎲 Generar Outfit Aleatorio</Text>
+                <Text style={styles.generateButtonText}>Generar Outfit Aleatorio</Text>
               </TouchableOpacity>
             )}
           </View>

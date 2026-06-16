@@ -48,6 +48,7 @@ const i18n = new I18n({
       ok: 'OK',
       retry: 'Retry',
       saving: 'Saving...',
+      next: 'Next',
     },
     auth: {
       login: 'Log In',
@@ -111,6 +112,18 @@ const i18n = new I18n({
       // Register
       joinClosetly: 'Join Closetly and organize your wardrobe',
     },
+    tour: {
+      skip: 'Skip',
+      start: "Let's Start!",
+      page1Title: 'Organize Your Wardrobe',
+      page1Desc: 'Add your garments, categorize by type, season and style. Keep your entire wardrobe at your fingertips.',
+      page2Title: 'Create Amazing Outfits',
+      page2Desc: 'Combine your garments into outfits. Use the random generator or get suggestions based on the weather.',
+      page3Title: 'Track & Plan',
+      page3Desc: 'Log what you wear, plan outfits ahead, and discover your style patterns over time.',
+      page4Title: 'Shop & Connect',
+      page4Desc: 'Buy, sell or trade garments with other users. Find unique pieces for your wardrobe.',
+    },
     home: {
       title: 'Welcome back, {{username}}! 👋',
       subtitle: 'What are you wearing today?',
@@ -143,6 +156,11 @@ const i18n = new I18n({
       saved: 'Saved',
       editSuggestion: 'Edit',
       noGarmentsSuggestion: 'No garments',
+      gettingStarted: 'Getting Started',
+      addFirstGarment: 'Add your first garment',
+      createFirstOutfit: 'Create your first outfit',
+      exploreSuggestions: 'Explore outfit suggestions',
+      checklistHint: 'Complete all steps to unlock all features',
     },
     closet: {
       title: 'My Closet',
@@ -234,8 +252,10 @@ const i18n = new I18n({
         public: 'Public',
         private: 'Private',
         editGarment: 'Edit Garment',
-        inNOutfits_one: 'In {{count}} outfit',
-        inNOutfits_other: 'In {{count}} outfits',
+        inNOutfits: {
+          one: 'In {{count}} outfit',
+          other: 'In {{count}} outfits',
+        },
         timesUsed: 'Times used',
         timesUsedLast7Days: 'Last 7 days',
         timesUsedLast15Days: 'Last 15 days',
@@ -613,6 +633,7 @@ const i18n = new I18n({
       ok: 'OK',
       retry: 'Reintentar',
       saving: 'Guardando...',
+      next: 'Siguiente',
     },
     auth: {
       login: 'Iniciar Sesión',
@@ -675,6 +696,18 @@ const i18n = new I18n({
       // Register
       joinClosetly: 'Únete a Closetly y organiza tu guardarropa',
     },
+    tour: {
+      skip: 'Saltar',
+      start: '¡Comenzar!',
+      page1Title: 'Organizá tu Guardarropa',
+      page1Desc: 'Agregá tus prendas, categorizalas por tipo, temporada y estilo. Tené todo tu guardarropa al alcance.',
+      page2Title: 'Creá Outfiles Increíbles',
+      page2Desc: 'Combiná tus prendas en outfits. Usá el generador aleatorio o recibí sugerencias según el clima.',
+      page3Title: 'Seguí tu Estilo',
+      page3Desc: 'Registrá lo que usás, planificá outfits y descubrí tus patrones de estilo con el tiempo.',
+      page4Title: 'Comprá y Conectate',
+      page4Desc: 'Compá, vendé o intercambiá prendas con otros usuarios. Encontrá piezas únicas para tu guardarropa.',
+    },
     home: {
       title: '¡Bienvenido de nuevo, {{username}}! 👋',
       subtitle: '¿Qué vas a usar hoy?',
@@ -707,6 +740,11 @@ const i18n = new I18n({
       saved: 'Guardado',
       editSuggestion: 'Editar',
       noGarmentsSuggestion: 'Sin prendas',
+      gettingStarted: 'Primeros Pasos',
+      addFirstGarment: 'Agregá tu primera prenda',
+      createFirstOutfit: 'Creá tu primer outfit',
+      exploreSuggestions: 'Explorá sugerencias de outfits',
+      checklistHint: 'Completá todos los pasos para desbloquear todas las funciones',
     },
     closet: {
       title: 'Mi Closet',
@@ -798,8 +836,10 @@ const i18n = new I18n({
         public: 'Pública',
         private: 'Privada',
         editGarment: 'Editar Prenda',
-        inNOutfits_one: 'En {{count}} outfit',
-        inNOutfits_other: 'En {{count}} outfits',
+        inNOutfits: {
+          one: 'En {{count}} outfit',
+          other: 'En {{count}} outfits',
+        },
         timesUsed: 'Veces usada',
         timesUsedLast7Days: 'Últimos 7 días',
         timesUsedLast15Days: 'Últimos 15 días',
