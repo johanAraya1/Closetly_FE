@@ -12,6 +12,7 @@ import { Button, OutfitCard, Loading, EmptyState, SkeletonCard } from '@/compone
 import { SuggestionDetailModal } from '@/components/SuggestionDetailModal';
 import type { Garment, Suggestion } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
+import { useGarments } from '@/hooks/useGarments';
 import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
@@ -26,6 +27,7 @@ function suggestionKey(s: Pick<Suggestion, 'garmentIds'>): string {
 function HomeScreen() {
   const router = useRouter();
   const { profile, user, logout } = useAuth();
+  const { garments } = useGarments(true);
   const { outfits, isLoading, loadOutfits, createOutfit } = useOutfits(true, 3);
   const { t } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
@@ -76,6 +78,13 @@ function HomeScreen() {
 
   const favoriteOutfits = outfits.filter((o) => o.is_favorite);
   const recentOutfits = outfits.slice(0, 3);
+  const checklistSteps = useMemo(() => [
+    { key: 'garment', label: t('home.addFirstGarment'), done: garments.length > 0 },
+    { key: 'outfit', label: t('home.createFirstOutfit'), done: outfits.length > 0 },
+  ], [garments.length, outfits.length, t]);
+
+  const allStepsDone = useMemo(() => checklistSteps.every((s) => s.done), [checklistSteps]);
+
   const displayName = useMemo(() => {
     const name =
       profile?.username ||
@@ -187,6 +196,28 @@ function HomeScreen() {
             </TouchableOpacity>
           </View>
         </View>
+
+        {/* Primeros Pasos — checklist para usuarios nuevos */}
+        {!allStepsDone && (
+          <View style={styles.checklistSection}>
+            <Text style={styles.checklistTitle}>{t('home.gettingStarted')}</Text>
+            {checklistSteps.map((step) => (
+              <View key={step.key} style={styles.checklistRow}>
+                <View style={[styles.checkbox, step.done && styles.checkboxDone]}>
+                  {step.done ? (
+                    <Ionicons name="checkmark" size={14} color="#FFFFFF" />
+                  ) : (
+                    <View style={styles.checkboxEmpty} />
+                  )}
+                </View>
+                <Text style={[styles.checklistLabel, step.done && styles.checklistLabelDone]}>
+                  {step.label}
+                </Text>
+              </View>
+            ))}
+            <Text style={styles.checklistHint}>{t('home.checklistHint')}</Text>
+          </View>
+        )}
 
         {/* Weather Card */}
         {weather && (
@@ -851,6 +882,64 @@ const styles = StyleSheet.create({
   calendarCardHint: {
     fontSize: 13,
     color: '#6B7280',
+  },
+
+  // Primeros Pasos Checklist
+  checklistSection: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: '#F0FDF4',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#BBF7D0',
+  },
+  checklistTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#166534',
+    marginBottom: 12,
+  },
+  checklistRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginBottom: 10,
+    gap: 10,
+  },
+  checkbox: {
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    borderWidth: 2,
+    borderColor: '#D1D5DB',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  checkboxDone: {
+    backgroundColor: '#22C55E',
+    borderColor: '#22C55E',
+  },
+  checkboxEmpty: {
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+    backgroundColor: '#D1D5DB',
+  },
+  checklistLabel: {
+    fontSize: 14,
+    fontWeight: '500',
+    color: '#374151',
+    flex: 1,
+  },
+  checklistLabelDone: {
+    color: '#6B7280',
+    textDecorationLine: 'line-through',
+  },
+  checklistHint: {
+    fontSize: 12,
+    color: '#6B7280',
+    marginTop: 4,
+    lineHeight: 16,
   },
 });
 
