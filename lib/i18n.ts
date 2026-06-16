@@ -98,6 +98,7 @@ const i18n = new I18n({
       // Login
       welcomeBack: 'Welcome back',
       loginSubtitle: 'Sign in to continue',
+      rememberMe: 'Remember me',
       // Forgot / Reset password
       forgotPasswordTitle: 'Forgot Password?',
       forgotPasswordSubtitle: "Enter your email and we'll send you a link to reset your password.",
@@ -697,6 +698,7 @@ const i18n = new I18n({
       // Login
       welcomeBack: 'Bienvenido de nuevo',
       loginSubtitle: 'Inicia sesión para continuar',
+      rememberMe: 'Recordarme',
       // Register
       joinClosetly: 'Únete a Closetly y organiza tu guardarropa',
     },
