@@ -43,8 +43,28 @@ export default function LogTodayScreen() {
 
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [isLogging, setIsLogging] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
+  const [seasonFilter, setSeasonFilter] = useState('all');
 
   const numColumns = useMemo(() => (screenWidth > 600 ? 3 : 2), [screenWidth]);
+
+  const filteredOutfits = useMemo(() => {
+    let result = outfits;
+    if (searchQuery) {
+      const q = searchQuery.toLowerCase();
+      result = result.filter(
+        (o) =>
+          o.name?.toLowerCase().includes(q) ||
+          o.garments?.some((g: { name?: string }) => g.name?.toLowerCase().includes(q)),
+      );
+    }
+    if (seasonFilter !== 'all') {
+      result = result.filter(
+        (o) => o.garments?.some((g: { season?: string }) => g.season === seasonFilter),
+      );
+    }
+    return result;
+  }, [outfits, searchQuery, seasonFilter]);
 
   // Formatear fecha para display
   const formattedDate = useMemo(() => {
