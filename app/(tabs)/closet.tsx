@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
+import { View, Text, FlatList, ScrollView, TouchableOpacity, StyleSheet, TextInput, ActivityIndicator, RefreshControl } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -52,17 +52,6 @@ function ClosetScreen() {
     setSelectedCategory(category);
     // Reseteamos la carga al cambiar categoría (la categoría se filtra client-side por ahora)
   };
-
-  const handleScroll = useCallback((event: any) => {
-    const { layoutMeasurement, contentOffset, contentSize } = event.nativeEvent;
-    const paddingToBottom = 40;
-    
-    const isCloseToBottom = layoutMeasurement.height + contentOffset.y >= contentSize.height - paddingToBottom;
-    
-    if (isCloseToBottom && hasMore && !isLoadingMore && user) {
-      loadMoreGarments(user.id, token || undefined);
-    }
-  }, [hasMore, isLoadingMore, loadMoreGarments, user, token]);
 
   const handleDeletePress = (garmentId: string) => {
     setGarmentToDelete(garmentId);
@@ -194,22 +183,25 @@ function ClosetScreen() {
       </View>
 
       {/* Garments Grid */}
-      <ScrollView 
-        style={styles.scrollView} 
+      <FlatList
+        data={filteredGarments}
+        keyExtractor={(item) => item.id}
+        numColumns={3}
+        style={styles.scrollView}
         contentContainerStyle={styles.content}
-        onScroll={handleScroll}
-        scrollEventThrottle={400}
-        refreshControl={
-          <RefreshControl
-            refreshing={refreshing}
-            onRefresh={onRefresh}
-            colors={[COLORS.primary]}
-            tintColor={COLORS.primary}
-          />
-        }
-      >
-        {filteredGarments.length > 0 ? (
-          <>
+        columnWrapperStyle={styles.columnWrapper}
+        renderItem={({ item }) => (
+          <View style={styles.cardWrapper}>
+            <GarmentCard
+              garment={item}
+              onPress={() => router.push(`/garments/${item.id}`)}
+              onEdit={() => router.push(`/garments/create?id=${item.id}`)}
+              onDelete={() => handleDeletePress(item.id)}
+            />
+          </View>
+        )}
+        ListHeaderComponent={
+          filteredGarments.length > 0 ? (
             <View style={styles.resultHeader}>
               <Text style={styles.countText}>
                 {t('closet.garmentCount', { count: filteredGarments.length })}
@@ -220,29 +212,16 @@ function ClosetScreen() {
                 </Text>
               )}
             </View>
-            
-            <View style={styles.gridContainer}>
-              {filteredGarments.map((garment) => (
-                <View key={garment.id} style={styles.cardWrapper}>
-                  <GarmentCard
-                    garment={garment}
-                    onPress={() => router.push(`/garments/${garment.id}`)}
-                    onEdit={() => router.push(`/garments/create?id=${garment.id}`)}
-                    onDelete={() => handleDeletePress(garment.id)}
-                  />
-                </View>
-              ))}
-            </View>
-
-            {/* Loading indicator para infinite scroll */}
+          ) : null
+        }
+        ListFooterComponent={
+          <>
             {isLoadingMore && (
               <View style={styles.loadingMore}>
                 <ActivityIndicator size="small" color={COLORS.primary} />
                 <Text style={styles.loadingMoreText}>{t('closet.loadingMore')}</Text>
               </View>
             )}
-
-            {/* Mensaje cuando se han cargado todas */}
             {!hasMore && garments.length >= 20 && (
               <View style={styles.endMessage}>
                 <Ionicons name="checkmark-circle" size={20} color={COLORS.success} />
@@ -250,7 +229,8 @@ function ClosetScreen() {
               </View>
             )}
           </>
-        ) : (
+        }
+        ListEmptyComponent={
           <EmptyState
             icon="shirt-outline"
             title={searchQuery ? t('closet.noResults') : t('closet.noGarments')}
@@ -264,8 +244,25 @@ function ClosetScreen() {
             actionLabel={t('closet.addYourFirst')}
             onAction={() => router.push('/garments/create')}
           />
-        )}
-      </ScrollView>
+        }
+        onEndReached={() => {
+          if (hasMore && !isLoadingMore && user) {
+            loadMoreGarments(user.id, token || undefined);
+          }
+        }}
+        onEndReachedThreshold={0.3}
+        refreshControl={
+          <RefreshControl
+            refreshing={refreshing}
+            onRefresh={onRefresh}
+            colors={[COLORS.primary]}
+            tintColor={COLORS.primary}
+          />
+        }
+        windowSize={5}
+        initialNumToRender={12}
+        maxToRenderPerBatch={12}
+      />
 
       {/* Modal de Confirmación de Eliminación */}
       <Modal
@@ -411,14 +408,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#6B7280',
   },
-  gridContainer: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    marginHorizontal: -8,
+  columnWrapper: {
+    gap: 12,
   },
   cardWrapper: {
-    width: '33.33%',
-    paddingHorizontal: 6,
+    flex: 1,
     marginBottom: 12,
   },
   loadingMore: {
