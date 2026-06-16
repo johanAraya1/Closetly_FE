@@ -3,7 +3,7 @@
  * Pantalla de registro
  */
 
-import React, { useMemo, useState } from 'react';
+import React, { useMemo, useState, useEffect } from 'react';
 import { View, Text, KeyboardAvoidingView, Platform, ScrollView, StyleSheet, TouchableOpacity } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -29,12 +29,23 @@ export default function RegisterScreen() {
   const [confirmPassword, setConfirmPassword] = useState('');
   const [username, setUsername] = useState('');
   const [fullName, setFullName] = useState('');
+
+  // Limpiar estado al montar — evita que navegador autocomplete filtre
+  // datos del formulario de login al de registro (bug crítico de seguridad).
+  useEffect(() => {
+    setEmail('');
+    setPassword('');
+    setConfirmPassword('');
+    setUsername('');
+    setFullName('');
+  }, []);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [errors, setErrors] = useState<{ 
     email?: string; 
     password?: string; 
     username?: string;
+    fullName?: string;
     confirmPassword?: string;
   }>({});
   const [showErrorModal, setShowErrorModal] = useState(false);
@@ -90,6 +101,10 @@ export default function RegisterScreen() {
       newErrors.username = validationMessages.username.required;
     } else if (!isValidUsername(username)) {
       newErrors.username = validationMessages.username.invalid;
+    }
+
+    if (!fullName) {
+      newErrors.fullName = validationMessages.name.required;
     }
 
     if (passwordCriteria.all) {
@@ -160,6 +175,7 @@ export default function RegisterScreen() {
             placeholder={t('auth.emailPlaceholder')}
             keyboardType="email-address"
             autoCapitalize="none"
+            autoComplete="email"
             error={errors.email}
             icon={<Ionicons name="mail-outline" size={20} color="#9CA3AF" />}
           />
@@ -173,15 +189,21 @@ export default function RegisterScreen() {
             }}
             placeholder={t('auth.usernamePlaceholder')}
             autoCapitalize="none"
+            autoComplete="username"
             error={errors.username}
             icon={<Ionicons name="at-outline" size={20} color="#9CA3AF" />}
           />
 
           <Input
-            label={t('auth.fullNameOptional')}
+            label={t('auth.fullName')}
             value={fullName}
-            onChangeText={setFullName}
+            onChangeText={(text) => {
+              setFullName(text);
+              setErrors({ ...errors, fullName: undefined });
+            }}
             placeholder={t('auth.fullNamePlaceholder')}
+            error={errors.fullName}
+            autoComplete="name"
             icon={<Ionicons name="person-outline" size={20} color="#9CA3AF" />}
           />
 
@@ -195,6 +217,7 @@ export default function RegisterScreen() {
             placeholder={t('auth.passwordPlaceholder')}
             secureTextEntry={!showPassword}
             maxLength={16}
+            autoComplete="new-password"
             error={errors.password}
             icon={<Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />}
             rightIcon={

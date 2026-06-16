@@ -4,7 +4,7 @@
  * Lee el access_token del hash de la URL
  */
 
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useState, useMemo } from 'react';
 import {
   View,
   Text,
@@ -53,8 +53,25 @@ export default function ResetPasswordScreen() {
   const [newPassword, setNewPassword] = useState('');
   const [confirmPassword, setConfirmPassword] = useState('');
   const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+
+  const passwordCriteria = useMemo(() => {
+    const length = newPassword.length >= 8 && newPassword.length <= 16;
+    const uppercase = /[A-Z]/.test(newPassword);
+    const lowercase = /[a-z]/.test(newPassword);
+    const number = /[0-9]/.test(newPassword);
+    const special = /[!@#$%^&*(),.?":{}|<>_\-+=\[\]\\\/~`]/.test(newPassword);
+    return {
+      length,
+      uppercase,
+      lowercase,
+      number,
+      special,
+      all: length && uppercase && lowercase && number && special,
+    };
+  }, [newPassword]);
 
   useEffect(() => {
     const params = parseHash();
@@ -69,13 +86,13 @@ export default function ResetPasswordScreen() {
   }, []);
 
   const handleResetPassword = async () => {
-    if (!newPassword || newPassword.length < 8) {
-      Alert.alert(t('common.error'), 'Password must be at least 8 characters');
+    if (!passwordCriteria.all) {
+      Alert.alert(t('common.error'), 'La contraseña no cumple todos los requisitos.');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert(t('common.error'), 'Passwords do not match');
+      Alert.alert(t('common.error'), 'Las contraseñas no coinciden.');
       return;
     }
 
@@ -147,15 +164,20 @@ export default function ResetPasswordScreen() {
                 {t('auth.resetPassword')}
               </Text>
               <Text style={styles.subtitle}>
-                {t('auth.forgotPasswordSubtitle')}
+                {t('auth.resetPasswordSubtitle')}
               </Text>
 
               <Input
                 label={t('auth.newPassword')}
                 value={newPassword}
-                onChangeText={setNewPassword}
+                onChangeText={(text) => {
+                  setNewPassword(text);
+                  setConfirmPassword('');
+                }}
                 placeholder="••••••••"
                 secureTextEntry={!showPassword}
+                autoComplete="new-password"
+                maxLength={16}
                 icon={<Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />}
                 rightIcon={
                   <TouchableOpacity onPress={() => setShowPassword(!showPassword)}>
@@ -168,19 +190,78 @@ export default function ResetPasswordScreen() {
                 }
               />
 
-              <Input
-                label={t('auth.confirmNewPassword')}
-                value={confirmPassword}
-                onChangeText={setConfirmPassword}
-                placeholder="••••••••"
-                secureTextEntry={!showPassword}
-                icon={<Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />}
-              />
+              {/* Password rules checklist */}
+              <View style={styles.passwordRules}>
+                <Text style={styles.rulesTitle}>{t('auth.passwordRules')}</Text>
+                <View style={styles.ruleRow}>
+                  <Ionicons
+                    name={passwordCriteria.length ? 'checkmark-circle' : 'close-circle'}
+                    size={16}
+                    color={passwordCriteria.length ? '#10B981' : '#EF4444'}
+                  />
+                  <Text style={styles.ruleText}>{t('auth.passwordLength')}</Text>
+                </View>
+                <View style={styles.ruleRow}>
+                  <Ionicons
+                    name={passwordCriteria.uppercase ? 'checkmark-circle' : 'close-circle'}
+                    size={16}
+                    color={passwordCriteria.uppercase ? '#10B981' : '#EF4444'}
+                  />
+                  <Text style={styles.ruleText}>{t('auth.passwordUppercase')}</Text>
+                </View>
+                <View style={styles.ruleRow}>
+                  <Ionicons
+                    name={passwordCriteria.lowercase ? 'checkmark-circle' : 'close-circle'}
+                    size={16}
+                    color={passwordCriteria.lowercase ? '#10B981' : '#EF4444'}
+                  />
+                  <Text style={styles.ruleText}>{t('auth.passwordLowercase')}</Text>
+                </View>
+                <View style={styles.ruleRow}>
+                  <Ionicons
+                    name={passwordCriteria.number ? 'checkmark-circle' : 'close-circle'}
+                    size={16}
+                    color={passwordCriteria.number ? '#10B981' : '#EF4444'}
+                  />
+                  <Text style={styles.ruleText}>{t('auth.passwordNumber')}</Text>
+                </View>
+                <View style={styles.ruleRow}>
+                  <Ionicons
+                    name={passwordCriteria.special ? 'checkmark-circle' : 'close-circle'}
+                    size={16}
+                    color={passwordCriteria.special ? '#10B981' : '#EF4444'}
+                  />
+                  <Text style={styles.ruleText}>{t('auth.passwordSpecial')}</Text>
+                </View>
+              </View>
+
+              {passwordCriteria.all && (
+                <Input
+                  label={t('auth.confirmNewPassword')}
+                  value={confirmPassword}
+                  onChangeText={setConfirmPassword}
+                  placeholder="••••••••"
+                  secureTextEntry={!showConfirmPassword}
+                  autoComplete="off"
+                  maxLength={16}
+                  icon={<Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />}
+                  rightIcon={
+                    <TouchableOpacity onPress={() => setShowConfirmPassword(!showConfirmPassword)}>
+                      <Ionicons
+                        name={showConfirmPassword ? 'eye-off-outline' : 'eye-outline'}
+                        size={20}
+                        color="#9CA3AF"
+                      />
+                    </TouchableOpacity>
+                  }
+                />
+              )}
 
               <Button
                 title={t('auth.resetPassword')}
                 onPress={handleResetPassword}
                 loading={isSubmitting}
+                disabled={newPassword.length === 0 || confirmPassword.length === 0 || newPassword !== confirmPassword}
                 fullWidth
               />
 
@@ -300,5 +381,29 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     marginTop: 24,
+  },
+  passwordRules: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    marginBottom: 16,
+  },
+  rulesTitle: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    marginBottom: 8,
+  },
+  ruleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  ruleText: {
+    fontSize: 13,
+    color: '#374151',
   },
 });

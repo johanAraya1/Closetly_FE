@@ -58,6 +58,7 @@ const i18n = new I18n({
       password: 'Password',
       username: 'Username',
       fullName: 'Full Name',
+      fullName: 'Full Name',
       fullNameOptional: 'Full Name (Optional)',
       confirmPassword: 'Confirm Password',
       emailPlaceholder: 'your@email.com',
@@ -97,9 +98,11 @@ const i18n = new I18n({
       // Login
       welcomeBack: 'Welcome back',
       loginSubtitle: 'Sign in to continue',
+      rememberMe: 'Remember me',
       // Forgot / Reset password
       forgotPasswordTitle: 'Forgot Password?',
       forgotPasswordSubtitle: "Enter your email and we'll send you a link to reset your password.",
+      resetPasswordSubtitle: "Create your new password. Make sure it's secure and different from your previous one.",
       sendResetLink: 'Send Reset Link',
       resetLinkSent: 'Check your email! We sent you a link to reset your password.',
       resetPassword: 'Set New Password',
@@ -643,6 +646,7 @@ const i18n = new I18n({
       password: 'Contraseña',
       username: 'Usuario',
       fullName: 'Nombre Completo',
+      fullName: 'Nombre Completo',
       fullNameOptional: 'Nombre Completo (Opcional)',
       confirmPassword: 'Confirmar Contraseña',
       emailPlaceholder: 'tu@email.com',
@@ -670,6 +674,7 @@ const i18n = new I18n({
       forgotPassword: '¿Olvidaste tu contraseña?',
       forgotPasswordTitle: '¿Olvidaste tu contraseña?',
       forgotPasswordSubtitle: 'Ingresá tu correo y te enviaremos un link para restablecer tu contraseña.',
+      resetPasswordSubtitle: 'Creá tu nueva contraseña. Asegurate de que sea segura y diferente a la anterior.',
       sendResetLink: 'Enviar Link',
       resetLinkSent: '¡Revisá tu correo! Te enviamos un link para restablecer tu contraseña.',
       resetPassword: 'Nueva Contraseña',
@@ -693,6 +698,7 @@ const i18n = new I18n({
       // Login
       welcomeBack: 'Bienvenido de nuevo',
       loginSubtitle: 'Inicia sesión para continuar',
+      rememberMe: 'Recordarme',
       // Register
       joinClosetly: 'Únete a Closetly y organiza tu guardarropa',
     },
