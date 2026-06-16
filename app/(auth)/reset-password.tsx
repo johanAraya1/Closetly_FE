@@ -13,12 +13,11 @@ import {
   ScrollView,
   StyleSheet,
   TouchableOpacity,
-  Alert,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Input } from '@/components';
+import { Button, Input, Modal } from '@/components';
 import { useTranslation } from '@/hooks/useTranslation';
 import { API_URL } from '@/lib/constants';
 
@@ -56,6 +55,7 @@ export default function ResetPasswordScreen() {
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [isSuccess, setIsSuccess] = useState(false);
+  const [errorMessage, setErrorMessage] = useState<string | null>(null);
 
   const passwordCriteria = useMemo(() => {
     const length = newPassword.length >= 8 && newPassword.length <= 16;
@@ -87,12 +87,12 @@ export default function ResetPasswordScreen() {
 
   const handleResetPassword = async () => {
     if (!passwordCriteria.all) {
-      Alert.alert(t('common.error'), 'La contraseña no cumple todos los requisitos.');
+      setErrorMessage('La contraseña no cumple todos los requisitos.');
       return;
     }
 
     if (newPassword !== confirmPassword) {
-      Alert.alert(t('common.error'), 'Las contraseñas no coinciden.');
+      setErrorMessage('Las contraseñas no coinciden.');
       return;
     }
 
@@ -116,9 +116,8 @@ export default function ResetPasswordScreen() {
 
       setIsSuccess(true);
     } catch (error) {
-      Alert.alert(
-        t('common.error'),
-        error instanceof Error ? error.message : 'Failed to reset password',
+      setErrorMessage(
+        error instanceof Error ? error.message : 'Error al restablecer la contraseña',
       );
     } finally {
       setIsSubmitting(false);
@@ -302,6 +301,21 @@ export default function ResetPasswordScreen() {
           )}
         </ScrollView>
       </KeyboardAvoidingView>
+
+      <Modal
+        visible={errorMessage !== null}
+        type="error"
+        title={t('common.error')}
+        message={errorMessage || ''}
+        onClose={() => setErrorMessage(null)}
+        actions={[
+          {
+            text: 'Entendido',
+            onPress: () => setErrorMessage(null),
+            variant: 'primary',
+          },
+        ]}
+      />
     </SafeAreaView>
   );
 }
