@@ -41,6 +41,9 @@ export default function LogTodayScreen() {
   const { outfits, isLoading: loadingOutfits } = useOutfits(true);
   const { entries, isLoading: calendarLoading, logOutfit, loadMonth, clearError } = useCalendar();
 
+  const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
+  const [isLogging, setIsLogging] = useState(false);
+
   // Formatear fecha para display
   const formattedDate = useMemo(() => {
     const d = new Date(targetDate + 'T00:00:00');

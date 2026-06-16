@@ -10,8 +10,9 @@ export default defineConfig({
   
   use: {
     baseURL: process.env.BASE_URL || 'http://localhost:8081',
-    trace: 'on-first-retry',
+    trace: 'on',
     screenshot: 'only-on-failure',
+    video: 'on',
   },
 
   projects: [
