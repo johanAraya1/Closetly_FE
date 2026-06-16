@@ -11,7 +11,7 @@
  * - 404/409 por URLs incorrectas o emails duplicados
  */
 
-import type { Page } from '@playwright/test';
+import type { Page, BrowserContext } from '@playwright/test';
 
 const MOCK_USER_ID = 'e2e-mock-user-id';
 const MOCK_PROFILE_ID = 'e2e-mock-profile-id';
@@ -145,9 +145,13 @@ const MOCK_OUTFITS_RESPONSE = {
  *  La home screen llama useOutfits(true, 3) al montar, que hace
  *  GET /outfits?user_id=...&limit=3. Si no se mockea, la llamada
  *  va al backend real y puede demorar >10s, causando timeout en
- *  la aserción homeLoaded. */
-export async function mockOutfitsApi(page: Page) {
-  await page.route('**/outfits*', async (route) => {
+ *  la aserción homeLoaded.
+ *
+ *  IMPORTANTE: usamos context.route() en vez de page.route() porque
+ *  router.replace en Expo Router web hace un FULL RELOAD de la página.
+ *  page.route() se pierde en el reload; context.route() persiste. */
+export async function mockOutfitsApi(context: BrowserContext) {
+  await context.route('**/outfits*', async (route) => {
     await route.fulfill({
       status: 200,
       contentType: 'application/json',

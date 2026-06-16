@@ -29,7 +29,7 @@ test.describe('Inicio de sesión', () => {
   test('login exitoso redirige a home', async ({ page }) => {
     // Mockear APIs
     await mockLoginApi(page, testUser);
-    await mockOutfitsApi(page);
+    await mockOutfitsApi(page.context());
 
     await page.getByPlaceholder(/@/).fill(testUser.email);
     await page.locator('input[type="password"]').fill(testUser.password);
