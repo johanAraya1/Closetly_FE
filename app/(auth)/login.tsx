@@ -114,6 +114,7 @@ export default function LoginScreen() {
             placeholder="your@email.com"
             keyboardType="email-address"
             autoCapitalize="none"
+            autoComplete="email"
             error={errors.email}
             icon={<Ionicons name="mail-outline" size={20} color="#9CA3AF" />}
           />
@@ -127,6 +128,7 @@ export default function LoginScreen() {
             }}
             placeholder="••••••••"
             secureTextEntry={!showPassword}
+            autoComplete="current-password"
             error={errors.password}
             icon={<Ionicons name="lock-closed-outline" size={20} color="#9CA3AF" />}
             rightIcon={
