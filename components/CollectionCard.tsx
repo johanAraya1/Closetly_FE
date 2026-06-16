@@ -4,7 +4,8 @@
  */
 
 import React, { useState } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import type { Collection } from '@/types';
 import { COLORS } from '@/lib/constants';
@@ -54,7 +55,8 @@ export const CollectionCard = React.memo<CollectionCardProps>(({
             <Image
               source={{ uri: previewImages[0] }}
               style={styles.singleImage}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
             />
           ) : (
             <View style={styles.grid}>
@@ -71,7 +73,8 @@ export const CollectionCard = React.memo<CollectionCardProps>(({
                   <Image
                     source={{ uri: url }}
                     style={styles.gridImage}
-                    resizeMode="cover"
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
                   />
                 </View>
               ))}

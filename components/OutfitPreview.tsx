@@ -4,7 +4,8 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Image, StyleSheet, Text, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { Image } from 'expo-image';
 import type { Garment } from '@/types';
 
 interface OutfitPreviewProps {
@@ -73,7 +74,8 @@ export function OutfitPreview({ selectedGarments }: OutfitPreviewProps) {
                 <Image
                   source={{ uri: garment.imageUrl }}
                   style={styles.fullBodyImage}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
                 />
                 <Text style={styles.garmentLabel} numberOfLines={1}>
                   {garment.name}
@@ -94,7 +96,8 @@ export function OutfitPreview({ selectedGarments }: OutfitPreviewProps) {
                     <Image
                       source={{ uri: garment.imageUrl }}
                       style={styles.upperImage}
-                      resizeMode="contain"
+                      contentFit="contain"
+                      cachePolicy="memory-disk"
                     />
                     <Text style={styles.garmentLabel} numberOfLines={1}>
                       {garment.name}
@@ -112,7 +115,8 @@ export function OutfitPreview({ selectedGarments }: OutfitPreviewProps) {
                     <Image
                       source={{ uri: garment.imageUrl }}
                       style={styles.lowerImage}
-                      resizeMode="contain"
+                      contentFit="contain"
+                      cachePolicy="memory-disk"
                     />
                     <Text style={styles.garmentLabel} numberOfLines={1}>
                       {garment.name}
@@ -132,7 +136,8 @@ export function OutfitPreview({ selectedGarments }: OutfitPreviewProps) {
                 <Image
                   source={{ uri: garment.imageUrl }}
                   style={styles.feetImage}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
                 />
                 <Text style={styles.garmentLabel} numberOfLines={1}>
                   {garment.name}
@@ -152,7 +157,8 @@ export function OutfitPreview({ selectedGarments }: OutfitPreviewProps) {
                   <Image
                     source={{ uri: garment.imageUrl }}
                     style={styles.accessoryImage}
-                    resizeMode="contain"
+                    contentFit="contain"
+                    cachePolicy="memory-disk"
                   />
                   <Text style={styles.accessoryLabel} numberOfLines={1}>
                     {garment.name}

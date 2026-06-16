@@ -4,7 +4,8 @@
  */
 
 import React from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import type { Garment } from '@/types';
 import { formatEnumValue, getColorFromName } from '@/utils/format';
@@ -35,7 +36,8 @@ export const GarmentCard = React.memo<GarmentCardProps>(({
         <Image
           source={{ uri: (garment.imageUrls?.[0] || (garment as any).image_url || garment.imageUrl) }}
           style={styles.image}
-          resizeMode="contain"
+          contentFit="contain"
+          cachePolicy="memory-disk"
         />
         {/* Edit Button */}
         <TouchableOpacity

@@ -4,7 +4,8 @@
  */
 
 import React from 'react';
-import { View, Text, Image, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import type { Outfit, Garment } from '@/types';
 import { COLORS } from '@/lib/constants';
 
@@ -50,7 +51,8 @@ export const OutfitShareCard: React.FC<OutfitShareCardProps> = ({ outfit, garmen
               <Image
                 source={{ uri: garment.imageUrl }}
                 style={styles.garmentImage}
-                resizeMode="contain"
+                contentFit="contain"
+                cachePolicy="memory-disk"
               />
               <View style={styles.garmentInfo}>
                 <Text style={styles.garmentName} numberOfLines={1}>

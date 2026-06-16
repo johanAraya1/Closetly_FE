@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -235,7 +236,8 @@ function HomeScreen() {
                 <Image
                   source={{ uri: `https://openweathermap.org/img/wn/${weather.icon}@2x.png` }}
                   style={styles.weatherIcon}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
                 />
               </View>
             </View>
@@ -435,7 +437,8 @@ function HomeScreen() {
                             <Image
                               source={{ uri: garment.imageUrl }}
                               style={styles.garmentThumbImage}
-                              resizeMode="cover"
+                              contentFit="cover"
+                              cachePolicy="memory-disk"
                             />
                             {idx === 3 && matchedGarments.length > 4 && (
                               <View style={styles.garmentMoreOverlay}>
