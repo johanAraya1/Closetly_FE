@@ -116,11 +116,10 @@ export default function RegisterScreen() {
     const success = await register(email, password, username, fullName);
 
     if (success) {
-      setShowSuccessModal(true);
-      // Redirigir después de mostrar el modal
-      setTimeout(() => {
-        router.replace('/(tabs)/home');
-      }, 2000);
+      // Full navigation — router.replace entre grupos causa full reload
+      // en el export estático de Expo Router. window.location.href evita
+      // que el <Redirect> del layout dispare ciclos de recarga.
+      window.location.href = '/home';
     } else {
       // Leer el error fresco del store (evita stale closure)
       const currentError = useAuthStore.getState().error;

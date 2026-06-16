@@ -64,9 +64,8 @@ function ProfileScreen() {
 
   const handleLogout = async () => {
     await logout();
-    // No hace falta router.replace — el renderizado condicional
-    // en _layout.tsx desmonta (tabs) y monta (auth) automáticamente,
-    // e index.tsx redirige a /(auth)/onboarding.
+    // Single Stack — router.replace funciona sin freeze.
+    router.replace('/(auth)/onboarding');
   };
 
   const handleSaveProfile = async () => {

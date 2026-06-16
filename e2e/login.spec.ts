@@ -13,7 +13,7 @@
  */
 
 import { test, expect } from '@playwright/test';
-import { generateTestUser, mockLoginApi, homeLoaded } from './helpers/auth';
+import { generateTestUser, mockLoginApi, mockOutfitsApi, homeLoaded } from './helpers/auth';
 
 test.describe('Inicio de sesión', () => {
   const testUser = generateTestUser();
@@ -27,8 +27,9 @@ test.describe('Inicio de sesión', () => {
   });
 
   test('login exitoso redirige a home', async ({ page }) => {
-    // Mockear API de login
+    // Mockear APIs
     await mockLoginApi(page, testUser);
+    await mockOutfitsApi(page.context());
 
     await page.getByPlaceholder(/@/).fill(testUser.email);
     await page.locator('input[type="password"]').fill(testUser.password);
