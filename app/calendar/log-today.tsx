@@ -44,6 +44,8 @@ export default function LogTodayScreen() {
   const [selectedOutfitId, setSelectedOutfitId] = useState<string | null>(null);
   const [isLogging, setIsLogging] = useState(false);
 
+  const numColumns = useMemo(() => (screenWidth > 600 ? 3 : 2), [screenWidth]);
+
   // Formatear fecha para display
   const formattedDate = useMemo(() => {
     const d = new Date(targetDate + 'T00:00:00');
