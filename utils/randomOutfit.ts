@@ -50,21 +50,25 @@ function isSeasonCompatible(
 /**
  * Filters garments by occasion → style mapping and optional weather → season compatibility.
  * Returns the filtered pool for category-based random selection.
+ *
+ * When `styles` is provided, it overrides the occasion-based style filter.
+ * The user's explicit style pick takes full control.
  */
 function filterPool(
   garments: Garment[],
   occasion: Occasion,
   weather?: WeatherData | null,
+  styles?: GarmentStyle[],
 ): { pool: Garment[]; error?: string } {
-  // Step 1: Occasion filter — match garment style against occasion's allowed styles
-  const allowedStyles = OCCASION_STYLE_MAP[occasion];
-  if (!allowedStyles) {
+  // Step 1: Style filter — use explicit styles if provided, otherwise fall back to occasion map
+  const allowedStyles: GarmentStyle[] = styles ?? OCCASION_STYLE_MAP[occasion];
+  if (!allowedStyles || allowedStyles.length === 0) {
     return { pool: [], error: `Ocasión "${occasion}" no válida.` };
   }
 
   let pool = garments.filter((g) => {
     if (!g.style || g.style.length === 0) return true;
-    return g.style.some((s) => (allowedStyles as GarmentStyle[]).includes(s));
+    return g.style.some((s) => allowedStyles.includes(s));
   });
 
   if (pool.length === 0) {
@@ -118,15 +122,17 @@ function groupByCategory(garments: Garment[]): Record<string, Garment[]> {
  * @param garments - Full list of user's garments
  * @param occasion - Selected occasion (casual, formal, work, sport, date_night, travel)
  * @param weather - Current weather data (optional, null skips weather filtering)
+ * @param styles - Explicit garment styles to filter by (optional, overrides occasion-based style filter)
  * @returns RandomOutfitResult with the selected garments or an error message
  */
 export function generateRandomOutfit(
   garments: Garment[],
   occasion: Occasion,
   weather?: WeatherData | null,
+  styles?: GarmentStyle[],
 ): RandomOutfitResult {
   // Phase 1: Filter pool
-  const { pool, error: filterError } = filterPool(garments, occasion, weather);
+  const { pool, error: filterError } = filterPool(garments, occasion, weather, styles);
   if (filterError) return { outfit: [], error: filterError };
 
   // Phase 2: Group by category

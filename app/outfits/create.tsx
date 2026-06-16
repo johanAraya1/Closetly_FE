@@ -3,8 +3,8 @@
  * Pantalla para crear un nuevo outfit seleccionando prendas
  */
 
-import React, { useState, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert, StyleSheet, TextInput, ActivityIndicator } from 'react-native';
+import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, Image, Alert, StyleSheet, TextInput, ActivityIndicator, Modal as RNModal } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -12,12 +12,12 @@ import { Button, Input, EmptyState, Modal, OutfitPreview } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useOutfits } from '@/hooks/useOutfits';
-import { SEASONS, COLORS, GARMENT_CATEGORIES, OCCASIONS } from '@/lib/constants';
+import { SEASONS, COLORS, GARMENT_CATEGORIES, OCCASIONS, GARMENT_STYLES } from '@/lib/constants';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
 import { useOutfitsStore } from '@/store/outfitsStore';
 import { generateRandomOutfit } from '@/utils';
-import type { GarmentSeason, Garment } from '@/types';
+import type { GarmentSeason, Garment, GarmentStyle } from '@/types';
 import type { Occasion } from '@/utils/randomOutfit';
 
 export default function CreateOutfitScreen() {
@@ -48,6 +48,8 @@ export default function CreateOutfitScreen() {
   const [searchQuery, setSearchQuery] = useState('');
   const [generationError, setGenerationError] = useState<string | null>(null);
   const [hasGenerated, setHasGenerated] = useState(false);
+  const [showStyleModal, setShowStyleModal] = useState(false);
+  const [selectedRandomStyles, setSelectedRandomStyles] = useState<GarmentStyle[]>([]);
 
   // Pre-fill form in edit mode
   useEffect(() => {
@@ -118,16 +120,31 @@ export default function CreateOutfitScreen() {
     }
   };
 
-  const handleGenerateRandomOutfit = () => {
+  const handleOpenStyleSelector = useCallback(() => {
     setGenerationError(null);
-    const result = generateRandomOutfit(garments, occasion as Occasion, weather);
+    setSelectedRandomStyles([]);
+    setShowStyleModal(true);
+  }, []);
+
+  const handleGenerateWithStyles = useCallback(() => {
+    setShowStyleModal(false);
+    const result = generateRandomOutfit(garments, occasion as Occasion, weather, selectedRandomStyles.length > 0 ? selectedRandomStyles : undefined);
     if (result.error) {
       setGenerationError(result.error);
       return;
     }
     setSelectedGarments(result.outfit);
     setHasGenerated(true);
-  };
+  }, [garments, occasion, weather, selectedRandomStyles]);
+
+  const toggleRandomStyle = useCallback((style: GarmentStyle) => {
+    setSelectedRandomStyles((prev) => {
+      const isSelected = prev.includes(style);
+      if (isSelected) return prev.filter((s) => s !== style);
+      if (prev.length >= 2) return prev; // max 2
+      return [...prev, style];
+    });
+  }, []);
 
   // Filtrar prendas por categoría y búsqueda
   const filteredGarments = useMemo(() => {
@@ -326,7 +343,7 @@ export default function CreateOutfitScreen() {
             )}
             {hasGenerated ? (
               <TouchableOpacity
-                onPress={handleGenerateRandomOutfit}
+                onPress={handleOpenStyleSelector}
                 style={styles.generateButton}
                 activeOpacity={0.8}
               >
@@ -335,7 +352,7 @@ export default function CreateOutfitScreen() {
               </TouchableOpacity>
             ) : (
               <TouchableOpacity
-                onPress={handleGenerateRandomOutfit}
+                onPress={handleOpenStyleSelector}
                 style={styles.generateButton}
                 activeOpacity={0.8}
               >
@@ -540,6 +557,75 @@ export default function CreateOutfitScreen() {
               ]
         }
       />
+
+      {/* Modal de selección de estilos para outfit aleatorio */}
+      <RNModal
+        visible={showStyleModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowStyleModal(false)}
+      >
+        <TouchableOpacity
+          style={styles.styleModalBackdrop}
+          activeOpacity={1}
+          onPress={() => setShowStyleModal(false)}
+        >
+          <TouchableOpacity
+            style={styles.styleModalContainer}
+            activeOpacity={1}
+            onPress={(e) => e.stopPropagation()}
+          >
+            {/* Close */}
+            <TouchableOpacity
+              style={styles.styleModalClose}
+              onPress={() => setShowStyleModal(false)}
+            >
+              <Ionicons name="close" size={24} color="#6B7280" />
+            </TouchableOpacity>
+
+            {/* Title */}
+            <Text style={styles.styleModalTitle}>{t('outfits.create.styleSelectionTitle')}</Text>
+            <Text style={styles.styleModalSubtitle}>{t('outfits.create.styleSelectionSubtitle')}</Text>
+
+            {/* Style chips */}
+            <View style={styles.styleChipGrid}>
+              {GARMENT_STYLES.map((style) => {
+                const isSelected = selectedRandomStyles.includes(style.value as GarmentStyle);
+                const isMaxed = selectedRandomStyles.length >= 2 && !isSelected;
+                return (
+                  <TouchableOpacity
+                    key={style.value}
+                    onPress={() => toggleRandomStyle(style.value as GarmentStyle)}
+                    style={[
+                      styles.styleChip,
+                      isSelected && styles.styleChipActive,
+                      isMaxed && styles.styleChipDisabled,
+                    ]}
+                    disabled={isMaxed}
+                  >
+                    <Text style={[
+                      styles.styleChipText,
+                      isSelected && styles.styleChipTextActive,
+                      isMaxed && styles.styleChipTextDisabled,
+                    ]}>
+                      {t(`outfits.create.style${style.value.charAt(0).toUpperCase() + style.value.slice(1)}` as any)}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
+            </View>
+
+            <Text style={styles.styleModalHint}>{t('outfits.create.styleSelectionPick')}</Text>
+
+            {/* Generate button — always enabled; no styles = fall back to occasion filter */}
+            <Button
+              title={t('outfits.create.styleSelectionGenerate')}
+              onPress={handleGenerateWithStyles}
+              fullWidth
+            />
+          </TouchableOpacity>
+        </TouchableOpacity>
+      </RNModal>
     </SafeAreaView>
   );
 }
@@ -850,5 +936,86 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     marginLeft: 10,
     lineHeight: 20,
+  },
+  // Style modal
+  styleModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  styleModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    padding: 24,
+    width: '100%',
+    maxWidth: 400,
+    position: 'relative',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  styleModalClose: {
+    position: 'absolute',
+    top: 16,
+    right: 16,
+    zIndex: 1,
+    padding: 4,
+  },
+  styleModalTitle: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  styleModalSubtitle: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    marginBottom: 20,
+    lineHeight: 20,
+  },
+  styleChipGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    justifyContent: 'center',
+    gap: 10,
+    marginBottom: 16,
+  },
+  styleChip: {
+    paddingHorizontal: 20,
+    paddingVertical: 12,
+    borderRadius: 24,
+    backgroundColor: '#F3F4F6',
+    borderWidth: 1.5,
+    borderColor: '#E5E7EB',
+  },
+  styleChipActive: {
+    backgroundColor: COLORS.secondary,
+    borderColor: COLORS.secondary,
+  },
+  styleChipDisabled: {
+    opacity: 0.4,
+  },
+  styleChipText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  styleChipTextActive: {
+    color: '#FFFFFF',
+  },
+  styleChipTextDisabled: {
+    color: '#9CA3AF',
+  },
+  styleModalHint: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginBottom: 20,
   },
 });

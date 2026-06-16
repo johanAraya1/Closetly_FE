@@ -17,7 +17,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { usePhotoTip } from '@/hooks/usePhotoTip';
 import { useAuthStore } from '@/store/authStore';
 import { GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES, COLORS } from '@/lib/constants';
-import { pickImageFromGallery } from '@/utils/imageUtils';
+import { pickImageFromGallery, takePhoto } from '@/utils/imageUtils';
 import type { GarmentCategory, GarmentSeason, GarmentStyle, ListingType } from '@/types';
 
 export default function CreateGarmentScreen() {
@@ -240,9 +240,9 @@ export default function CreateGarmentScreen() {
 
   const MAX_IMAGES = 2;
 
-  const handlePickExtraImage = useCallback(async () => {
+  const handlePickExtraImage = useCallback(async (isCamera: boolean) => {
     if (allImages.length >= MAX_IMAGES) return;
-    const uri = await pickImageFromGallery({ crop: true });
+    const uri = isCamera ? await takePhoto() : await pickImageFromGallery({ crop: true });
     if (uri) {
       if (isEditMode) {
         setExtraEditImageUris(prev => [...prev, uri]);
@@ -419,12 +419,20 @@ export default function CreateGarmentScreen() {
                     </View>
                   ))}
                   {allImages.length < MAX_IMAGES && (
-                    <TouchableOpacity
-                      onPress={() => handlePickExtraImage()}
-                      style={styles.addImageButton}
-                    >
-                      <Ionicons name="add-circle" size={32} color={COLORS.primary} />
-                    </TouchableOpacity>
+                    <View style={styles.addExtraRow}>
+                      <TouchableOpacity
+                        onPress={() => handlePickExtraImage(false)}
+                        style={styles.addExtraButton}
+                      >
+                        <Ionicons name="images-outline" size={22} color={COLORS.primary} />
+                      </TouchableOpacity>
+                      <TouchableOpacity
+                        onPress={() => handlePickExtraImage(true)}
+                        style={styles.addExtraButton}
+                      >
+                        <Ionicons name="camera-outline" size={22} color={COLORS.primary} />
+                      </TouchableOpacity>
+                    </View>
                   )}
                 </View>
               </View>
@@ -855,8 +863,12 @@ const styles = StyleSheet.create({
     borderRadius: 10,
     padding: 1,
   },
-  addImageButton: {
-    width: 90,
+  addExtraRow: {
+    flexDirection: 'row',
+    gap: 6,
+  },
+  addExtraButton: {
+    width: 42,
     height: 90,
     borderWidth: 2,
     borderStyle: 'dashed',
