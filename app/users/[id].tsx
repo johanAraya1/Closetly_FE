@@ -5,7 +5,8 @@
  */
 
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -127,6 +128,8 @@ function PublicProfileScreen() {
             <Image
               source={{ uri: profile.avatarUrl }}
               style={styles.avatar}
+              contentFit="cover"
+              cachePolicy="memory-disk"
             />
           ) : (
             <View style={styles.avatarPlaceholder}>
@@ -181,7 +184,8 @@ function PublicProfileScreen() {
                       <Image
                         source={{ uri: (garment as any).image_url }}
                         style={styles.garmentImage}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
                       />
                     ) : (
                       <View style={styles.garmentImagePlaceholder}>

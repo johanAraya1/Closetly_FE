@@ -7,13 +7,13 @@ import React from 'react';
 import {
   Modal,
   View,
-  Image,
   TouchableOpacity,
   StyleSheet,
   StatusBar,
   Dimensions,
   Text,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 
 const { width: SCREEN_WIDTH, height: SCREEN_HEIGHT } = Dimensions.get('window');
@@ -58,7 +58,8 @@ export const FullScreenImage: React.FC<FullScreenImageProps> = ({
         <Image
           source={{ uri: imageUrl }}
           style={styles.image}
-          resizeMode="contain"
+          contentFit="contain"
+          cachePolicy="memory-disk"
         />
       </View>
     </Modal>

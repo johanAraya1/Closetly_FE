@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing, Image } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -159,7 +160,8 @@ function HomeScreen() {
     setRefreshing(false);
   }, [user, loadOutfits]);
 
-  if (isLoading && !refreshing) {
+  if (isLoading && !refreshing && outfits.length === 0) {
+    // Mostrar skeleton de carga sin bloquear toda la pantalla
     return <Loading message="Loading your wardrobe..." />;
   }
 
@@ -235,7 +237,8 @@ function HomeScreen() {
                 <Image
                   source={{ uri: `https://openweathermap.org/img/wn/${weather.icon}@2x.png` }}
                   style={styles.weatherIcon}
-                  resizeMode="contain"
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
                 />
               </View>
             </View>
@@ -435,7 +438,8 @@ function HomeScreen() {
                             <Image
                               source={{ uri: garment.imageUrl }}
                               style={styles.garmentThumbImage}
-                              resizeMode="cover"
+                              contentFit="cover"
+                              cachePolicy="memory-disk"
                             />
                             {idx === 3 && matchedGarments.length > 4 && (
                               <View style={styles.garmentMoreOverlay}>
@@ -508,6 +512,18 @@ function HomeScreen() {
                 onPress={() => router.push(`/outfits/${outfit.id}`)}
               />
             ))
+          ) : isLoading ? (
+            <View style={styles.recentSkeleton}>
+              {[1, 2, 3].map((i) => (
+                <View key={i} style={styles.skeletonCard}>
+                  <View style={styles.skeletonImage} />
+                  <View style={styles.skeletonTextRow}>
+                    <View style={styles.skeletonLine} />
+                    <View style={[styles.skeletonLine, { width: '40%' }]} />
+                  </View>
+                </View>
+              ))}
+            </View>
           ) : (
             <View style={styles.emptyContainer}>
               <EmptyState
@@ -649,6 +665,28 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
     padding: 32,
+  },
+  recentSkeleton: {
+    gap: 12,
+  },
+  skeletonCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+  },
+  skeletonImage: {
+    height: 120,
+    backgroundColor: '#F3F4F6',
+  },
+  skeletonTextRow: {
+    padding: 12,
+    gap: 8,
+  },
+  skeletonLine: {
+    height: 14,
+    backgroundColor: '#F3F4F6',
+    borderRadius: 4,
+    width: '60%',
   },
 
   // Weather Card

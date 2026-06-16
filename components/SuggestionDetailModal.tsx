@@ -11,12 +11,12 @@ import {
   Text,
   ScrollView,
   TouchableOpacity,
-  Image,
   StyleSheet,
   StatusBar,
   Dimensions,
   ActivityIndicator,
 } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
 import { useTranslation } from '@/hooks/useTranslation';
@@ -137,7 +137,8 @@ export const SuggestionDetailModal: React.FC<SuggestionDetailModalProps> = ({
                       <Image
                         source={{ uri: garment.imageUrl }}
                         style={[styles.garmentImage, { height: ITEM_WIDTH }]}
-                        resizeMode="cover"
+                        contentFit="cover"
+                        cachePolicy="memory-disk"
                       />
                       <View style={styles.garmentInfo}>
                         <Text style={styles.garmentName} numberOfLines={1}>

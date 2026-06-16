@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, Image, Alert, TouchableOpacity, StyleSheet } from 'react-native';
+import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -396,7 +397,8 @@ export default function CreateGarmentScreen() {
                   <Image
                     source={{ uri: allImages[0] }}
                     style={styles.mainImage}
-                    resizeMode="contain"
+                    contentFit="contain"
+                    cachePolicy="memory-disk"
                   />
                   <TouchableOpacity
                     onPress={() => handleRemoveImage(0)}
@@ -409,7 +411,7 @@ export default function CreateGarmentScreen() {
                 <View style={styles.imageSidePanel}>
                   {allImages.slice(1).map((uri, i) => (
                     <View key={i + 1} style={styles.extraThumbWrapper}>
-                      <Image source={{ uri }} style={styles.extraThumb} resizeMode="cover" />
+                      <Image source={{ uri }} style={styles.extraThumb} contentFit="cover" cachePolicy="memory-disk" />
                       <TouchableOpacity
                         onPress={() => handleRemoveImage(i + 1)}
                         style={styles.removeExtraBadge}

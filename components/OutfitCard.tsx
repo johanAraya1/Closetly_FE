@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useRef, useEffect, useCallback } from 'react';
-import { View, Text, Image, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions, ActivityIndicator } from 'react-native';
+import { View, Text, TouchableOpacity, StyleSheet, ScrollView, useWindowDimensions, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import type { Outfit } from '@/types';
 import { formatRelativeDate } from '@/utils/format';
@@ -135,7 +136,8 @@ export const OutfitCard = React.memo<OutfitCardProps>(({
                   <Image
                     source={{ uri: garment.imageUrl }}
                     style={styles.garmentImage}
-                    resizeMode="contain"
+                    contentFit="contain"
+                    cachePolicy="memory-disk"
                     onLoad={() => handleImageLoad(garment.id)}
                   />
                 </View>

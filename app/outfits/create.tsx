@@ -4,7 +4,8 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Image, Alert, StyleSheet, TextInput, ActivityIndicator, Modal as RNModal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, TextInput, ActivityIndicator, Modal as RNModal } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -466,7 +467,8 @@ export default function CreateOutfitScreen() {
                         <Image
                           source={{ uri: garment.imageUrl }}
                           style={styles.cardImage}
-                          resizeMode="contain"
+                          contentFit="contain"
+                          cachePolicy="memory-disk"
                         />
                         {isSelected && (
                           <View style={styles.selectedOverlay}>

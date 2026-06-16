@@ -4,7 +4,8 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, Image, TouchableOpacity, Alert, StyleSheet, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Switch } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -101,6 +102,8 @@ function ProfileScreen() {
               <Image
                 source={{ uri: profile.avatar_url }}
                 style={styles.avatar}
+                contentFit="cover"
+                cachePolicy="memory-disk"
               />
             ) : (
               <View style={styles.avatarPlaceholder}>

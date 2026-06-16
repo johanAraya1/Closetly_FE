@@ -5,7 +5,8 @@
  */
 
 import React, { useEffect, useState, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, Image, TextInput, Modal as RNModal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Alert, TextInput, Modal as RNModal } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -347,7 +348,8 @@ export default function CollectionDetailScreen() {
                           <Image
                             source={{ uri: currentGarment.imageUrl }}
                             style={styles.modalOutfitImage}
-                            resizeMode="contain"
+                            contentFit="contain"
+                            cachePolicy="memory-disk"
                           />
                         ) : (
                           <Ionicons name="shirt-outline" size={24} color="#D1D5DB" />

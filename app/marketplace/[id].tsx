@@ -4,7 +4,8 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Image, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
+import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -173,7 +174,8 @@ function MarketplaceGarmentDetailScreen() {
             <Image
               source={{ uri: (garment as any).image_url }}
               style={styles.image}
-              resizeMode="cover"
+              contentFit="cover"
+              cachePolicy="memory-disk"
             />
           ) : (
             <View style={styles.imagePlaceholder}>
@@ -250,7 +252,7 @@ function MarketplaceGarmentDetailScreen() {
               {profileLoading ? (
                 <ActivityIndicator size="small" color={COLORS.primary} />
               ) : profile?.avatarUrl ? (
-                <Image source={{ uri: profile.avatarUrl }} style={styles.userAvatar} />
+                <Image source={{ uri: profile.avatarUrl }} style={styles.userAvatar} contentFit="cover" cachePolicy="memory-disk" />
               ) : (
                 <Ionicons name="person-circle-outline" size={40} color={COLORS.gray[400]} />
               )}
