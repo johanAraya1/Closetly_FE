@@ -68,9 +68,11 @@ test.describe('Home Screen', () => {
     await expect(homeLoaded(page)).toBeVisible({ timeout: 15000 });
 
     // Verificar que los 3 outfits aparecen en la sección de recientes
-    await expect(page.getByText('Casual Monday')).toBeVisible({ timeout: 10000 });
-    await expect(page.getByText('Office Tuesday')).toBeVisible({ timeout: 5000 });
-    await expect(page.getByText('Evening Glam')).toBeVisible({ timeout: 5000 });
+    // Usamos .first() porque "Casual Monday" puede aparecer en
+    // "Recientes" + "Favoritos" (isFavorite: true) en simultáneo
+    await expect(page.getByText('Casual Monday').first()).toBeVisible({ timeout: 10000 });
+    await expect(page.getByText('Office Tuesday').first()).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText('Evening Glam').first()).toBeVisible({ timeout: 5000 });
 
     // La sección de favoritos debe aparecer (1 outfit es favorito)
     await expect(
@@ -98,11 +100,12 @@ test.describe('Home Screen', () => {
     await expect(checklist).toBeVisible({ timeout: 10000 });
 
     // Ambas tareas deben mostrarse
+    // Regex específico para el texto del checklist (no el botón "Add Garment")
     await expect(
-      page.getByText(/add.*garment|añade.*prenda|add.*first/i),
+      page.getByText(/Add your first garment|Añade tu primera prenda/i),
     ).toBeVisible({ timeout: 5000 });
     await expect(
-      page.getByText(/create.*outfit|crea.*conjunto|create.*first/i),
+      page.getByText(/Create your first outfit|Crea tu primer conjunto/i),
     ).toBeVisible({ timeout: 5000 });
   });
 
