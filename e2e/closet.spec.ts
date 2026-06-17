@@ -29,8 +29,9 @@ test.describe('Closet', () => {
     await page.waitForLoadState('networkidle');
 
     // Verificar que se muestran todas las prendas
+    // { exact: true } evita que "Mock Garment 1" matchee también "Mock Garment 10"
     for (const g of garments) {
-      await expect(page.getByText(g.name)).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(g.name, { exact: true })).toBeVisible({ timeout: 10000 });
     }
   });
 
@@ -56,7 +57,7 @@ test.describe('Closet', () => {
 
     // FlatList tiene initialNumToRender={12}, todas las prendas se renderizan
     for (const g of garments) {
-      await expect(page.getByText(g.name)).toBeVisible({ timeout: 10000 });
+      await expect(page.getByText(g.name, { exact: true })).toBeVisible({ timeout: 10000 });
     }
   });
 });
