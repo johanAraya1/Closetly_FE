@@ -143,8 +143,9 @@ test.describe('Outfits', () => {
     await page.waitForLoadState('networkidle');
 
     // Header — EN "Create Outfit" / ES "Crear Outfit"
+    // .first() avoids the submit button (also says "Create Outfit" with role="button")
     await expect(
-      page.getByText(/create outfit|crear outfit/i),
+      page.getByText(/create outfit|crear outfit/i).first(),
     ).toBeVisible({ timeout: 10000 });
 
     // Name input placeholder — EN "e.g., Casual Friday" / ES "ej., Viernes Casual"
