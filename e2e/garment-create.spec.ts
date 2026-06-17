@@ -100,7 +100,7 @@ test.describe('Garment Creation', () => {
   });
 
   test('submit button is disabled until all required fields are filled', async ({ page }) => {
-    const submitBtn = page.getByText(/Add to Closet|Agregar al Closet/i);
+    const submitBtn = page.getByRole('button', { name: /Add to Closet|Agregar al Closet/i });
 
     // Initially: name, brand, color are empty → button disabled
     await expect(submitBtn).toBeDisabled();
