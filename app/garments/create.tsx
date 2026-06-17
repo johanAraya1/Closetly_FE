@@ -9,7 +9,8 @@ import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
-import { Button, Input, Modal, GarmentVisibilityForm } from '@/components';
+import { Button, Input, Modal, GarmentVisibilityForm, DuplicateWarningModal } from '@/components';
+import { checkDuplicate } from '@/services/garmentService';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useImagePicker } from '@/hooks/useImagePicker';
@@ -19,7 +20,7 @@ import { usePhotoTip } from '@/hooks/usePhotoTip';
 import { useAuthStore } from '@/store/authStore';
 import { GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES, COLORS } from '@/lib/constants';
 import { pickImageFromGallery, takePhoto } from '@/utils/imageUtils';
-import type { GarmentCategory, GarmentSeason, GarmentStyle, ListingType } from '@/types';
+import type { Garment, GarmentCategory, GarmentSeason, GarmentStyle, ListingType } from '@/types';
 
 export default function CreateGarmentScreen() {
   const router = useRouter();
@@ -61,6 +62,10 @@ export default function CreateGarmentScreen() {
   const [isFormEnabled, setIsFormEnabled] = useState(false);
   const [aiDetected, setAiDetected] = useState(false);
   const { showTip, dismissTip, tipVisible, tipTitle, tipMessage, tipType } = usePhotoTip();
+
+  // Duplicate detection state
+  const [showDuplicateModal, setShowDuplicateModal] = useState(false);
+  const [duplicateGarment, setDuplicateGarment] = useState<Garment | null>(null);
 
   // Cargar datos de la prenda si estamos editando
   useEffect(() => {
@@ -271,30 +276,13 @@ export default function CreateGarmentScreen() {
     }
   }, [isEditMode, resetImage]);
 
-  const handleCreate = useCallback(async () => {
-    if (!user) {
-      Alert.alert(
-        t('common.error'),
-        'Your session has expired. Please go back and log in again.',
-        [{ text: t('common.ok') }]
-      );
-      return;
-    }
-
-    if (!validate()) {
-      Alert.alert(
-        t('garments.create.incompleteTitle'),
-        t('garments.create.incompleteMessage'),
-        [{ text: t('garments.create.incompleteGotIt') }]
-      );
-      return;
-    }
-
+  // Core creation logic, extracted so we can call it after duplicate check
+  const doCreate = useCallback(async () => {
     setIsLoading(true);
 
     try {
       const imageUrl = imageUri || editImageUri;
-      
+
       // Determinar el valor de season a enviar
       const seasonValue = seasons.length === 1 ? seasons[0] : seasons;
 
@@ -356,7 +344,79 @@ export default function CreateGarmentScreen() {
       setErrorMessage(`${t('garments.create.errorGeneric')}: ${errorMsg}`);
       setShowErrorModal(true);
     }
-  }, [validate, user, isEditMode, id, name, category, noBrand, brand, color, seasons, selectedStyles, notes, imageUri, editImageUri, token, createGarment, updateGarment, router]);
+  }, [isEditMode, id, name, category, noBrand, brand, color, seasons, selectedStyles, notes, imageUri, editImageUri, token, createGarment, updateGarment, activeExtraUris, router, t]);
+
+  const handleCreate = useCallback(async () => {
+    if (!user) {
+      Alert.alert(
+        t('common.error'),
+        'Your session has expired. Please go back and log in again.',
+        [{ text: t('common.ok') }]
+      );
+      return;
+    }
+
+    if (!validate()) {
+      Alert.alert(
+        t('garments.create.incompleteTitle'),
+        t('garments.create.incompleteMessage'),
+        [{ text: t('garments.create.incompleteGotIt') }]
+      );
+      return;
+    }
+
+    setIsLoading(true);
+
+    try {
+      // Duplicate check only for new garments (not edit mode)
+      if (!isEditMode) {
+        const imageUrl = imageUri || editImageUri;
+        const seasonValue = seasons.length === 1 ? seasons[0] : undefined;
+
+        const result = await checkDuplicate(
+          user.id,
+          imageUrl!,
+          {
+            name: name.trim(),
+            category,
+            brand: noBrand ? undefined : (brand.trim() || undefined),
+            color: color.trim() || undefined,
+            season: seasonValue,
+            style: selectedStyles.length > 0 ? selectedStyles : undefined,
+          },
+          token || '',
+        );
+
+        if (result.isDuplicate && result.matchedGarment) {
+          setDuplicateGarment(result.matchedGarment);
+          setShowDuplicateModal(true);
+          setIsLoading(false);
+          return; // Stop — wait for user decision
+        }
+      }
+
+      // No duplicate detected (or edit mode): proceed with creation
+      await doCreate();
+    } catch (error) {
+      setIsLoading(false);
+      console.error('Error in handleCreate:', error);
+      // If duplicate check fails, still allow creation
+      await doCreate();
+    }
+  }, [validate, user, isEditMode, id, name, category, noBrand, brand, color, seasons, selectedStyles, imageUri, editImageUri, token, doCreate, t]);
+
+  const handleConfirmDuplicate = useCallback(async () => {
+    setShowDuplicateModal(false);
+    setDuplicateGarment(null);
+    // User says "No, guardar de todas formas": proceed with creation
+    await doCreate();
+  }, [doCreate]);
+
+  const handleCancelDuplicate = useCallback(() => {
+    setShowDuplicateModal(false);
+    setDuplicateGarment(null);
+    // User says "Es esta, cancelar": do nothing, go back to form
+  }, []);
 
   return (
     <SafeAreaView style={styles.container}>
@@ -730,6 +790,24 @@ export default function CreateGarmentScreen() {
           },
         ]}
       />
+
+      {/* Duplicate Warning Modal */}
+      {duplicateGarment && (
+        <DuplicateWarningModal
+          visible={showDuplicateModal}
+          matchedGarment={{
+            id: duplicateGarment.id,
+            name: duplicateGarment.name,
+            imageUrl: duplicateGarment.imageUrl,
+            category: duplicateGarment.category,
+            brand: duplicateGarment.brand,
+            color: duplicateGarment.color,
+            confidence: (duplicateGarment as any).confidence ?? 0.9
+          }}
+          onCancel={handleCancelDuplicate}
+          onConfirm={handleConfirmDuplicate}
+        />
+      )}
     </SafeAreaView>
   );
 }
