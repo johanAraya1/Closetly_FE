@@ -72,6 +72,7 @@ export const Button: React.FC<ButtonProps> = ({
     <TouchableOpacity
       onPress={onPress}
       disabled={disabled || loading}
+      accessibilityState={{ disabled: disabled || loading }}
       style={getButtonStyle()}
     >
       {loading ? (
