@@ -160,6 +160,102 @@ export async function mockOutfitsApi(context: BrowserContext) {
   });
 }
 
+// ─── Mock data factories ──────────────────────────────────────
+
+/** Crea 3 outfits de prueba para tests de home */
+export function createMockOutfits() {
+  return [
+    {
+      id: 'e2e-outfit-1',
+      name: 'Casual Monday',
+      description: 'Relaxed look for Monday',
+      occasion: 'casual',
+      is_favorite: true,
+      isFavorite: true,
+      garmentIds: [],
+      garments: [],
+      created_at: '2024-06-10T10:00:00.000Z',
+      updated_at: '2024-06-10T10:00:00.000Z',
+    },
+    {
+      id: 'e2e-outfit-2',
+      name: 'Office Tuesday',
+      description: 'Professional look',
+      occasion: 'work',
+      is_favorite: false,
+      isFavorite: false,
+      garmentIds: [],
+      garments: [],
+      created_at: '2024-06-11T10:00:00.000Z',
+      updated_at: '2024-06-11T10:00:00.000Z',
+    },
+    {
+      id: 'e2e-outfit-3',
+      name: 'Evening Glam',
+      description: 'Night out',
+      occasion: 'date_night',
+      is_favorite: false,
+      isFavorite: false,
+      garmentIds: [],
+      garments: [],
+      created_at: '2024-06-12T10:00:00.000Z',
+      updated_at: '2024-06-12T10:00:00.000Z',
+    },
+  ];
+}
+
+/** Intercepta GET /outfits con query params y retorna outfits personalizados */
+export async function mockOutfitsApiWithData(
+  context: BrowserContext,
+  outfits: any[],
+) {
+  await context.route('**/outfits?user_id*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: outfits,
+        total: outfits.length,
+        hasMore: false,
+      }),
+    });
+  });
+}
+
+/** Intercepta GET /garments (todos los llamados) */
+export async function mockGarmentsApi(
+  context: BrowserContext,
+  garments: any[] = [],
+) {
+  await context.route('**/garments*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        data: garments,
+        total: garments.length,
+        hasMore: false,
+      }),
+    });
+  });
+}
+
+/** Intercepta GET /outfits/suggestions */
+export async function mockSuggestionsApi(context: BrowserContext) {
+  await context.route('**/outfits/suggestions*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({
+        suggestions: [],
+        garments: [],
+        weather: null,
+        message: null,
+      }),
+    });
+  });
+}
+
 // ─── Selectors ────────────────────────────────────────────────
 
 /** Botón de logout en el header de home (aria-label en DOM).
