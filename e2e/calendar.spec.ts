@@ -136,8 +136,9 @@ test.describe('Calendar', () => {
     ).toBeVisible({ timeout: 10000 });
 
     // Month label shows current month and year
+    // .first() avoids the screen header title (also shows "June 2026")
     await expect(
-      page.getByText(monthLabel, { exact: true }),
+      page.getByText(monthLabel, { exact: true }).first(),
     ).toBeVisible({ timeout: 5000 });
 
     // Calendar grid shows day numbers (our mocked dates)
@@ -186,7 +187,8 @@ test.describe('Calendar', () => {
     await page.getByText('Elegant Evening').click();
 
     // Log button becomes enabled (selected outfit)
-    const logButton = page.getByText(/log outfit|registrar/i).last();
+    // Use getByRole to target the button root (has role="button" from Button.tsx)
+    const logButton = page.getByRole('button', { name: /log outfit|registrar/i });
     await expect(logButton).toBeVisible({ timeout: 5000 });
 
     // Set up request watcher BEFORE clicking
@@ -196,7 +198,7 @@ test.describe('Calendar', () => {
         req.method() === 'POST',
     );
 
-    // Click log
+    // Click the log button
     await logButton.click();
 
     // Wait for the POST request to be made
