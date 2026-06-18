@@ -12,3 +12,4 @@ export * from './rateLimit';
 export * from './randomOutfit';
 export * from './sanitize';
 export * from './validation';
+export * from './nameSimilarity';

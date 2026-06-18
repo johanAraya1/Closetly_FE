@@ -294,6 +294,119 @@ export const createGarment = async (
 };
 
 /**
+ * Verifica si una prenda ya existe (duplicado) mediante similitud de imagen + datos
+ * POST /api/garments/check-duplicate
+ */
+export const checkDuplicate = async (
+  userId: string,
+  imageUri: string,
+  data: {
+    name: string;
+    category: string;
+    brand?: string;
+    color?: string;
+    season?: string;
+    style?: string[];
+  },
+  token: string,
+): Promise<{ isDuplicate: boolean; matchedGarment?: Garment }> => {
+  try {
+    // On web, send JSON with base64 image
+    if (Platform.OS === 'web') {
+      const base64Image = await uriToBase64(imageUri);
+
+      const bodyFields: Record<string, any> = {
+        imageBase64: base64Image,
+        name: data.name,
+        category: data.category,
+      };
+
+      if (data.brand) bodyFields.brand = data.brand;
+      if (data.color) bodyFields.color = data.color;
+      if (data.season) bodyFields.season = data.season;
+      if (data.style && data.style.length > 0) bodyFields.style = data.style;
+
+      const headers: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) {
+        headers['Authorization'] = `Bearer ${token}`;
+      }
+
+      const response = await fetchWithTimeout(`${API_URL}/garments/check-duplicate`, {
+        method: 'POST',
+        headers,
+        body: JSON.stringify(bodyFields),
+        timeout: 15000,
+      });
+
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error(`checkDuplicate error (${response.status}):`, errorText);
+        return { isDuplicate: false };
+      }
+
+      const result = await response.json();
+      if (result.isDuplicate && result.matchedGarment) {
+        return {
+          isDuplicate: true,
+          matchedGarment: normalizeGarment(result.matchedGarment),
+        };
+      }
+      return { isDuplicate: false };
+    }
+
+    // On mobile, use FormData
+    const formData = new FormData();
+    formData.append('image', {
+      uri: imageUri,
+      type: 'image/jpeg',
+      name: 'garment.jpg',
+    } as any);
+    formData.append('name', data.name);
+    formData.append('category', data.category);
+
+    if (data.brand) formData.append('brand', data.brand);
+    if (data.color) formData.append('color', data.color);
+    if (data.season) formData.append('season', data.season);
+    if (data.style && data.style.length > 0) {
+      formData.append('style', JSON.stringify(data.style));
+    }
+
+    const headers: Record<string, string> = {};
+    if (token) {
+      headers['Authorization'] = `Bearer ${token}`;
+    }
+
+    const response = await fetchWithTimeout(`${API_URL}/garments/check-duplicate`, {
+      method: 'POST',
+      headers,
+      body: formData,
+      timeout: 15000,
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`checkDuplicate error (${response.status}):`, errorText);
+      return { isDuplicate: false };
+    }
+
+    const result = await response.json();
+    if (result.isDuplicate && result.matchedGarment) {
+      return {
+        isDuplicate: true,
+        matchedGarment: normalizeGarment(result.matchedGarment),
+      };
+    }
+    return { isDuplicate: false };
+  } catch (error) {
+    console.error('checkDuplicate unexpected error:', error);
+    // Si falla la verificación, no bloqueamos la creación
+    return { isDuplicate: false };
+  }
+};
+
+/**
  * Actualiza una prenda existente
  */
 export const updateGarment = async (
