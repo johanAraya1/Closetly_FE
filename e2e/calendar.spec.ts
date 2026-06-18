@@ -44,12 +44,12 @@ function buildCalendarEntries(year: number, month: string) {
   return [
     {
       id: 'entry-1',
-      date: `${year}-${month}-15`,
+      date: `${year}-${month}-10`,
       outfit: outfits[0],
     },
     {
       id: 'entry-2',
-      date: `${year}-${month}-20`,
+      date: `${year}-${month}-12`,
       outfit: outfits[1],
     },
   ];
@@ -143,15 +143,16 @@ test.describe('Calendar', () => {
 
     // Calendar grid shows day numbers (our mocked dates)
     await expect(
-      page.getByText('15', { exact: true }),
+      page.getByText('10', { exact: true }),
     ).toBeVisible({ timeout: 5000 });
     await expect(
-      page.getByText('20', { exact: true }),
+      page.getByText('12', { exact: true }),
     ).toBeVisible({ timeout: 5000 });
 
-    // The "+" add button is present (Ionicons "add" icon)
-    const addIcon = page.locator('path[d*="M256 112v288"]');
-    await expect(addIcon).toBeVisible({ timeout: 5000 });
+    // Legend is visible (shown when entries exist)
+    await expect(
+      page.getByText(/tap to view outfit|toca para ver/i).first(),
+    ).toBeVisible({ timeout: 5000 });
   });
 
   test('log outfit flow — select outfit and submit', async ({ page }) => {
@@ -187,8 +188,9 @@ test.describe('Calendar', () => {
     await page.getByText('Elegant Evening').click();
 
     // Log button becomes enabled (selected outfit)
-    // Use getByRole to target the button root (has role="button" from Button.tsx)
-    const logButton = page.getByRole('button', { name: /log outfit|registrar/i });
+    // The log button is a plain TouchableOpacity (not our Button component),
+    // so it has no role="button" — use getByText with .last()
+    const logButton = page.getByText(/log outfit|registrar/i).last();
     await expect(logButton).toBeVisible({ timeout: 5000 });
 
     // Set up request watcher BEFORE clicking
