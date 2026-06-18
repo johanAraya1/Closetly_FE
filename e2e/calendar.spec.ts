@@ -151,7 +151,7 @@ test.describe('Calendar', () => {
 
     // Legend is visible (shown when entries exist)
     await expect(
-      page.getByText(/tap to view outfit|toca para ver/i).first(),
+      page.getByText(/colored day|día coloreado|view that outfit|ver ese outfit/i).first(),
     ).toBeVisible({ timeout: 5000 });
   });
 
