@@ -33,7 +33,7 @@ export const FullScreenImage: React.FC<FullScreenImageProps> = ({
 }) => {
   return (
     <Modal visible={visible} transparent animationType="fade" statusBarTranslucent>
-      <StatusBar barStyle="light-content" backgroundColor="#000" />
+      <StatusBar barStyle="dark-content" backgroundColor="#E5E5E5" />
       <View style={styles.container}>
         {/* Close button */}
         <TouchableOpacity
@@ -69,7 +69,7 @@ export const FullScreenImage: React.FC<FullScreenImageProps> = ({
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#000000',
+    backgroundColor: '#E5E5E5',
     justifyContent: 'center',
     alignItems: 'center',
   },
@@ -81,7 +81,7 @@ const styles = StyleSheet.create({
     width: 44,
     height: 44,
     borderRadius: 22,
-    backgroundColor: 'rgba(255,255,255,0.15)',
+    backgroundColor: 'rgba(0,0,0,0.6)',
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -95,7 +95,7 @@ const styles = StyleSheet.create({
   nameText: {
     fontSize: 18,
     fontWeight: '600',
-    color: '#FFFFFF',
+    color: '#111827',
   },
   image: {
     width: SCREEN_WIDTH,

@@ -47,7 +47,11 @@ export const DuplicateWarningModal: React.FC<DuplicateWarningModalProps> = ({
   const [showFullScreen, setShowFullScreen] = useState(false);
 
   const handleViewDetail = () => {
-    router.push(`/garments/${matchedGarment.id}`);
+    onCancel(); // Close the modal first
+    // Small delay so the modal dismisses before navigation
+    setTimeout(() => {
+      router.push(`/garments/${matchedGarment.id}`);
+    }, 200);
   };
 
   const categoryLabel = matchedGarment.category
@@ -55,7 +59,7 @@ export const DuplicateWarningModal: React.FC<DuplicateWarningModalProps> = ({
       matchedGarment.category.slice(1)
     : '';
 
-  const confidencePercent = Math.round(matchedGarment.confidence * 100);
+  const confidencePercent = Math.round(matchedGarment.confidence);
 
   return (
     <>
