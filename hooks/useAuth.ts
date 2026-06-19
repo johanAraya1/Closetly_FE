@@ -13,6 +13,7 @@ export const useAuth = () => {
     isLoading,
     error,
     isInitialized,
+    biometricEnabled,
     isAdmin,
     login,
     register,
@@ -21,6 +22,8 @@ export const useAuth = () => {
     updateProfile,
     clearError,
     refreshToken,
+    enableBiometric,
+    disableBiometric,
   } = useAuthStore();
 
   return {
@@ -30,6 +33,7 @@ export const useAuth = () => {
     isLoading,
     error,
     isInitialized,
+    biometricEnabled,
     isAdmin: isAdmin(),
     login,
     register,
@@ -38,5 +42,7 @@ export const useAuth = () => {
     updateProfile,
     clearError,
     refreshToken,
+    enableBiometric,
+    disableBiometric,
   };
 };

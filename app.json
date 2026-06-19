@@ -18,7 +18,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.closetly.app",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSFaceIDUsageDescription": "Usa Face ID o huella digital para iniciar sesión rápidamente en Closetly"
       }
     },
     "android": {
@@ -35,6 +36,7 @@
       "expo-router",
       "expo-localization",
       "expo-secure-store",
+      "expo-local-authentication",
       [
         "expo-notifications",
         {
