@@ -3,6 +3,8 @@ workflows:
     name: iOS Build (Preview)
     max_build_duration: 60
     environment:
+      groups:
+        - Closetly
       vars:
         EXPO_PUBLIC_API_URL: "https://closetly-be.vercel.app"
       node: 20
