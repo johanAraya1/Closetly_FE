@@ -19,6 +19,7 @@ interface AuthState {
   isLoading: boolean;
   error: string | null;
   isInitialized: boolean;
+  biometricEnabled: boolean;
   
   // Computed helpers
   isAdmin: () => boolean;
@@ -31,6 +32,8 @@ interface AuthState {
   updateProfile: (updates: Partial<Profile>) => Promise<boolean>;
   clearError: () => void;
   refreshToken: () => Promise<boolean>;
+  enableBiometric: () => Promise<void>;
+  disableBiometric: () => Promise<void>;
 }
 
 export const useAuthStore = create<AuthState>((set, get) => ({
@@ -41,6 +44,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   isLoading: false,
   error: null,
   isInitialized: false,
+  biometricEnabled: false,
 
   // Computed helper
   isAdmin: () => {
@@ -229,6 +233,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         return;
       }
 
+      // Cargar preferencia biométrica
+      const biometricEnabled = await tokenService.getBiometricEnabled();
+
       // Restaurar sesión
       set({
         user: sessionData.user,
@@ -238,6 +245,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         isLoading: false,
         error: null,
         isInitialized: true,
+        biometricEnabled,
       });
 
       // Si el perfil está vacío, intentar refrescarlo del backend
@@ -320,4 +328,14 @@ export const useAuthStore = create<AuthState>((set, get) => ({
   },
 
   clearError: () => set({ error: null }),
+
+  enableBiometric: async () => {
+    await tokenService.setBiometricEnabled(true);
+    set({ biometricEnabled: true });
+  },
+
+  disableBiometric: async () => {
+    await tokenService.setBiometricEnabled(false);
+    set({ biometricEnabled: false });
+  },
 }));

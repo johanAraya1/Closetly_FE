@@ -15,6 +15,7 @@ const REFRESH_TOKEN_KEY = 'auth_refresh_token';
 const TOKEN_EXPIRY_KEY = 'auth_token_expiry';
 const USER_KEY = 'auth_user';
 const PROFILE_KEY = 'auth_profile';
+const BIOMETRIC_KEY = 'auth_biometric_enabled';
 
 // Configuración de tokens
 const ACCESS_TOKEN_DURATION = 15 * 60 * 1000; // 15 minutos
@@ -274,6 +275,33 @@ export const tokenService = {
       return { hasToken, isExpired, expiresIn };
     } catch {
       return { hasToken: false, isExpired: true };
+    }
+  },
+
+  /**
+   * Guarda o remueve la preferencia de ingreso biométrico
+   */
+  async setBiometricEnabled(enabled: boolean): Promise<void> {
+    try {
+      if (enabled) {
+        await storage.setItem(BIOMETRIC_KEY, 'true');
+      } else {
+        await storage.removeItem(BIOMETRIC_KEY);
+      }
+    } catch (error) {
+      console.error('Error saving biometric preference:', error);
+    }
+  },
+
+  /**
+   * Obtiene si el ingreso biométrico está habilitado
+   */
+  async getBiometricEnabled(): Promise<boolean> {
+    try {
+      const value = await storage.getItem(BIOMETRIC_KEY);
+      return value === 'true';
+    } catch {
+      return false;
     }
   },
 };

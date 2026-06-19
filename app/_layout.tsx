@@ -7,10 +7,11 @@
  * Los route guards en (auth) y (tabs) manejan las redirecciones.
  */
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { View, ActivityIndicator, StyleSheet } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
+import { checkBiometric } from '@/hooks/useBiometricCheck';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { analytics } from '@/services/analyticsService';
 import {
@@ -29,9 +30,10 @@ analytics.init();
 setupNotificationHandler();
 
 export default function RootLayout() {
-  const { isAuthenticated, loadSession, isInitialized } = useAuth();
+  const { isAuthenticated, loadSession, isInitialized, biometricEnabled, logout } = useAuth();
   const router = useRouter();
   const [isAppReady, setIsAppReady] = useState(false);
+  const biometricChecked = useRef(false);
 
   // Inicializar sesión al arrancar la app
   useEffect(() => {
@@ -48,6 +50,26 @@ export default function RootLayout() {
 
     initializeApp();
   }, []);
+
+  // Verificar biometría DESPUÉS de restaurar sesión
+  useEffect(() => {
+    if (!isAppReady || !isInitialized || !isAuthenticated || !biometricEnabled) {
+      return;
+    }
+
+    if (biometricChecked.current) {
+      return;
+    }
+    biometricChecked.current = true;
+
+    (async () => {
+      const result = await checkBiometric();
+      if (!result.success) {
+        // Falló biometría → cerrar sesión
+        await logout();
+      }
+    })();
+  }, [isAppReady, isInitialized, isAuthenticated, biometricEnabled, logout]);
 
   // Configurar canal de notificaciones en Android (al arrancar)
   useEffect(() => {

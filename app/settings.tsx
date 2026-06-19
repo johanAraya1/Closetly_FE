@@ -3,8 +3,9 @@
  * Pantalla de configuración del usuario
  */
 
-import React, { useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal } from 'react-native';
+import React, { useState, useEffect } from 'react';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, Switch, Platform } from 'react-native';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -15,11 +16,49 @@ import { useTranslation } from '@/hooks/useTranslation';
 
 function SettingsScreen() {
   const router = useRouter();
-  const { profile } = useAuth();
+  const { profile, biometricEnabled, enableBiometric, disableBiometric } = useAuth();
   const { t, locale, changeLanguage } = useTranslation();
   const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
 
   const currentLanguage = locale.startsWith('es') ? t('settings.spanish') : t('settings.english');
+
+  // Verificar disponibilidad de biometría al montar
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS === 'web') {
+        setBiometricAvailable(false);
+        return;
+      }
+      try {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const enrolled = await LocalAuthentication.isEnrolledAsync();
+        setBiometricAvailable(hasHardware && enrolled);
+      } catch {
+        setBiometricAvailable(false);
+      }
+    })();
+  }, []);
+
+  const handleBiometricToggle = async (value: boolean) => {
+    if (value) {
+      // Antes de activar, pedir confirmación biométrica
+      try {
+        const result = await LocalAuthentication.authenticateAsync({
+          promptMessage: 'Registrar huella digital para ingreso rápido',
+          cancelLabel: 'Cancelar',
+          disableDeviceFallback: false,
+        });
+        if (result.success) {
+          await enableBiometric();
+        }
+      } catch {
+        // Si falla, no activar
+      }
+    } else {
+      await disableBiometric();
+    }
+  };
 
   return (
     <SafeAreaView style={styles.container}>
@@ -48,6 +87,36 @@ function SettingsScreen() {
             </View>
           </TouchableOpacity>
         </View>
+
+        {/* Biometric Section */}
+        {biometricAvailable && (
+          <View style={styles.section}>
+            <Text style={styles.sectionTitle}>SEGURIDAD</Text>
+            <View style={styles.settingItem}>
+              <View style={styles.settingLeft}>
+                <Ionicons
+                  name={Platform.OS === 'ios' ? 'finger-print-outline' : 'finger-print-outline'}
+                  size={20}
+                  color={COLORS.gray[700]}
+                />
+                <Text style={styles.settingText}>
+                  {Platform.OS === 'ios' ? 'Face ID / Touch ID' : 'Huella Digital'}
+                </Text>
+              </View>
+              <Switch
+                value={biometricEnabled}
+                onValueChange={handleBiometricToggle}
+                trackColor={{ false: '#D1D5DB', true: '#62D9C780' }}
+                thumbColor={biometricEnabled ? '#62D9C7' : '#F4F5F7'}
+              />
+            </View>
+            <Text style={styles.settingHint}>
+              {biometricEnabled
+                ? 'Usá tu huella o Face ID para ingresar sin contraseña'
+                : 'Activá el ingreso con huella digital o Face ID'}
+            </Text>
+          </View>
+        )}
       </ScrollView>
 
       {/* Language Modal */}
@@ -198,6 +267,13 @@ const styles = StyleSheet.create({
   languageText: {
     fontSize: 16,
     color: '#111827',
+  },
+  settingHint: {
+    fontSize: 13,
+    color: '#9CA3AF',
+    marginTop: 4,
+    marginLeft: 8,
+    paddingHorizontal: 4,
   },
 });
 
