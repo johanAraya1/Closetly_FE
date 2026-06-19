@@ -19,9 +19,12 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Button, Input, Modal } from '@/components';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { useAuth } from '@/hooks/useAuth';
 import { useAuthStore } from '@/store/authStore';
 import { useTranslation } from '@/hooks/useTranslation';
+import { checkBiometric } from '@/hooks/useBiometricCheck';
+import { tokenService } from '@/services/tokenService';
 import { isValidEmail, validationMessages } from '@/utils/validation';
 
 const REMEMBER_KEY = '@closetly/remember_me';
@@ -39,6 +42,27 @@ export default function LoginScreen() {
   const [showErrorModal, setShowErrorModal] = useState(false);
   const [errorMessage, setErrorMessage] = useState('');
   const [isTransitioning, setIsTransitioning] = useState(false);
+  const [biometricAvailable, setBiometricAvailable] = useState(false);
+
+  // Verificar disponibilidad de biometría al montar la pantalla
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS === 'web') return;
+      try {
+        const [hasHardware, isEnrolled, biometricEnabled, hasSession] = await Promise.all([
+          LocalAuthentication.hasHardwareAsync(),
+          LocalAuthentication.isEnrolledAsync(),
+          tokenService.getBiometricEnabled(),
+          tokenService.hasValidSession(),
+        ]);
+        if (hasHardware && isEnrolled && biometricEnabled && hasSession) {
+          setBiometricAvailable(true);
+        }
+      } catch {
+        // Silently fail — no mostrar botón
+      }
+    })();
+  }, []);
 
   // Cargar credenciales guardadas al montar la pantalla
   useEffect(() => {
@@ -122,6 +146,28 @@ export default function LoginScreen() {
     // para evitar la doble navegación que deja la pantalla colgada.
   };
 
+  const handleBiometricLogin = async () => {
+    clearError();
+    setIsTransitioning(true);
+
+    const { success } = await checkBiometric();
+    if (!success) {
+      setIsTransitioning(false);
+      return; // Usuario canceló o falló — no mostrar error
+    }
+
+    // Intentar restaurar sesión desde el token guardado
+    await useAuthStore.getState().loadSession();
+
+    const { isAuthenticated } = useAuthStore.getState();
+    if (!isAuthenticated) {
+      setIsTransitioning(false);
+      setErrorMessage('No hay una sesión guardada para reanudar. Ingresá con tu contraseña.');
+      setShowErrorModal(true);
+    }
+    // Si loadSession funciona, el auth layout redirige automáticamente
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       <KeyboardAvoidingView
@@ -192,6 +238,29 @@ export default function LoginScreen() {
           >
             <Text style={styles.forgotPasswordText}>{t('auth.forgotPassword')}</Text>
           </TouchableOpacity>
+
+          {biometricAvailable && (
+            <>
+              {/* Divisor "o" */}
+              <View style={styles.biometricDivider}>
+                <View style={styles.dividerLine} />
+                <Text style={styles.dividerText}>o</Text>
+                <View style={styles.dividerLine} />
+              </View>
+
+              {/* Botón de huella/Face ID */}
+              <TouchableOpacity
+                style={styles.biometricButton}
+                onPress={handleBiometricLogin}
+                activeOpacity={0.7}
+              >
+                <Ionicons name="finger-print" size={22} color="#6B7280" />
+                <Text style={styles.biometricButtonText}>
+                  Ingresar con huella digital
+                </Text>
+              </TouchableOpacity>
+            </>
+          )}
 
           <Button
             title={t('auth.signIn')}
@@ -316,6 +385,39 @@ const styles = StyleSheet.create({
     color: '#62D9C7',
     fontSize: 14,
     fontWeight: '500',
+  },
+  biometricDivider: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 20,
+  },
+  dividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: '#D1D5DB',
+  },
+  dividerText: {
+    marginHorizontal: 12,
+    color: '#9CA3AF',
+    fontSize: 14,
+  },
+  biometricButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#fff',
+    borderWidth: 1,
+    borderColor: '#D1D5DB',
+    borderRadius: 12,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    marginBottom: 8,
+  },
+  biometricButtonText: {
+    marginLeft: 10,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
   },
   transitionOverlay: {
     ...StyleSheet.absoluteFillObject,
