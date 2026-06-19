@@ -117,7 +117,7 @@ test.describe('Duplicate Detection', () => {
 
     // Verify the duplicate warning modal appears
     await expect(
-      page.getByText(/Duplicate Detected|Prenda Similar Encontrada|Posible Duplicado/i),
+      page.getByText('Encontramos una prenda muy similar'),
     ).toBeVisible({ timeout: 10000 });
 
     // Verify matched garment info is shown
@@ -162,11 +162,11 @@ test.describe('Duplicate Detection', () => {
 
     // Wait for modal to appear
     await expect(
-      page.getByText(/Duplicate Detected|Prenda Similar Encontrada|Posible Duplicado/i),
+      page.getByText('Encontramos una prenda muy similar'),
     ).toBeVisible({ timeout: 10000 });
 
     // Click cancel ("Es esta, cancelar")
-    await page.getByText(/Cancel|Cancelar/i).first().click();
+    await page.getByText('Es esta, cancelar').click();
 
     // Modal should be closed, form should still be visible
     await expect(
@@ -225,15 +225,15 @@ test.describe('Duplicate Detection', () => {
 
     // Wait for modal to appear
     await expect(
-      page.getByText(/Duplicate Detected|Prenda Similar Encontrada|Posible Duplicado/i),
+      page.getByText('Encontramos una prenda muy similar'),
     ).toBeVisible({ timeout: 10000 });
 
     // Click confirm ("No, guardar de todas formas")
-    await page.getByText(/Save Anyway|Guardar de Todas Formas|Guardar/i).first().click();
+    await page.getByText('No, guardar de todas formas').click();
 
     // Should show success modal after creation
     await expect(
-      page.getByText(/Garment Added|Prenda Agregada/i),
+      page.getByText(/Garment Added|Prenda Agregada/),
     ).toBeVisible({ timeout: 10000 });
 
     // Verify both APIs were called
@@ -286,7 +286,7 @@ test.describe('Duplicate Detection', () => {
 
     // Should go directly to success (no duplicate modal)
     await expect(
-      page.getByText(/Garment Added|Prenda Agregada/i),
+      page.getByText(/Garment Added|Prenda Agregada/),
     ).toBeVisible({ timeout: 10000 });
 
     expect(createGarmentCalled).toBe(true);
@@ -319,7 +319,7 @@ test.describe('Duplicate Detection', () => {
 
     // Modal should appear
     await expect(
-      page.getByText(/Duplicate Detected|Prenda Similar Encontrada|Posible Duplicado/i),
+      page.getByText('Encontramos una prenda muy similar'),
     ).toBeVisible({ timeout: 10000 });
 
     // Verify confidence is shown (should be 85%, not 8500% or 9000%)
