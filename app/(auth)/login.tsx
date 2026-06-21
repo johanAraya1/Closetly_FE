@@ -155,16 +155,30 @@ export default function LoginScreen() {
       return; // Usuario canceló o falló — no mostrar error
     }
 
-    // Intentar restaurar sesión desde el token guardado
-    await useAuthStore.getState().loadSession();
+    // Intentar refresh directo con el token guardado
+    const result = await tokenService.biometricRefresh();
 
-    const { isAuthenticated } = useAuthStore.getState();
-    if (!isAuthenticated) {
+    if (!result) {
       setIsTransitioning(false);
-      setErrorMessage('No hay una sesión guardada para reanudar. Ingresá con tu contraseña.');
+      setErrorMessage(
+        'No se pudo restaurar la sesión. El acceso con huella expiró, ' +
+        'ingresá con tu contraseña para renovarlo.'
+      );
       setShowErrorModal(true);
+      return;
     }
-    // Si loadSession funciona, el auth layout redirige automáticamente
+
+    // Restaurar sesión manualmente en el store
+    useAuthStore.setState({
+      user: result.session.user,
+      profile: result.session.profile,
+      token: result.token,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    });
+
+    // El auth layout redirige automáticamente al detectar isAuthenticated
   };
 
   return (

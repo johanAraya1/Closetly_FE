@@ -297,6 +297,44 @@ export const tokenService = {
   },
 
   /**
+   * Intenta restaurar sesión vía refresh token (flujo biométrico).
+   * No usa hasValidSession ni clearAll — va directo al grano.
+   * Retorna el nuevo accessToken si funciona, null si no.
+   */
+  async biometricRefresh(): Promise<{ token: string; session: SessionData } | null> {
+    try {
+      const refreshToken = await storage.getItem(REFRESH_TOKEN_KEY);
+      if (!refreshToken) return null;
+
+      const res = await fetch(`${API_URL}/auth/refresh`, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${refreshToken}`,
+        },
+      });
+
+      if (!res.ok) return null;
+
+      const data = await res.json();
+      const { accessToken, refreshToken: newRefreshToken } = data;
+
+      if (!accessToken) return null;
+
+      // Guardar nuevos tokens
+      await this.saveTokens(accessToken, newRefreshToken || refreshToken);
+
+      // Recuperar datos de sesión guardados
+      const session = await this.getSessionData();
+      if (!session) return null;
+
+      return { token: accessToken, session };
+    } catch {
+      return null;
+    }
+  },
+
+  /**
    * Guarda o remueve la preferencia de ingreso biométrico
    */
   async setBiometricEnabled(enabled: boolean): Promise<void> {
