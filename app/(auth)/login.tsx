@@ -49,13 +49,12 @@ export default function LoginScreen() {
     (async () => {
       if (Platform.OS === 'web') return;
       try {
-        const [hasHardware, isEnrolled, biometricEnabled, hasSession] = await Promise.all([
+        const [hasHardware, isEnrolled, biometricEnabled] = await Promise.all([
           LocalAuthentication.hasHardwareAsync(),
           LocalAuthentication.isEnrolledAsync(),
           tokenService.getBiometricEnabled(),
-          tokenService.hasValidSession(),
         ]);
-        if (hasHardware && isEnrolled && biometricEnabled && hasSession) {
+        if (hasHardware && isEnrolled && biometricEnabled) {
           setBiometricAvailable(true);
         }
       } catch {

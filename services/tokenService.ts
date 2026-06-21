@@ -117,6 +117,12 @@ export const tokenService = {
       const expiryStr = await storage.getItem(TOKEN_EXPIRY_KEY);
       
       if (!token || !expiryStr) {
+        // Token no existe (ej: post-logout con biometría) — intentar
+        // con refresh token directamente
+        const refreshToken = await storage.getItem(REFRESH_TOKEN_KEY);
+        if (refreshToken) {
+          return await this.refreshAccessToken();
+        }
         return null;
       }
       
@@ -225,13 +231,25 @@ export const tokenService = {
    */
   async clearAll(): Promise<void> {
     try {
-      await Promise.all([
+      const biometricEnabled = await this.getBiometricEnabled();
+      const items = [
         storage.removeItem(ACCESS_TOKEN_KEY),
         storage.removeItem(REFRESH_TOKEN_KEY),
         storage.removeItem(TOKEN_EXPIRY_KEY),
         storage.removeItem(USER_KEY),
         storage.removeItem(PROFILE_KEY),
-      ]);
+      ];
+
+      // Si la huella está activada y hay sesión guardada, sacar solo
+      // access token (expirado) pero dejar refresh token + user para
+      // que el login con huella pueda restaurar la sesión.
+      if (biometricEnabled) {
+        await storage.removeItem(ACCESS_TOKEN_KEY);
+        await storage.removeItem(TOKEN_EXPIRY_KEY);
+        return;
+      }
+
+      await Promise.all(items);
     } catch (error) {
       console.error('Error clearing tokens:', error);
     }
