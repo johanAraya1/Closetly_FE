@@ -9,13 +9,29 @@
       "channel": "development",
       "distribution": "internal"
     },
+    "dev": {
+      "channel": "preview",
+      "distribution": "internal",
+      "env": {
+        "APP_NAME": "Closetly Dev",
+        "ANDROID_PACKAGE": "com.closetly.app.dev",
+        "IOS_BUNDLE_ID": "com.closetly.app.dev"
+      }
+    },
+    // DEPRECATED: usar "dev" para testing. Preview se mantiene por compatibilidad
+    // con APKs existentes, pero nuevos builds usar "dev".
     "preview": {
       "channel": "preview",
       "distribution": "internal"
     },
     "production": {
       "channel": "production",
-      "autoIncrement": true
+      "autoIncrement": true,
+      "env": {
+        "APP_NAME": "Closetly",
+        "ANDROID_PACKAGE": "com.closetly.app",
+        "IOS_BUNDLE_ID": "com.closetly.app"
+      }
     }
   },
   "submit": {
