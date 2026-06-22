@@ -1,28 +1,33 @@
 /**
  * useIdleTimer Hook
- * Maneja auto-logout por inactividad:
- * - Detecta app en background > 5 min → logout al volver
- * - Detecta inactividad del usuario > 5 min → logout
- * - Resetea timer en cada interacción táctil
+ * Manejo completo de sesión:
+ * - Auto-refresh silencioso cada 12 min mientras el usuario está activo
+ * - Auto-logout por inactividad (5 min sin interacción)
+ * - Auto-logout al volver de background si pasaron > 5 min
+ * - Refresh silencioso al volver de background si pasaron < 5 min
  *
- * 3 triggers:
- * 1. AppState: background → foreground con diferencia > IDLE_TIMEOUT
- * 2. Idle timer: sin interacción táctil por > IDLE_TIMEOUT
- * 3. AppState mount: arranca el timer al montar el hook
+ * 4 triggers:
+ * 1. Refresh timer: cada 12 min renueva el token silenciosamente
+ * 2. Idle timer: sin interacción táctil por > 5 min → logout
+ * 3. AppState: background → foreground con > 5 min → logout
+ * 4. AppState: background → foreground con < 5 min → refresh + resume
  */
 
 import { useEffect, useRef, useCallback, useState } from 'react';
 import { AppState, AppStateStatus } from 'react-native';
 import { useAuthStore } from '@/store/authStore';
+import { tokenService } from '@/services/tokenService';
 
-const IDLE_TIMEOUT = 5 * 60 * 1000; // 5 minutos
-const IDLE_CHECK_INTERVAL = 30 * 1000; // Verificar cada 30s
+const IDLE_TIMEOUT = 5 * 60 * 1000;         // 5 min sin tocar → logout
+const REFRESH_INTERVAL = 12 * 60 * 1000;     // 12 min → refresh silencioso
+const IDLE_CHECK_INTERVAL = 30 * 1000;       // check cada 30s
 
 export function useIdleTimer() {
   const [isAuthed, setIsAuthed] = useState(() => useAuthStore.getState().isAuthenticated);
   const lastActivity = useRef<number>(Date.now());
   const backgroundSince = useRef<number | null>(null);
   const idleInterval = useRef<ReturnType<typeof setInterval> | null>(null);
+  const refreshInterval = useRef<ReturnType<typeof setInterval> | null>(null);
   const isLoggingOut = useRef(false);
 
   // Suscribirse a cambios de isAuthenticated (Zustand)
@@ -34,15 +39,12 @@ export function useIdleTimer() {
     return unsub;
   }, []);
 
+  /** Logout forzado — limpio, sin intentar refresh primero */
   const forcedLogout = useCallback(async () => {
     if (isLoggingOut.current) return;
     isLoggingOut.current = true;
 
-    // Limpiar timer antes de logout
-    if (idleInterval.current) {
-      clearInterval(idleInterval.current);
-      idleInterval.current = null;
-    }
+    stopAllTimers();
 
     const store = useAuthStore.getState();
     if (!store.isAuthenticated) {
@@ -50,21 +52,20 @@ export function useIdleTimer() {
       return;
     }
 
-    try {
-      // 1. Intentar refresh primero para cerrar sesión limpia en el backend
-      //    Si falla, refreshToken() ya llama logout() internamente → salimos
-      const refreshed = await store.refreshToken();
-      if (!refreshed) {
-        isLoggingOut.current = false;
-        return;
-      }
+    await store.logout();
+    isLoggingOut.current = false;
+  }, []);
 
-      // 2. Refresh OK → logout deliberado por inactividad
-      await store.logout();
+  /** Refresh silencioso — no toca loading/UI, no falla visiblemente */
+  const silentRefresh = useCallback(async () => {
+    try {
+      const newToken = await tokenService.refreshAccessToken();
+      if (newToken) {
+        useAuthStore.setState({ token: newToken });
+      }
+      // Si falla, no hacemos nada — el próximo refresh o request lo resolverá
     } catch {
-      useAuthStore.getState().logout();
-    } finally {
-      isLoggingOut.current = false;
+      // Fracaso silencioso
     }
   }, []);
 
@@ -73,66 +74,73 @@ export function useIdleTimer() {
     lastActivity.current = Date.now();
   }, []);
 
-  // Iniciar el timer de chequeo de inactividad
-  const startIdleTimer = useCallback(() => {
+  const stopAllTimers = useCallback(() => {
     if (idleInterval.current) {
       clearInterval(idleInterval.current);
+      idleInterval.current = null;
     }
+    if (refreshInterval.current) {
+      clearInterval(refreshInterval.current);
+      refreshInterval.current = null;
+    }
+  }, []);
 
+  // Iniciar timers
+  const startAllTimers = useCallback(() => {
+    stopAllTimers();
+
+    // Timer de inactividad: cada 30s verifica si pasaron 5 min sin tocar
     idleInterval.current = setInterval(() => {
       const elapsed = Date.now() - lastActivity.current;
       if (elapsed >= IDLE_TIMEOUT) {
         forcedLogout();
       }
     }, IDLE_CHECK_INTERVAL);
-  }, [forcedLogout]);
 
-  // Detener el timer
-  const stopIdleTimer = useCallback(() => {
-    if (idleInterval.current) {
-      clearInterval(idleInterval.current);
-      idleInterval.current = null;
-    }
-  }, []);
+    // Timer de refresh: cada 12 min renueva el token silenciosamente
+    refreshInterval.current = setInterval(() => {
+      silentRefresh();
+    }, REFRESH_INTERVAL);
+  }, [forcedLogout, silentRefresh, stopAllTimers]);
 
   useEffect(() => {
-    // Solo correr si hay sesión activa
     if (!isAuthed) return;
 
-    // State change listener
     const handleAppState = (nextState: AppStateStatus) => {
       if (nextState === 'background' || nextState === 'inactive') {
-        // App yéndose a background — guardar timestamp
         backgroundSince.current = Date.now();
-        stopIdleTimer();
+        stopAllTimers();
       } else if (nextState === 'active') {
-        // App volviendo a foreground
         if (backgroundSince.current !== null) {
           const elapsed = Date.now() - backgroundSince.current;
+
           if (elapsed >= IDLE_TIMEOUT) {
-            // Estuvo en background > 5 min → logout
+            // Estuvo fuera > 5 min → logout directo
             forcedLogout();
             backgroundSince.current = null;
             return;
           }
+
+          // Volvió antes de 5 min → refresh silencioso + reanudar timers
+          silentRefresh();
         }
+
         backgroundSince.current = null;
-        // Resetear timer al volver
         resetIdleTimer();
-        startIdleTimer();
+        startAllTimers();
       }
     };
 
     const appStateSub = AppState.addEventListener('change', handleAppState);
 
-    // Arrancar timer al montar
-    startIdleTimer();
+    // Arrancar timers al montar
+    startAllTimers();
 
     return () => {
       appStateSub.remove();
-      stopIdleTimer();
+      stopAllTimers();
     };
-  }, [forcedLogout, startIdleTimer, stopIdleTimer, resetIdleTimer, isAuthed]);
+  }, [isAuthed, forcedLogout, silentRefresh, startAllTimers, stopAllTimers, resetIdleTimer]);
 
   return {
     resetIdleTimer,
