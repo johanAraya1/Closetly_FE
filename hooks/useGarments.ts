@@ -9,7 +9,7 @@ import { useGarmentsStore } from '@/store/garmentsStore';
 import { useAuthStore } from '@/store/authStore';
 import { useAuth } from './useAuth';
 
-export const useGarments = (autoLoad: boolean = false) => {
+export const useGarments = (autoLoad: boolean = false, limit?: number) => {
   const { user } = useAuth();
   const token = useAuthStore((state) => state.token);
   const {
@@ -32,13 +32,13 @@ export const useGarments = (autoLoad: boolean = false) => {
 
   useEffect(() => {
     if (autoLoad && user && token) {
-      loadGarments(user.id, token);
+      loadGarments(user.id, token, limit);
     }
 
     return () => {
       cancelRequests();
     };
-  }, [user, token, autoLoad]);
+  }, [user, token, autoLoad, limit]);
 
   return {
     garments,

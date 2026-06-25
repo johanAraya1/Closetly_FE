@@ -19,7 +19,7 @@ interface GarmentsState {
   error: string | null;
   
   // Actions
-  loadGarments: (userId: string, token?: string) => Promise<void>;
+  loadGarments: (userId: string, token?: string, limit?: number) => Promise<void>;
   loadMoreGarments: (userId: string, token?: string) => Promise<void>;
   getGarmentById: (id: string) => Garment | undefined;
   createGarment: (userId: string, data: CreateGarmentDTO, token?: string) => Promise<Garment | null>;
@@ -57,11 +57,12 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => {
       _abortController = null;
     },
 
-    loadGarments: async (userId: string, token?: string) => {
+    loadGarments: async (userId: string, token?: string, limit?: number) => {
       const signal = abortPrevious();
       set({ isLoading: true, error: null, page: 0, hasMore: false });
       
-      const result = await garmentService.getGarments(userId, token, DEFAULT_PAGE_LIMIT, 0, signal);
+      const pageLimit = limit ?? DEFAULT_PAGE_LIMIT;
+      const result = await garmentService.getGarments(userId, token, pageLimit, 0, signal);
       
       if (signal.aborted) return;
       if (result.error) {

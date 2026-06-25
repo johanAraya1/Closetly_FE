@@ -8,6 +8,7 @@ import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, TextInput,
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
+import AsyncStorage from '@react-native-async-storage/async-storage';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, EmptyState, Modal, OutfitPreview } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
@@ -21,12 +22,14 @@ import { generateRandomOutfit } from '@/utils';
 import type { GarmentSeason, Garment, GarmentStyle } from '@/types';
 import type { Occasion } from '@/utils/randomOutfit';
 
+const DISMISSED_KEY = '@closetly/dismissed_outfits';
+
 export default function CreateOutfitScreen() {
   const router = useRouter();
   const { id } = useLocalSearchParams<{ id?: string }>();
   const isEditMode = !!id;
   const { user } = useAuth();
-  const { garments } = useGarments(true);
+  const { garments } = useGarments(true, 200);
   const { createOutfit, updateOutfit, loadOutfitById, currentOutfit } = useOutfits();
 
   const [name, setName] = useState('');
@@ -51,6 +54,14 @@ export default function CreateOutfitScreen() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [showStyleModal, setShowStyleModal] = useState(false);
   const [selectedRandomStyles, setSelectedRandomStyles] = useState<GarmentStyle[]>([]);
+  const [dismissedOutfits, setDismissedOutfits] = useState<Set<string>>(new Set());
+
+  // Cargar outfits descartados al montar el componente
+  useEffect(() => {
+    AsyncStorage.getItem(DISMISSED_KEY).then((raw) => {
+      if (raw) setDismissedOutfits(new Set(JSON.parse(raw)));
+    });
+  }, []);
 
   // Pre-fill form in edit mode
   useEffect(() => {
@@ -127,16 +138,73 @@ export default function CreateOutfitScreen() {
     setShowStyleModal(true);
   }, []);
 
+  /**
+   * Genera un outfit aleatorio evitando combinaciones descartadas.
+   * Reintenta hasta 20 veces si la combinación ya fue descartada.
+   */
+  const generateWithRetry = useCallback(
+    (styles?: GarmentStyle[], dismissed?: Set<string>): void => {
+      const skip = dismissed ?? dismissedOutfits;
+      let attempts = 0;
+      const maxAttempts = 20;
+
+      while (attempts < maxAttempts) {
+        const result = generateRandomOutfit(
+          garments,
+          occasion as Occasion,
+          weather,
+          styles,
+        );
+
+        if (result.error) {
+          setGenerationError(result.error);
+          return;
+        }
+
+        const key = [...result.outfit.map((g) => g.id)].sort().join(',');
+        if (!skip.has(key)) {
+          setSelectedGarments(result.outfit);
+          setHasGenerated(true);
+          setGenerationError(null);
+          return;
+        }
+        attempts++;
+      }
+
+      setGenerationError(
+        'Ya viste todas las combinaciones posibles. Agregá más prendas o cambiá de ocasión.',
+      );
+    },
+    [garments, occasion, weather, dismissedOutfits],
+  );
+
   const handleGenerateWithStyles = useCallback(() => {
     setShowStyleModal(false);
-    const result = generateRandomOutfit(garments, occasion as Occasion, weather, selectedRandomStyles.length > 0 ? selectedRandomStyles : undefined);
-    if (result.error) {
-      setGenerationError(result.error);
-      return;
-    }
-    setSelectedGarments(result.outfit);
-    setHasGenerated(true);
-  }, [garments, occasion, weather, selectedRandomStyles]);
+    generateWithRetry(
+      selectedRandomStyles.length > 0 ? selectedRandomStyles : undefined,
+    );
+  }, [selectedRandomStyles, generateWithRetry]);
+
+  /**
+   * Descarta el outfit actual y genera uno nuevo.
+   * Guarda la combinación en AsyncStorage para no volver a mostrarla.
+   */
+  const handleDismissOutfit = useCallback(async () => {
+    if (selectedGarments.length === 0) return;
+
+    const key = [...selectedGarments.map((g) => g.id)].sort().join(',');
+    const updated = new Set(dismissedOutfits);
+    updated.add(key);
+
+    await AsyncStorage.setItem(DISMISSED_KEY, JSON.stringify([...updated]));
+    setDismissedOutfits(updated);
+
+    // Regenerar inmediatamente con los mismos estilos, saltando la descartada
+    generateWithRetry(
+      selectedRandomStyles.length > 0 ? selectedRandomStyles : undefined,
+      updated,
+    );
+  }, [selectedGarments, dismissedOutfits, selectedRandomStyles, generateWithRetry]);
 
   const toggleRandomStyle = useCallback((style: GarmentStyle) => {
     setSelectedRandomStyles((prev) => {
@@ -343,14 +411,24 @@ export default function CreateOutfitScreen() {
               </View>
             )}
             {hasGenerated ? (
-              <TouchableOpacity
-                onPress={handleOpenStyleSelector}
-                style={styles.generateButton}
-                activeOpacity={0.8}
-              >
-                <Ionicons name="refresh" size={20} color="#FFFFFF" style={styles.generateButtonIcon} />
-                <Text style={styles.generateButtonText}>Probar otro outfit</Text>
-              </TouchableOpacity>
+              <View style={styles.generatedActions}>
+                <TouchableOpacity
+                  onPress={handleOpenStyleSelector}
+                  style={styles.generateButton}
+                  activeOpacity={0.8}
+                >
+                  <Ionicons name="refresh" size={20} color="#FFFFFF" style={styles.generateButtonIcon} />
+                  <Text style={styles.generateButtonText}>Probar otro outfit</Text>
+                </TouchableOpacity>
+                <TouchableOpacity
+                  onPress={handleDismissOutfit}
+                  style={styles.dismissButton}
+                  activeOpacity={0.7}
+                >
+                  <Ionicons name="close-circle" size={18} color="#EF4444" />
+                  <Text style={styles.dismissButtonText}>No me gusta</Text>
+                </TouchableOpacity>
+              </View>
             ) : (
               <TouchableOpacity
                 onPress={handleOpenStyleSelector}
@@ -920,6 +998,28 @@ const styles = StyleSheet.create({
     color: '#FFFFFF',
     fontSize: 16,
     fontWeight: '700',
+  },
+  generatedActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  dismissButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  dismissButtonText: {
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '600',
   },
   generateErrorBanner: {
     flexDirection: 'row',
