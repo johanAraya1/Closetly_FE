@@ -27,6 +27,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS, SPACING, FONT_SIZES } from '@/lib/constants';
 import { EmptyState, Loading, SkeletonCard, withScreenErrorBoundary } from '@/components';
+import { getLocalDateString } from '@/utils/date';
 import type { Outfit } from '@/types';
 
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
@@ -94,7 +95,7 @@ function PlannerScreen() {
     const diff = today.getDate() - day + (day === 0 ? -6 : 1);
     const currentMonday = new Date(today);
     currentMonday.setDate(diff);
-    return monday.toISOString().split('T')[0] === currentMonday.toISOString().split('T')[0];
+    return getLocalDateString(monday) === getLocalDateString(currentMonday);
   }, [weekStart]);
 
   const handleDayPress = (dayOfWeek: number) => {

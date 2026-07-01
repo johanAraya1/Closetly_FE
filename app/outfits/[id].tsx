@@ -31,6 +31,7 @@ import { useCalendarStore } from '@/store/calendarStore';
 import type { GarmentSeason } from '@/types';
 import { getOutfitStats } from '@/services/statsService';
 import type { OutfitStats } from '@/services/statsService';
+import { getLocalDateString } from '@/utils/date';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const isSmallScreen = SCREEN_WIDTH < 600;
@@ -69,8 +70,8 @@ export default function OutfitDetailScreen() {
   const [isDeleting, setIsDeleting] = useState(false);
   const [showLogDatePicker, setShowLogDatePicker] = useState(false);
   const [isLoggingToCalendar, setIsLoggingToCalendar] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(new Date().toISOString().split('T')[0]);
-  const todayFormatted = new Date().toISOString().split('T')[0];
+  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
+  const todayFormatted = getLocalDateString();
   const shareCardRef = useRef<ViewShot>(null);
   const [outfitStats, setOutfitStats] = useState<OutfitStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -144,7 +145,7 @@ export default function OutfitDetailScreen() {
   // --- Log to Calendar ---
   const handleLogToCalendar = useCallback(() => {
     if (!outfit) return;
-    setSelectedDate(new Date().toISOString().split('T')[0]);
+    setSelectedDate(getLocalDateString());
     setShowLogDatePicker(true);
   }, [outfit]);
 

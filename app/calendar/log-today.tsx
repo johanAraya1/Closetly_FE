@@ -25,6 +25,7 @@ import { useCalendarStore } from '@/store/calendarStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS, FONT_SIZES, SEASONS } from '@/lib/constants';
 import { EmptyState, Loading, withScreenErrorBoundary } from '@/components';
+import { getLocalDateString, addDays } from '@/utils/date';
 import type { Outfit } from '@/types';
 
 const SEASONS_FILTERS = [
@@ -35,7 +36,7 @@ const SEASONS_FILTERS = [
 export default function LogTodayScreen() {
   const router = useRouter();
   const { date } = useLocalSearchParams<{ date: string }>();
-  const targetDate = date || new Date().toISOString().split('T')[0];
+  const targetDate = date || getLocalDateString();
   const { t } = useTranslation();
   const { width: screenWidth } = useWindowDimensions();
   const { outfits, isLoading: loadingOutfits } = useOutfits(true);
@@ -359,10 +360,38 @@ export default function LogTodayScreen() {
         <View style={{ width: 40 }} />
       </View>
 
-      {/* ===== Date display ===== */}
-      <View style={styles.dateBanner}>
-        <Ionicons name="calendar-outline" size={18} color={COLORS.gray[600]} />
-        <Text style={styles.dateText}>{formattedDate}</Text>
+      {/* ===== Date navigation ===== */}
+      <View style={styles.dateNav}>
+        <TouchableOpacity
+          onPress={() => {
+            const prev = addDays(targetDate, -1);
+            router.setParams({ date: prev });
+          }}
+          style={styles.dateArrow}
+        >
+          <Ionicons name="chevron-back" size={20} color={COLORS.gray[600]} />
+        </TouchableOpacity>
+
+        <View style={styles.dateCenter}>
+          <Ionicons name="calendar-outline" size={16} color={COLORS.gray[600]} />
+          <TextInput
+            style={styles.dateInput}
+            value={targetDate}
+            onChangeText={(val) => router.setParams({ date: val })}
+            keyboardType="numbers-and-punctuation"
+            autoCorrect={false}
+          />
+        </View>
+
+        <TouchableOpacity
+          onPress={() => {
+            const next = addDays(targetDate, 1);
+            router.setParams({ date: next });
+          }}
+          style={styles.dateArrow}
+        >
+          <Ionicons name="chevron-forward" size={20} color={COLORS.gray[600]} />
+        </TouchableOpacity>
       </View>
 
       {/* ===== Outfit grid ===== */}
@@ -435,21 +464,41 @@ const styles = StyleSheet.create({
     color: COLORS.gray[900],
   },
 
-  // Date banner
-  dateBanner: {
+  // Date navigation
+  dateNav: {
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
-    paddingVertical: 12,
+    paddingVertical: 10,
     backgroundColor: '#FFFFFF',
     borderBottomWidth: 1,
     borderBottomColor: COLORS.gray[100],
     gap: 8,
   },
-  dateText: {
-    fontSize: FONT_SIZES.sm,
-    fontWeight: '500',
-    color: COLORS.gray[600],
+  dateArrow: {
+    width: 36,
+    height: 36,
+    borderRadius: 18,
+    backgroundColor: COLORS.gray[50],
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 1,
+    borderColor: COLORS.gray[200],
+  },
+  dateCenter: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    minWidth: 140,
+    justifyContent: 'center',
+  },
+  dateInput: {
+    fontSize: FONT_SIZES.md,
+    fontWeight: '600',
+    color: COLORS.gray[700],
+    textAlign: 'center',
+    minWidth: 100,
+    paddingVertical: 4,
   },
 
   // Search
