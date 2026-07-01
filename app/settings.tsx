@@ -4,21 +4,26 @@
  */
 
 import React, { useState, useEffect } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, Switch, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, Modal, Switch, Platform, Alert } from 'react-native';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
-import { withScreenErrorBoundary } from '@/components';
+import { withScreenErrorBoundary, Input } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
+import { useAuthStore } from '@/store/authStore';
 import { useTranslation } from '@/hooks/useTranslation';
+import { tokenService } from '@/services/tokenService';
 
 function SettingsScreen() {
   const router = useRouter();
   const { profile, biometricEnabled, enableBiometric, disableBiometric } = useAuth();
   const { t, locale, changeLanguage } = useTranslation();
   const [showLanguageModal, setShowLanguageModal] = useState(false);
+  const [showPasswordModal, setShowPasswordModal] = useState(false);
+  const [passwordInput, setPasswordInput] = useState('');
+  const [isSavingPassword, setIsSavingPassword] = useState(false);
   const [biometricAvailable, setBiometricAvailable] = useState(false);
 
   const currentLanguage = locale.startsWith('es') ? t('settings.spanish') : t('settings.english');
@@ -50,7 +55,16 @@ function SettingsScreen() {
           disableDeviceFallback: false,
         });
         if (result.success) {
-          await enableBiometric();
+          // Verificar si ya tenemos credenciales guardadas
+          const existing = await tokenService.getBiometricCredentials();
+          if (existing) {
+            // Ya hay credenciales, solo activar
+            await enableBiometric();
+          } else {
+            // Pedir contraseña para guardar credenciales
+            setPasswordInput('');
+            setShowPasswordModal(true);
+          }
         }
       } catch {
         // Si falla, no activar
@@ -58,6 +72,23 @@ function SettingsScreen() {
     } else {
       await disableBiometric();
     }
+  };
+
+  const handleSavePassword = async () => {
+    if (!passwordInput.trim()) {
+      Alert.alert('Error', 'Ingresá tu contraseña para activar la huella digital');
+      return;
+    }
+    setIsSavingPassword(true);
+    const user = useAuthStore.getState().user;
+    const email = user?.email;
+    if (email) {
+      await tokenService.saveBiometricCredentials(email, passwordInput);
+    }
+    await enableBiometric();
+    setPasswordInput('');
+    setShowPasswordModal(false);
+    setIsSavingPassword(false);
   };
 
   return (
@@ -160,6 +191,69 @@ function SettingsScreen() {
                 <Ionicons name="checkmark" size={24} color={COLORS.primary} />
               )}
             </TouchableOpacity>
+          </View>
+        </View>
+      </Modal>
+
+      {/* Password Modal — pedir contraseña al activar huella */}
+      <Modal
+        visible={showPasswordModal}
+        transparent
+        animationType="slide"
+        onRequestClose={() => {
+          if (!isSavingPassword) {
+            setShowPasswordModal(false);
+            setPasswordInput('');
+          }
+        }}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.modalContent}>
+            <View style={styles.modalHeader}>
+              <Text style={styles.modalTitle}>Confirmar contraseña</Text>
+              <TouchableOpacity
+                onPress={() => {
+                  setShowPasswordModal(false);
+                  setPasswordInput('');
+                }}
+                disabled={isSavingPassword}
+              >
+                <Ionicons name="close" size={24} color={COLORS.gray[900]} />
+              </TouchableOpacity>
+            </View>
+            <Text style={styles.passwordHint}>
+              Ingresá tu contraseña para guardar el acceso con huella digital.
+              Se almacena cifrada por hardware en el dispositivo.
+            </Text>
+            <Input
+              label="Contraseña"
+              value={passwordInput}
+              onChangeText={setPasswordInput}
+              placeholder="••••••••"
+              secureTextEntry
+              autoCapitalize="none"
+            />
+            <View style={styles.passwordButtons}>
+              <TouchableOpacity
+                style={styles.cancelButton}
+                onPress={() => {
+                  setShowPasswordModal(false);
+                  setPasswordInput('');
+                }}
+                disabled={isSavingPassword}
+              >
+                <Text style={styles.cancelButtonText}>Cancelar</Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={[styles.saveButton, isSavingPassword && styles.saveButtonDisabled]}
+                onPress={handleSavePassword}
+                disabled={isSavingPassword}
+              >
+                <Text style={styles.saveButtonText}>
+                  {isSavingPassword ? 'Guardando...' : 'Activar huella'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         </View>
       </Modal>
@@ -274,6 +368,43 @@ const styles = StyleSheet.create({
     marginTop: 4,
     marginLeft: 8,
     paddingHorizontal: 4,
+  },
+  passwordHint: {
+    fontSize: 14,
+    color: '#6B7280',
+    marginBottom: 16,
+    lineHeight: 20,
+  },
+  passwordButtons: {
+    flexDirection: 'row',
+    justifyContent: 'flex-end',
+    gap: 12,
+    marginTop: 20,
+  },
+  cancelButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: '#F4F5F7',
+  },
+  cancelButtonText: {
+    fontSize: 16,
+    color: '#6B7280',
+    fontWeight: '500',
+  },
+  saveButton: {
+    paddingVertical: 12,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    backgroundColor: '#62D9C7',
+  },
+  saveButtonDisabled: {
+    opacity: 0.6,
+  },
+  saveButtonText: {
+    fontSize: 16,
+    color: '#FFFFFF',
+    fontWeight: '600',
   },
 });
 

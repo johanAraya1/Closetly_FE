@@ -16,6 +16,8 @@ const TOKEN_EXPIRY_KEY = 'auth_token_expiry';
 const USER_KEY = 'auth_user';
 const PROFILE_KEY = 'auth_profile';
 const BIOMETRIC_KEY = 'auth_biometric_enabled';
+const BIOMETRIC_EMAIL_KEY = 'auth_biometric_email';
+const BIOMETRIC_PASSWORD_KEY = 'auth_biometric_password';
 
 // Configuración de tokens
 const ACCESS_TOKEN_DURATION = 15 * 60 * 1000; // 15 minutos
@@ -331,6 +333,53 @@ export const tokenService = {
       return { token: accessToken, session };
     } catch {
       return null;
+    }
+  },
+
+  /**
+   * Guarda las credenciales del usuario en SecureStore para login biométrico.
+   * SOLO se guardan si el usuario habilitó la huella digital.
+   * SecureStore usa cifrado por hardware (Keychain/Keystore).
+   */
+  async saveBiometricCredentials(email: string, password: string): Promise<void> {
+    try {
+      await Promise.all([
+        storage.setItem(BIOMETRIC_EMAIL_KEY, email),
+        storage.setItem(BIOMETRIC_PASSWORD_KEY, password),
+      ]);
+    } catch (error) {
+      console.error('Error saving biometric credentials:', error);
+    }
+  },
+
+  /**
+   * Recupera las credenciales guardadas para login biométrico.
+   */
+  async getBiometricCredentials(): Promise<{ email: string; password: string } | null> {
+    try {
+      const [email, password] = await Promise.all([
+        storage.getItem(BIOMETRIC_EMAIL_KEY),
+        storage.getItem(BIOMETRIC_PASSWORD_KEY),
+      ]);
+      if (!email || !password) return null;
+      return { email, password };
+    } catch (error) {
+      console.error('Error getting biometric credentials:', error);
+      return null;
+    }
+  },
+
+  /**
+   * Elimina las credenciales guardadas (al deshabilitar huella o cerrar sesión).
+   */
+  async clearBiometricCredentials(): Promise<void> {
+    try {
+      await Promise.all([
+        storage.removeItem(BIOMETRIC_EMAIL_KEY),
+        storage.removeItem(BIOMETRIC_PASSWORD_KEY),
+      ]);
+    } catch (error) {
+      console.error('Error clearing biometric credentials:', error);
     }
   },
 
