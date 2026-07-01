@@ -6,6 +6,8 @@
 import { create } from 'zustand';
 import type { CalendarLogEntry } from '@/types';
 import * as calendarService from '@/services/calendarService';
+import { usePlannerStore } from '@/store/plannerStore';
+import { getMondayOfWeek, parseLocalDate } from '@/utils/date';
 
 interface CalendarState {
   entries: CalendarLogEntry[];
@@ -67,10 +69,23 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     await get().loadMonth(selectedMonth, selectedYear);
     set({ isSaving: false });
 
+    // Sync: refrescar planner si la fecha cae en la semana cargada
+    const plannerState = usePlannerStore.getState();
+    if (plannerState.plan.length > 0) {
+      const mondayOfDate = getMondayOfWeek(parseLocalDate(date));
+      if (plannerState.weekStart === mondayOfDate) {
+        plannerState.loadPlan(mondayOfDate);
+      }
+    }
+
     return true;
   },
 
   deleteLog: async (id: string) => {
+    const state = get();
+    const entry = state.entries.find((e) => e.id === id);
+    const date = entry?.date;
+
     const result = await calendarService.deleteLog(id);
 
     if (result.error) {
@@ -82,6 +97,17 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     set((state) => ({
       entries: state.entries.filter((entry) => entry.id !== id),
     }));
+
+    // Sync: refrescar planner si la fecha cae en la semana cargada
+    if (date) {
+      const plannerState = usePlannerStore.getState();
+      if (plannerState.plan.length > 0) {
+        const mondayOfDate = getMondayOfWeek(parseLocalDate(date));
+        if (plannerState.weekStart === mondayOfDate) {
+          plannerState.loadPlan(mondayOfDate);
+        }
+      }
+    }
 
     return true;
   },

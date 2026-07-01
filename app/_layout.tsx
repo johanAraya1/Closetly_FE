@@ -8,9 +8,10 @@
  */
 
 import { useEffect, useState, useRef } from 'react';
-import { View, ActivityIndicator, StyleSheet } from 'react-native';
+import { View, ActivityIndicator, StyleSheet, PanResponder } from 'react-native';
 import { Stack, useRouter } from 'expo-router';
 import { useAuth } from '@/hooks/useAuth';
+import { useIdleTimer } from '@/hooks/useIdleTimer';
 import { checkBiometric } from '@/hooks/useBiometricCheck';
 import { ThemeProvider } from '@/contexts/ThemeContext';
 import { analytics } from '@/services/analyticsService';
@@ -34,6 +35,19 @@ export default function RootLayout() {
   const router = useRouter();
   const [isAppReady, setIsAppReady] = useState(false);
   const biometricChecked = useRef(false);
+
+  // Idle timer para auto-logout por inactividad
+  const { resetIdleTimer } = useIdleTimer();
+
+  // PanResponder: captura toques para resetear el timer de inactividad
+  const panResponder = useRef(
+    PanResponder.create({
+      onStartShouldSetPanResponderCapture: () => {
+        resetIdleTimer();
+        return false; // no capturar, solo notificar
+      },
+    }),
+  ).current;
 
   // Inicializar sesión al arrancar la app
   useEffect(() => {
@@ -120,17 +134,25 @@ export default function RootLayout() {
        * Sin renderizado condicional → router.replace funciona
        * correctamente SIN freezes en web.
        */}
-      <Stack screenOptions={{ headerShown: false }}>
-        <Stack.Screen name="index" />
-        <Stack.Screen name="onboarding-tour" />
-        <Stack.Screen name="(auth)" />
-        <Stack.Screen name="(tabs)" />
-      </Stack>
+      <View
+        style={styles.root}
+        {...panResponder.panHandlers}
+      >
+        <Stack screenOptions={{ headerShown: false }}>
+          <Stack.Screen name="index" />
+          <Stack.Screen name="onboarding-tour" />
+          <Stack.Screen name="(auth)" />
+          <Stack.Screen name="(tabs)" />
+        </Stack>
+      </View>
     </ThemeProvider>
   );
 }
 
 const styles = StyleSheet.create({
+  root: {
+    flex: 1,
+  },
   loadingContainer: {
     flex: 1,
     justifyContent: 'center',

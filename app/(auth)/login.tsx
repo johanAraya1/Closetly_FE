@@ -27,6 +27,7 @@ import { checkBiometric } from '@/hooks/useBiometricCheck';
 import { tokenService } from '@/services/tokenService';
 import { isValidEmail, validationMessages } from '@/utils/validation';
 
+// SOLO guarda email — NUNCA guarda contraseña
 const REMEMBER_KEY = '@closetly/remember_me';
 
 export default function LoginScreen() {
@@ -63,15 +64,17 @@ export default function LoginScreen() {
     })();
   }, []);
 
-  // Cargar credenciales guardadas al montar la pantalla
+  // Cargar email guardado al montar la pantalla
+  // SOLO email — NUNCA se guarda la contraseña
   useEffect(() => {
     (async () => {
       try {
         const saved = await AsyncStorage.getItem(REMEMBER_KEY);
         if (saved) {
-          const { email: savedEmail, password: savedPassword } = JSON.parse(saved);
-          if (savedEmail) setEmail(savedEmail);
-          if (savedPassword) setPassword(savedPassword);
+          const data = JSON.parse(saved);
+          // Migración retro: formato anterior { email, password }
+          // nuevo formato solo guarda { email }
+          if (data.email) setEmail(data.email);
           setRememberMe(true);
         }
       } catch {
@@ -129,10 +132,10 @@ export default function LoginScreen() {
       return;
     }
 
-    // Recordarme: guardar o limpiar credenciales según el checkbox
+    // Recordar email: guardar SOLO el email, NUNCA la contraseña
     try {
       if (rememberMe) {
-        await AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify({ email, password }));
+        await AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify({ email }));
       } else {
         await AsyncStorage.removeItem(REMEMBER_KEY);
       }
@@ -155,16 +158,30 @@ export default function LoginScreen() {
       return; // Usuario canceló o falló — no mostrar error
     }
 
-    // Intentar restaurar sesión desde el token guardado
-    await useAuthStore.getState().loadSession();
+    // Intentar refresh directo con el token guardado
+    const result = await tokenService.biometricRefresh();
 
-    const { isAuthenticated } = useAuthStore.getState();
-    if (!isAuthenticated) {
+    if (!result) {
       setIsTransitioning(false);
-      setErrorMessage('No hay una sesión guardada para reanudar. Ingresá con tu contraseña.');
+      setErrorMessage(
+        'No se pudo restaurar la sesión. El acceso con huella expiró, ' +
+        'ingresá con tu contraseña para renovarlo.'
+      );
       setShowErrorModal(true);
+      return;
     }
-    // Si loadSession funciona, el auth layout redirige automáticamente
+
+    // Restaurar sesión manualmente en el store
+    useAuthStore.setState({
+      user: result.session.user,
+      profile: result.session.profile,
+      token: result.token,
+      isAuthenticated: true,
+      isLoading: false,
+      error: null,
+    });
+
+    // El auth layout redirige automáticamente al detectar isAuthenticated
   };
 
   return (

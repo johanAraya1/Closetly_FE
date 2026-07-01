@@ -25,10 +25,18 @@ let _client: RealtimeClient | null = null;
 const _channels = new Map<string, any>();
 
 /**
- * Retorna la instancia singleton de RealtimeClient
+ * Retorna la instancia singleton de RealtimeClient.
+ * Valida SUPABASE_URL y SUPABASE_ANON_KEY antes de inicializar.
  */
 const getClient = (): RealtimeClient => {
   if (!_client) {
+    if (!SUPABASE_URL || !SUPABASE_ANON_KEY) {
+      throw new Error(
+        'Supabase Realtime no está configurado. ' +
+        'Define EXPO_PUBLIC_SUPABASE_URL y EXPO_PUBLIC_SUPABASE_ANON_KEY ' +
+        'en tu archivo .env',
+      );
+    }
     _client = new RealtimeClient(SUPABASE_URL, {
       params: { apikey: SUPABASE_ANON_KEY },
     });

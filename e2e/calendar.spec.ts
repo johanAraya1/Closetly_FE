@@ -165,15 +165,14 @@ test.describe('Calendar', () => {
       page.getByText(/select outfit|seleccionar/i).first(),
     ).toBeVisible({ timeout: 10000 });
 
-    // Date banner shows today's formatted date
-    const dateStr = now.toLocaleDateString('en-US', {
-      weekday: 'long',
-      year: 'numeric',
-      month: 'long',
-      day: 'numeric',
-    });
+    // Date input shows today's date in YYYY-MM-DD format
+    const dateStr = [
+      now.getFullYear(),
+      String(now.getMonth() + 1).padStart(2, '0'),
+      String(now.getDate()).padStart(2, '0'),
+    ].join('-');
     await expect(
-      page.getByText(dateStr, { exact: true }),
+      page.locator(`input[value="${dateStr}"]`),
     ).toBeVisible({ timeout: 5000 });
 
     // Outfit grid shows both outfits

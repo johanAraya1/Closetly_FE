@@ -3,8 +3,12 @@
  * Pure algorithm that generates a random outfit from the user's garment collection,
  * filtered by occasion and optional weather data.
  *
- * Design: picks dress-first when available (replaces top+bottom),
- * then required top/bottom (if no dress), shoes, then optional outerwear/accessories.
+ * Color harmony: maps colors to families (warm, cool, neutral, bright) and ensures
+ * compatible combinations. Style consistency: prevents mixing formal with sporty.
+ *
+ * Design: dress-first strategy (replaces top+bottom when available),
+ * then required top/bottom, shoes, then optional outerwear/accessories.
+ * Each pick respects color and style compatibility with the primary garment.
  */
 
 import { OCCASION_STYLE_MAP } from '@/lib/constants';
@@ -19,24 +23,182 @@ export interface RandomOutfitResult {
   error?: string;
 }
 
-// ==================== Helpers ====================
+// ==================== Color System ====================
+
+type ColorFamily = 'warm' | 'cool' | 'neutral' | 'bright';
+
+/** Normalize a color string (lowercase, trimmed, accents stripped for matching) */
+function normalizeColor(color: string): string {
+  return color
+    .toLowerCase()
+    .trim()
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, ''); // strip accents
+}
 
 /**
- * Derives compatible GarmentSeason values from a temperature in Celsius.
- * Follows the design spec: <10°C → winter, 10-20°C → spring/fall, >20°C → summer.
+ * Maps color names to families. Covers English + Spanish (Rioplatense) common colors.
+ * Unknown colors default to 'neutral' so they don't block outfit generation.
  */
+const COLOR_FAMILY_MAP: Record<string, ColorFamily> = {
+  // --- Warm ---
+  red: 'warm', rojo: 'warm',
+  orange: 'warm', naranja: 'warm', naranjo: 'warm',
+  yellow: 'warm', amarillo: 'warm',
+  pink: 'warm', rosa: 'warm',
+  coral: 'warm',
+  terracotta: 'warm', terracota: 'warm',
+  burgundy: 'warm', bordó: 'warm', borgoña: 'warm', vino: 'warm',
+  maroon: 'warm', granate: 'warm',
+  crimson: 'warm', carmesí: 'warm', carmin: 'warm',
+  gold: 'warm', dorado: 'warm', oro: 'warm',
+  peach: 'warm', durazno: 'warm',
+  salmon: 'warm', salmón: 'warm',
+  rust: 'warm', óxido: 'warm',
+  mustard: 'warm', mostaza: 'warm',
+  camel: 'warm',
+
+  // --- Cool ---
+  blue: 'cool', azul: 'cool',
+  green: 'cool', verde: 'cool',
+  purple: 'cool', purpura: 'cool', púrpura: 'cool', morado: 'cool', violeta: 'cool', violet: 'cool',
+  teal: 'cool', turquesa: 'cool', turquoise: 'cool',
+  navy: 'cool', marino: 'cool',
+  cyan: 'cool', cian: 'cool',
+  indigo: 'cool', añil: 'cool', anil: 'cool',
+  lavender: 'cool', lavanda: 'cool',
+  lilac: 'cool', lila: 'cool',
+  mint: 'cool', menta: 'cool',
+  olive: 'cool', oliva: 'cool',
+  emerald: 'cool', esmeralda: 'cool',
+  celeste: 'cool', 'sky blue': 'cool',
+  sage: 'cool', salvia: 'cool',
+  forest: 'cool', bosque: 'cool',
+  jade: 'cool',
+
+  // --- Neutral ---
+  black: 'neutral', negro: 'neutral',
+  white: 'neutral', blanco: 'neutral',
+  gray: 'neutral', grey: 'neutral', gris: 'neutral',
+  beige: 'neutral',
+  brown: 'neutral', marrón: 'neutral', marron: 'neutral', cafe: 'neutral', café: 'neutral',
+  khaki: 'neutral', caqui: 'neutral',
+  cream: 'neutral', crema: 'neutral',
+  ivory: 'neutral', marfil: 'neutral',
+  taupe: 'neutral', topo: 'neutral',
+  charcoal: 'neutral', carbon: 'neutral', carbón: 'neutral',
+  silver: 'neutral', plata: 'neutral',
+  nude: 'neutral',
+  bone: 'neutral', hueso: 'neutral',
+  denim: 'neutral', jean: 'neutral',
+  'navy blue': 'cool',
+  'light blue': 'cool',
+  'dark blue': 'cool',
+  'dark green': 'cool',
+
+  // --- Bright ---
+  fuchsia: 'bright', fucsia: 'bright',
+  magenta: 'bright',
+  lime: 'bright', lima: 'bright',
+  neon: 'bright', neón: 'bright',
+  fluorescent: 'bright', fluorescente: 'bright',
+  electric: 'bright', electrico: 'bright', eléctrico: 'bright',
+  chartreuse: 'bright',
+};
+
+/** Compatibility rules: which families can be combined */
+const COLOR_COMPATIBILITY: Record<ColorFamily, readonly ColorFamily[]> = {
+  warm: ['warm', 'neutral'],
+  cool: ['cool', 'neutral'],
+  neutral: ['warm', 'cool', 'neutral', 'bright'],
+  bright: ['neutral'],
+};
+
+/** Derive the color family from a garment's color string. */
+function getColorFamily(color: string | undefined | null): ColorFamily {
+  if (!color) return 'neutral';
+  const normalized = normalizeColor(color);
+
+  // Try exact match first
+  if (COLOR_FAMILY_MAP[normalized]) return COLOR_FAMILY_MAP[normalized];
+
+  // Try word-level: if any word in the color string matches a known color
+  const words = normalized.split(/[\s-]+/);
+  for (const word of words) {
+    if (COLOR_FAMILY_MAP[word]) return COLOR_FAMILY_MAP[word];
+  }
+
+  return 'neutral'; // unknown → safe default
+}
+
+/** Check if two colors are compatible for wearing together. */
+function areColorsCompatible(
+  colorA: string | undefined | null,
+  colorB: string | undefined | null,
+): boolean {
+  const familyA = getColorFamily(colorA);
+  const familyB = getColorFamily(colorB);
+  return COLOR_COMPATIBILITY[familyA].includes(familyB);
+}
+
+// ==================== Style System ====================
+
+/**
+ * Style compatibility: which styles can be worn together.
+ * Key insight: 'deportivo' and 'formal' should NEVER mix.
+ * Everything else has broader compatibility.
+ */
+const STYLE_COMPATIBILITY: Record<GarmentStyle, readonly GarmentStyle[]> = {
+  deportivo: ['deportivo', 'casual', 'urbano'],
+  formal: ['formal', 'elegante'],
+  elegante: ['elegante', 'formal', 'urbano', 'casual'],
+  bohemio: ['bohemio', 'casual', 'urbano'],
+  urbano: ['urbano', 'casual', 'deportivo', 'bohemio', 'elegante'],
+  casual: ['casual', 'urbano', 'deportivo', 'bohemio', 'elegante'],
+};
+
+/** Check if two styles are compatible for an outfit. */
+function areStylesCompatible(
+  stylesA: GarmentStyle[] | undefined | null,
+  stylesB: GarmentStyle[] | undefined | null,
+): boolean {
+  if (!stylesA || stylesA.length === 0 || !stylesB || stylesB.length === 0) return true;
+
+  // At least one style from A must be compatible with at least one style from B
+  for (const styleA of stylesA) {
+    const allowed = STYLE_COMPATIBILITY[styleA] ?? [styleA];
+    if (stylesB.some((s) => allowed.includes(s))) return true;
+  }
+  return false;
+}
+
+/**
+ * Score how well a garment's styles match a primary set of styles.
+ * Returns 0 (no match) to N (all matched), higher is better.
+ */
+function styleMatchScore(
+  primaryStyles: GarmentStyle[],
+  candidateStyles: GarmentStyle[] | undefined | null,
+): number {
+  if (!candidateStyles || candidateStyles.length === 0) return 1;
+  let score = 0;
+  for (const ps of primaryStyles) {
+    const allowed = STYLE_COMPATIBILITY[ps] ?? [];
+    for (const cs of candidateStyles) {
+      if (allowed.includes(cs)) score++;
+    }
+  }
+  return score;
+}
+
+// ==================== Weather Helpers ====================
+
 function deriveSeasonsFromTemp(temp: number): GarmentSeason[] {
   if (temp < 10) return ['winter'];
   if (temp <= 20) return ['spring', 'fall'];
   return ['summer'];
 }
 
-/**
- * Checks whether a garment's season is compatible with a set of allowed seasons.
- * - No season set → always compatible
- * - 'all_season' → always compatible
- * - Array or single season → must overlap with compatibleSeasons
- */
 function isSeasonCompatible(
   garmentSeason: GarmentSeason | GarmentSeason[] | undefined,
   compatibleSeasons: GarmentSeason[],
@@ -47,20 +209,14 @@ function isSeasonCompatible(
   return seasons.some((s) => compatibleSeasons.includes(s));
 }
 
-/**
- * Filters garments by occasion → style mapping and optional weather → season compatibility.
- * Returns the filtered pool for category-based random selection.
- *
- * When `styles` is provided, it overrides the occasion-based style filter.
- * The user's explicit style pick takes full control.
- */
+// ==================== Filter Helpers ====================
+
 function filterPool(
   garments: Garment[],
   occasion: Occasion,
   weather?: WeatherData | null,
   styles?: GarmentStyle[],
 ): { pool: Garment[]; error?: string } {
-  // Step 1: Style filter — use explicit styles if provided, otherwise fall back to occasion map
   const allowedStyles: GarmentStyle[] = styles ?? OCCASION_STYLE_MAP[occasion];
   if (!allowedStyles || allowedStyles.length === 0) {
     return { pool: [], error: `Ocasión "${occasion}" no válida.` };
@@ -78,11 +234,9 @@ function filterPool(
     };
   }
 
-  // Step 2: Weather filter — skip if no weather data
   if (weather != null) {
     const compatibleSeasons = deriveSeasonsFromTemp(weather.temp);
     pool = pool.filter((g) => isSeasonCompatible(g.season, compatibleSeasons));
-
     if (pool.length === 0) {
       return {
         pool: [],
@@ -94,17 +248,37 @@ function filterPool(
   return { pool };
 }
 
-/**
- * Picks a random element from an array. Returns undefined for empty arrays.
- */
 function pickRandom<T>(arr: T[]): T | undefined {
   if (arr.length === 0) return undefined;
   return arr[Math.floor(Math.random() * arr.length)];
 }
 
 /**
- * Groups garments by their category field.
+ * Pick a random item from the array, preferring items whose styles match the primary.
+ * Falls back to any item if no style-compatible item exists.
  */
+function pickCompatible<T extends Garment>(
+  items: T[],
+  primaryStyles: GarmentStyle[],
+  primaryColor: string | undefined | null,
+): T | undefined {
+  if (items.length === 0) return undefined;
+
+  // Score each item: style match (0-3) + color compatibility (0/1)
+  const scored = items.map((item) => {
+    const styleScore = styleMatchScore(primaryStyles, item.style);
+    const colorOk = areColorsCompatible(primaryColor, item.color) ? 1 : 0;
+    // Style match is more important than color
+    return { item, totalScore: styleScore * 2 + colorOk };
+  });
+
+  // Best scoring items
+  const maxScore = Math.max(...scored.map((s) => s.totalScore));
+  const best = scored.filter((s) => s.totalScore === maxScore);
+
+  return pickRandom(best.map((s) => s.item));
+}
+
 function groupByCategory(garments: Garment[]): Record<string, Garment[]> {
   const groups: Record<string, Garment[]> = {};
   for (const g of garments) {
@@ -122,7 +296,7 @@ function groupByCategory(garments: Garment[]): Record<string, Garment[]> {
  * @param garments - Full list of user's garments
  * @param occasion - Selected occasion (casual, formal, work, sport, date_night, travel)
  * @param weather - Current weather data (optional, null skips weather filtering)
- * @param styles - Explicit garment styles to filter by (optional, overrides occasion-based style filter)
+ * @param styles - Explicit garment styles to filter by (optional, overrides occasion map)
  * @returns RandomOutfitResult with the selected garments or an error message
  */
 export function generateRandomOutfit(
@@ -131,7 +305,7 @@ export function generateRandomOutfit(
   weather?: WeatherData | null,
   styles?: GarmentStyle[],
 ): RandomOutfitResult {
-  // Phase 1: Filter pool
+  // Phase 1: Filter pool by occasion + weather
   const { pool, error: filterError } = filterPool(garments, occasion, weather, styles);
   if (filterError) return { outfit: [], error: filterError };
 
@@ -153,14 +327,13 @@ export function generateRandomOutfit(
   const dresses = byCategory['dresses'] || [];
   const hasDresses = dresses.length > 0;
   let usedDress = false;
+  let primaryStyles: GarmentStyle[] = [];
+  let primaryColor: string | undefined;
 
   if (hasDresses) {
     const hasTops = (byCategory['tops'] || []).length > 0;
     const hasBottoms = (byCategory['bottoms'] || []).length > 0;
-
-    // Must use dress if no separate top or bottom available
     const mustUseDress = !hasTops || !hasBottoms;
-    // Otherwise 50% chance to prefer a dress over separate pieces
     const shouldUseDress = mustUseDress || Math.random() < 0.5;
 
     if (shouldUseDress) {
@@ -168,6 +341,8 @@ export function generateRandomOutfit(
       if (dress) {
         addGarment(dress);
         usedDress = true;
+        primaryStyles = dress.style || [];
+        primaryColor = dress.color;
       }
     }
   }
@@ -176,27 +351,61 @@ export function generateRandomOutfit(
   if (!usedDress) {
     const tops = byCategory['tops'] || [];
     const bottoms = byCategory['bottoms'] || [];
-
-    const top = pickRandom(tops);
-    const bottom = pickRandom(bottoms);
-
-    if (!top || !bottom) {
-      const missing: string[] = [];
-      if (!top) missing.push('parte superior (tops)');
-      if (!bottom) missing.push('parte inferior (bottoms)');
-      return {
-        outfit: [],
-        error: `No tienes suficientes prendas para esta ocasión. Faltan categorías requeridas: ${missing.join(', ')}.`,
-      };
+    // Pick top first — it defines the style/color direction
+    let top: Garment | undefined;
+    // Try to pick a top that is compatible with available bottoms' colors
+    if (tops.length > 0 && bottoms.length > 0) {
+      // Prefer tops whose color works with most bottoms
+      const scoredTops = tops.map((t) => {
+        const compatibleCount = bottoms.filter((b) => areColorsCompatible(t.color, b.color)).length;
+        return { item: t, score: compatibleCount };
+      });
+      const maxScore = Math.max(...scoredTops.map((s) => s.score));
+      const bestTops = scoredTops.filter((s) => s.score === maxScore);
+      top = pickRandom(bestTops.map((s) => s.item));
+    } else {
+      top = pickRandom(tops);
     }
 
+    if (!top) {
+      return {
+        outfit: [],
+        error: 'No tienes tops para esta ocasión. Agrega más prendas.',
+      };
+    }
     addGarment(top);
-    addGarment(bottom);
+    primaryStyles = top.style || [];
+    primaryColor = top.color;
+
+    // Pick bottom — color + style compatible with top
+    const bottom = pickCompatible(bottoms, primaryStyles, primaryColor);
+    if (!bottom) {
+      // Fallback: pick any bottom
+      const fallback = pickRandom(bottoms);
+      if (!fallback) {
+        return {
+          outfit: [],
+          error: 'No tienes pantalones o faldas para esta ocasión. Agrega más prendas.',
+        };
+      }
+      addGarment(fallback);
+    } else {
+      addGarment(bottom);
+    }
   }
 
-  // Shoes are always required
+  // Update primary styles/color from dress (if used) or from first item
+  if (!primaryStyles.length || !primaryColor) {
+    const first = result[0];
+    if (first) {
+      primaryStyles = first.style || [];
+      primaryColor = first.color;
+    }
+  }
+
+  // --- Shoes (always required) — color + style compatible ---
   const shoes = byCategory['shoes'] || [];
-  const shoe = pickRandom(shoes);
+  const shoe = pickCompatible(shoes, primaryStyles, primaryColor) ?? pickRandom(shoes);
   if (!shoe) {
     return {
       outfit: [],
@@ -205,16 +414,18 @@ export function generateRandomOutfit(
   }
   addGarment(shoe);
 
-  // --- Optional categories (70% chance if available) ---
+  // --- Optional categories (70% chance if available, respecting style/color) ---
   const outerwear = (byCategory['outerwear'] || []).filter((g) => !usedIds.has(g.id));
   const accessories = (byCategory['accessories'] || []).filter((g) => !usedIds.has(g.id));
 
   if (outerwear.length > 0 && Math.random() < 0.7) {
-    addGarment(pickRandom(outerwear));
+    const ow = pickCompatible(outerwear, primaryStyles, primaryColor) ?? pickRandom(outerwear);
+    addGarment(ow);
   }
 
   if (accessories.length > 0 && Math.random() < 0.7) {
-    addGarment(pickRandom(accessories));
+    const acc = pickCompatible(accessories, primaryStyles, primaryColor) ?? pickRandom(accessories);
+    addGarment(acc);
   }
 
   return { outfit: result };

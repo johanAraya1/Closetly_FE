@@ -14,6 +14,7 @@ import {
   ActivityIndicator,
 } from 'react-native';
 import { useRouter } from 'expo-router';
+import { getLocalDateString } from '@/utils/date';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
@@ -91,7 +92,7 @@ export default function CalendarScreen() {
   // Build marked dates with garment colors
   const markedDates = useMemo(() => {
     const marks: Record<string, any> = {};
-    const today = new Date().toISOString().split('T')[0];
+    const today = getLocalDateString();
 
     entries.forEach((entry) => {
       const color = getOutfitColor(entry);
@@ -130,12 +131,14 @@ export default function CalendarScreen() {
     });
   }, [selectedMonth, selectedYear]);
 
-  // Day press — navigate to outfit detail if logged
+  // Day press — navigate to outfit detail if logged, or log-today if empty
   const handleDayPress = useCallback(
     (day: { dateString: string }) => {
       const entry = entryByDate[day.dateString];
       if (entry) {
         router.push(`/outfits/${entry.outfit.id}`);
+      } else {
+        router.push(`/calendar/log-today?date=${day.dateString}`);
       }
     },
     [entryByDate, router],
@@ -209,7 +212,10 @@ export default function CalendarScreen() {
         </TouchableOpacity>
         <Text style={styles.headerTitle}>{t('calendar.title')}</Text>
         <TouchableOpacity
-          onPress={() => router.push('/calendar/log-today')}
+          onPress={() => {
+            const midMonth = `${selectedYear}-${String(selectedMonth).padStart(2, '0')}-15`;
+            router.push(`/calendar/log-today?date=${midMonth}`);
+          }}
           style={styles.headerButton}
         >
           <Ionicons name="add" size={28} color={COLORS.primary} />
@@ -262,7 +268,6 @@ export default function CalendarScreen() {
           disableMonthChange={true}
           hideExtraDays={true}
           enableSwipeMonths={false}
-          disableMonthChange={true}
           theme={{
             backgroundColor: '#FFFFFF',
             calendarBackground: '#FFFFFF',

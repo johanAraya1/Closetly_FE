@@ -24,6 +24,24 @@ interface ApiRequestOptions extends RequestInit {
 const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 /**
+ * Fuerza logout cuando la sesión expiró completamente
+ * (sin refresh token viable). Se importa lazy para evitar
+ * circular dependencies con authStore → authService → apiClient.
+ */
+async function forceLogoutOnAuthFailure(): Promise<void> {
+  try {
+    const { useAuthStore } = await import('@/store/authStore');
+    const store = useAuthStore.getState();
+    if (store.isAuthenticated) {
+      await store.logout();
+    }
+  } catch {
+    // Si falla el import, no podemos hacer mucho — el próximo
+    // request con 401/403 también lo intentará
+  }
+}
+
+/**
  * Calcula el delay con backoff exponencial
  */
 const getRetryDelay = (attempt: number, baseDelay: number): number => {
@@ -109,6 +127,8 @@ export const apiClient = {
         if (requiresAuth && !token) {
           const accessToken = await tokenService.getAccessToken();
           if (!accessToken) {
+            // Sesión expirada sin posibilidad de refresh → logout forzado
+            await forceLogoutOnAuthFailure();
             return { error: 'No authentication token' };
           }
           token = accessToken;
@@ -189,6 +209,8 @@ export const apiClient = {
       // Obtener token
       const token = providedToken || await tokenService.getAccessToken();
       if (!token) {
+        // Sesión expirada sin posibilidad de refresh → logout forzado
+        await forceLogoutOnAuthFailure();
         return { error: 'No authentication token' };
       }
 

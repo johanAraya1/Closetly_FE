@@ -1,26 +1,78 @@
-const appJson = require('./app.json');
+/**
+ * App config dinámico según perfil de build
+ * 
+ * Perfiles definidos en eas.json:
+ * - dev:     "Closetly Dev"  (com.closetly.app.dev)  → canal preview
+ * - preview: "Closetly"      (com.closetly.app)       → canal preview (tu APK actual)
+ * - production: "Closetly"   (com.closetly.app)       → canal production
+ */
 
-// Location plugin config for native builds (Android permissions, etc.)
-const locationPlugin = [
-  'expo-location',
-  {
-    locationWhenInUsePermission:
-      'Closetly needs your location to suggest outfits based on the weather in your area.',
-    locationAlwaysAndWhenInUsePermission:
-      'Closetly needs your location to suggest outfits based on the weather in your area.',
+const APP_NAME = process.env.APP_NAME || 'Closetly';
+const PACKAGE_NAME = process.env.ANDROID_PACKAGE || 'com.closetly.app';
+const BUNDLE_ID = process.env.IOS_BUNDLE_ID || 'com.closetly.app';
+
+export default {
+  expo: {
+    name: APP_NAME,
+    slug: 'closetly-virtualcloset',
+    version: '1.0.0',
+    orientation: 'portrait',
+    icon: './assets/icon.png',
+    userInterfaceStyle: 'light',
+    assetBundlePatterns: ['**/*'],
+    splash: {
+      image: './assets/splash.png',
+      resizeMode: 'contain',
+      backgroundColor: '#62D9C7',
+    },
+    ios: {
+      supportsTablet: true,
+      bundleIdentifier: BUNDLE_ID,
+      infoPlist: {
+        ITSAppUsesNonExemptEncryption: false,
+        NSFaceIDUsageDescription:
+          'Usa Face ID o huella digital para iniciar sesión rápidamente en Closetly',
+      },
+    },
+    android: {
+      package: PACKAGE_NAME,
+      adaptiveIcon: {
+        foregroundImage: './assets/adaptive-icon.png',
+        backgroundColor: '#62D9C7',
+      },
+    },
+    web: {
+      favicon: './assets/favicon.png',
+    },
+    plugins: [
+      'expo-router',
+      'expo-localization',
+      'expo-secure-store',
+      'expo-local-authentication',
+      [
+        'expo-notifications',
+        {
+          color: '#62D9C7',
+        },
+      ],
+    ],
+    scheme: 'closetly',
+    experiments: {
+      typedRoutes: true,
+    },
+    extra: {
+      router: {
+        origin: false,
+      },
+      eas: {
+        projectId: 'c694e446-16cc-4d93-a03c-9eef1d7bc6be',
+      },
+    },
+    runtimeVersion: {
+      policy: 'appVersion',
+    },
+    updates: {
+      url: 'https://u.expo.dev/c694e446-16cc-4d93-a03c-9eef1d7bc6be',
+    },
   },
-];
-
-// Only include native plugins for non-web builds (EAS + local development)
-// Vercel web build fails to resolve native plugins like expo-location
-const isWebBuild = !!(
-  process.env.VERCEL ||
-  process.env.VERCEL_ENV ||
-  process.env.EXPO_PUBLIC_WEB
-);
-
-if (!isWebBuild) {
-  appJson.expo.plugins.push(locationPlugin);
-}
-
-module.exports = appJson;
+};
