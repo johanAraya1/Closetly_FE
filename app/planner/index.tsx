@@ -27,7 +27,7 @@ import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS, SPACING, FONT_SIZES } from '@/lib/constants';
 import { EmptyState, Loading, SkeletonCard, withScreenErrorBoundary } from '@/components';
-import { getLocalDateString } from '@/utils/date';
+import { getLocalDateString, parseLocalDate } from '@/utils/date';
 import type { Outfit } from '@/types';
 
 const DAY_KEYS = ['monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday', 'sunday'] as const;
@@ -62,11 +62,19 @@ function PlannerScreen() {
   const [refreshing, setRefreshing] = useState(false);
   const [pickerVisible, setPickerVisible] = useState(false);
   const [selectedDay, setSelectedDay] = useState<number | null>(null);
+  const [previewOutfit, setPreviewOutfit] = useState<Outfit | null>(null);
 
   // Load plan on mount
   useEffect(() => {
     loadPlan();
   }, []);
+
+  // Load outfits on mount so the picker has data without visiting outfits tab first
+  useEffect(() => {
+    if (user && outfits.length === 0 && !outfitsLoading) {
+      loadOutfits(user.id);
+    }
+  }, [user, outfits.length, outfitsLoading, loadOutfits]);
 
   // Pull-to-refresh
   const onRefresh = useCallback(async () => {
@@ -77,8 +85,8 @@ function PlannerScreen() {
 
   // Format week range for display
   const weekLabel = useCallback(() => {
-    const start = new Date(weekStart);
-    const end = new Date(start);
+    const start = parseLocalDate(weekStart);
+    const end = parseLocalDate(weekStart);
     end.setDate(end.getDate() + 6);
 
     const fmt = (d: Date) =>
@@ -90,7 +98,7 @@ function PlannerScreen() {
   // Check if viewing current week
   const isCurrentWeek = useCallback(() => {
     const today = new Date();
-    const monday = new Date(weekStart);
+    const monday = parseLocalDate(weekStart);
     const day = today.getDay();
     const diff = today.getDate() - day + (day === 0 ? -6 : 1);
     const currentMonday = new Date(today);
@@ -137,8 +145,7 @@ function PlannerScreen() {
 
   // Get the date number for each day of week
   const getDayDate = (dayOfWeek: number): number => {
-    const start = new Date(weekStart);
-    const d = new Date(start);
+    const d = parseLocalDate(weekStart);
     d.setDate(d.getDate() + dayOfWeek);
     return d.getDate();
   };
@@ -190,9 +197,17 @@ function PlannerScreen() {
                 <Ionicons name="shirt-outline" size={24} color={COLORS.gray[300]} />
               </View>
             )}
-            <Text style={styles.outfitName} numberOfLines={1}>
-              {outfit.name}
-            </Text>
+            <View style={styles.outfitNameRow}>
+              <Text style={styles.outfitName} numberOfLines={1}>
+                {outfit.name}
+              </Text>
+              <TouchableOpacity
+                onPress={() => setPreviewOutfit(outfit)}
+                hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+              >
+                <Ionicons name="expand-outline" size={16} color={COLORS.gray[400]} />
+              </TouchableOpacity>
+            </View>
           </View>
         ) : (
           <View style={styles.emptyDay}>
@@ -473,6 +488,76 @@ function PlannerScreen() {
 
       {/* Outfit picker modal */}
       {renderPickerModal()}
+
+      {/* Outfit preview modal */}
+      <Modal
+        visible={previewOutfit !== null}
+        transparent
+        animationType="slide"
+        onRequestClose={() => setPreviewOutfit(null)}
+      >
+        <View style={styles.modalOverlay}>
+          <View style={styles.previewContainer}>
+            <View style={styles.previewHeader}>
+              <Text style={styles.previewTitle} numberOfLines={1}>
+                {previewOutfit?.name}
+              </Text>
+              <TouchableOpacity onPress={() => setPreviewOutfit(null)}>
+                <Ionicons name="close" size={24} color={COLORS.gray[500]} />
+              </TouchableOpacity>
+            </View>
+            {previewOutfit && (
+              <ScrollView contentContainerStyle={styles.previewContent}>
+                {/* Garments grid */}
+                <Text style={styles.previewSectionTitle}>Prendas</Text>
+                <View style={styles.previewGarmentsGrid}>
+                  {(previewOutfit.garments ?? []).length > 0 ? (
+                    previewOutfit.garments.map((g) => (
+                      <View key={g.id} style={styles.previewGarmentCard}>
+                        <Image
+                          source={{ uri: g.imageUrl }}
+                          style={styles.previewGarmentImage}
+                          resizeMode="contain"
+                        />
+                        <Text style={styles.previewGarmentName} numberOfLines={1}>
+                          {g.name}
+                        </Text>
+                      </View>
+                    ))
+                  ) : (
+                    <Text style={styles.previewEmptyText}>Sin prendas asignadas</Text>
+                  )}
+                </View>
+
+                {/* Details */}
+                <Text style={styles.previewSectionTitle}>Detalles</Text>
+                <View style={styles.previewDetailsList}>
+                  {previewOutfit.occasion && (
+                    <View style={styles.previewDetailRow}>
+                      <Ionicons name="calendar-outline" size={16} color={COLORS.gray[500]} />
+                      <Text style={styles.previewDetailText}>{previewOutfit.occasion}</Text>
+                    </View>
+                  )}
+                  {previewOutfit.season && (
+                    <View style={styles.previewDetailRow}>
+                      <Ionicons name="thermometer-outline" size={16} color={COLORS.gray[500]} />
+                      <Text style={styles.previewDetailText}>{previewOutfit.season}</Text>
+                    </View>
+                  )}
+                  {previewOutfit.style && previewOutfit.style.length > 0 && (
+                    <View style={styles.previewDetailRow}>
+                      <Ionicons name="color-palette-outline" size={16} color={COLORS.gray[500]} />
+                      <Text style={styles.previewDetailText}>
+                        {(Array.isArray(previewOutfit.style) ? previewOutfit.style : [previewOutfit.style]).join(', ')}
+                      </Text>
+                    </View>
+                  )}
+                </View>
+              </ScrollView>
+            )}
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -794,6 +879,88 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.xs,
     color: COLORS.warning,
     marginTop: 2,
+  },
+
+  // Outfit name row in day card
+  outfitNameRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    gap: 4,
+  },
+
+  // Preview modal
+  previewContainer: {
+    backgroundColor: '#FFFFFF',
+    borderTopLeftRadius: 20,
+    borderTopRightRadius: 20,
+    maxHeight: '85%',
+    minHeight: 300,
+  },
+  previewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 20,
+    paddingVertical: 16,
+    borderBottomWidth: 1,
+    borderBottomColor: COLORS.gray[100],
+  },
+  previewTitle: {
+    fontSize: FONT_SIZES.lg,
+    fontWeight: '700',
+    color: COLORS.gray[900],
+    flex: 1,
+    marginRight: 12,
+  },
+  previewContent: {
+    padding: 20,
+    gap: 20,
+  },
+  previewSectionTitle: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '700',
+    color: COLORS.gray[600],
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  previewGarmentsGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  previewGarmentCard: {
+    width: 100,
+    gap: 6,
+  },
+  previewGarmentImage: {
+    width: 100,
+    height: 120,
+    borderRadius: 10,
+    backgroundColor: COLORS.gray[100],
+  },
+  previewGarmentName: {
+    fontSize: FONT_SIZES.xs,
+    color: COLORS.gray[700],
+    fontWeight: '500',
+    textAlign: 'center',
+  },
+  previewEmptyText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray[400],
+    fontStyle: 'italic',
+  },
+  previewDetailsList: {
+    gap: 10,
+  },
+  previewDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 10,
+  },
+  previewDetailText: {
+    fontSize: FONT_SIZES.sm,
+    color: COLORS.gray[700],
   },
 });
 

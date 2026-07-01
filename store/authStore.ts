@@ -179,9 +179,6 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     // Limpiar tokens seguros y datos de sesión
     await tokenService.clearAll();
     
-    // Limpiar credenciales guardadas para biometría
-    await tokenService.clearBiometricCredentials();
-    
     // Llamar al backend para invalidar tokens
     await authService.logout();
     

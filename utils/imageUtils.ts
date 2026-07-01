@@ -17,10 +17,7 @@ export const optimizeImage = async (uri: string): Promise<string> => {
       uri,
       [
         {
-          resize: {
-            width: IMAGE_CONFIG.MAX_WIDTH,
-            height: IMAGE_CONFIG.MAX_HEIGHT,
-          },
+          resize: { width: IMAGE_CONFIG.MAX_WIDTH },
         },
       ],
       {
