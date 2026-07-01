@@ -51,6 +51,7 @@ export default function CreateOutfitScreen() {
   const [hasGenerated, setHasGenerated] = useState(false);
   const [showStyleModal, setShowStyleModal] = useState(false);
   const [selectedRandomStyles, setSelectedRandomStyles] = useState<GarmentStyle[]>([]);
+  const [expandedGarment, setExpandedGarment] = useState<Garment | null>(null);
 
   // Pre-fill form in edit mode
   useEffect(() => {
@@ -470,6 +471,19 @@ export default function CreateOutfitScreen() {
                           contentFit="contain"
                           cachePolicy="memory-disk"
                         />
+
+                        {/* Expand button — top-right */}
+                        <TouchableOpacity
+                          onPress={(e) => {
+                            e.stopPropagation();
+                            setExpandedGarment(garment);
+                          }}
+                          style={styles.expandButton}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Ionicons name="expand-outline" size={18} color="#FFFFFF" />
+                        </TouchableOpacity>
+
                         {isSelected && (
                           <View style={styles.selectedOverlay}>
                             <View style={styles.checkmarkBadge}>
@@ -559,6 +573,100 @@ export default function CreateOutfitScreen() {
               ]
         }
       />
+
+      {/* Modal: preview expandido de prenda */}
+      <RNModal
+        visible={expandedGarment !== null}
+        transparent
+        animationType="fade"
+        statusBarTranslucent
+        onRequestClose={() => setExpandedGarment(null)}
+      >
+        <View style={styles.expandModalBackdrop}>
+          <TouchableOpacity
+            style={styles.expandModalClose}
+            onPress={() => setExpandedGarment(null)}
+            hitSlop={{ top: 12, bottom: 12, left: 12, right: 12 }}
+          >
+            <Ionicons name="close" size={28} color="#FFFFFF" />
+          </TouchableOpacity>
+
+          {expandedGarment && (
+            <ScrollView
+              style={styles.expandModalScroll}
+              contentContainerStyle={styles.expandModalContent}
+              showsVerticalScrollIndicator={false}
+            >
+              {/* Full-width large image */}
+              <Image
+                source={{ uri: expandedGarment.imageUrl }}
+                style={styles.expandImage}
+                contentFit="contain"
+              />
+
+              {/* Details card */}
+              <View style={styles.expandInfoCard}>
+                <Text style={styles.expandName}>{expandedGarment.name}</Text>
+
+                <View style={styles.expandDivider} />
+
+                {/* Category */}
+                <View style={styles.expandDetailRow}>
+                  <Ionicons name="grid-outline" size={16} color="#6B7280" />
+                  <Text style={styles.expandDetailLabel}>{t('garments.create.category')}</Text>
+                  <Text style={styles.expandDetailValue}>
+                    {categoryLabels[expandedGarment.category] || expandedGarment.category}
+                  </Text>
+                </View>
+
+                {/* Brand */}
+                {expandedGarment.brand && (
+                  <View style={styles.expandDetailRow}>
+                    <Ionicons name="pricetag-outline" size={16} color="#6B7280" />
+                    <Text style={styles.expandDetailLabel}>{t('garments.create.brand')}</Text>
+                    <Text style={styles.expandDetailValue}>{expandedGarment.brand}</Text>
+                  </View>
+                )}
+
+                {/* Color */}
+                {expandedGarment.color && (
+                  <View style={styles.expandDetailRow}>
+                    <Ionicons name="color-palette-outline" size={16} color="#6B7280" />
+                    <Text style={styles.expandDetailLabel}>{t('garments.create.color')}</Text>
+                    <Text style={styles.expandDetailValue}>{expandedGarment.color}</Text>
+                  </View>
+                )}
+
+                {/* Season */}
+                <View style={styles.expandDetailRow}>
+                  <Ionicons name="calendar-outline" size={16} color="#6B7280" />
+                  <Text style={styles.expandDetailLabel}>{t('outfits.create.season')}</Text>
+                  <Text style={styles.expandDetailValue}>
+                    {seasonLabels[expandedGarment.season] || expandedGarment.season}
+                  </Text>
+                </View>
+
+                {/* Style */}
+                {expandedGarment.style && (
+                  <View style={styles.expandDetailRow}>
+                    <Ionicons name="sparkles-outline" size={16} color="#6B7280" />
+                    <Text style={styles.expandDetailLabel}>{t('garments.create.style')}</Text>
+                    <Text style={styles.expandDetailValue}>
+                      {(() => {
+                        const s = expandedGarment.style;
+                        if (Array.isArray(s)) {
+                          return s.map(st => GARMENT_STYLES.find(gs => gs.value === st)?.label || st).join(', ');
+                        }
+                        return GARMENT_STYLES.find(gs => gs.value === s)?.label || s;
+                      })()}
+                    </Text>
+                  </View>
+                )}
+              </View>
+            </ScrollView>
+          )}
+        </View>
+      </RNModal>
 
       {/* Modal de selección de estilos para outfit aleatorio */}
       <RNModal
@@ -1019,5 +1127,90 @@ const styles = StyleSheet.create({
     color: '#9CA3AF',
     textAlign: 'center',
     marginBottom: 20,
+  },
+
+  // ---- Expand Garment Preview ----
+  expandButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    zIndex: 2,
+  },
+  expandModalBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.92)',
+  },
+  expandModalClose: {
+    position: 'absolute',
+    top: 50,
+    right: 16,
+    zIndex: 10,
+    width: 44,
+    height: 44,
+    borderRadius: 22,
+    backgroundColor: 'rgba(255, 255, 255, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  expandModalScroll: {
+    flex: 1,
+  },
+  expandModalContent: {
+    paddingTop: 80,
+    paddingBottom: 40,
+  },
+  expandImage: {
+    width: '100%',
+    height: 400,
+    backgroundColor: '#1A1A1A',
+  },
+  expandInfoCard: {
+    backgroundColor: '#FFFFFF',
+    marginHorizontal: 16,
+    marginTop: 20,
+    borderRadius: 16,
+    padding: 20,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 12,
+    elevation: 8,
+  },
+  expandName: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+  },
+  expandDivider: {
+    height: 1,
+    backgroundColor: '#F3F4F6',
+    marginVertical: 14,
+  },
+  expandDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 10,
+    borderBottomWidth: 1,
+    borderBottomColor: '#F9FAFB',
+    gap: 8,
+  },
+  expandDetailLabel: {
+    fontSize: 14,
+    color: '#6B7280',
+    flex: 1,
+    marginLeft: 4,
+  },
+  expandDetailValue: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+    textAlign: 'right',
+    flex: 1,
   },
 });
