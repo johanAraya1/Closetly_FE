@@ -7,6 +7,7 @@ import { API_URL } from '@/lib/constants';
 import * as ImageManipulator from 'expo-image-manipulator';
 import type { GarmentCategory, GarmentSeason } from '@/types';
 import i18n from '@/lib/i18n';
+import { tokenService } from './tokenService';
 
 export interface GarmentAnalysis {
   name: string;
@@ -40,11 +41,15 @@ export async function analyzeGarmentImage(
     // Obtener el locale actual del usuario para que la IA responda en ese idioma
     const locale = i18n.locale?.split('-')[0] || 'en';
 
+    // Obtener token de autenticación
+    const token = await tokenService.getAccessToken();
+
     // Enviar al backend para análisis
     const aiResponse = await fetch(`${API_URL}/ai/analyze-garment`, {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',
+        ...(token ? { 'Authorization': `Bearer ${token}` } : {}),
       },
       body: JSON.stringify({
         imageBase64: base64,

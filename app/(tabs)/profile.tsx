@@ -20,7 +20,7 @@ import { COLORS } from '@/lib/constants';
 function ProfileScreen() {
   const router = useRouter();
   const { profile, user, logout, isAdmin, updateProfile, isLoading } = useAuth();
-  const { garments } = useGarments(true);
+  const { total: garmentCount } = useGarments(true);
   const { outfits } = useOutfits(true);
   const { collections } = useCollections();
   const { t } = useTranslation();
@@ -144,7 +144,7 @@ function ProfileScreen() {
             <View style={styles.statsRow}>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>
-                  {garments.length}
+                  {garmentCount}
                 </Text>
                 <Text style={styles.statLabel}>{t('profile.garments')}</Text>
               </View>

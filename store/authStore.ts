@@ -82,6 +82,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Guardar datos de sesión
         await tokenService.saveSessionData(result.data.user, result.data.profile);
         
+        // Si la biometría está habilitada, guardar credenciales en SecureStore
+        const biometricEnabled = await tokenService.getBiometricEnabled();
+        if (biometricEnabled) {
+          await tokenService.saveBiometricCredentials(email, password);
+        }
+        
         set({
           user: result.data.user,
           profile: result.data.profile,
@@ -139,6 +145,12 @@ export const useAuthStore = create<AuthState>((set, get) => ({
         // Guardar datos de sesión
         await tokenService.saveSessionData(result.data.user, result.data.profile);
         
+        // Si la biometría está habilitada, guardar credenciales en SecureStore
+        const biometricEnabled = await tokenService.getBiometricEnabled();
+        if (biometricEnabled) {
+          await tokenService.saveBiometricCredentials(email, password);
+        }
+        
         set({
           user: result.data.user,
           profile: result.data.profile,
@@ -166,6 +178,9 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     
     // Limpiar tokens seguros y datos de sesión
     await tokenService.clearAll();
+    
+    // Limpiar credenciales guardadas para biometría
+    await tokenService.clearBiometricCredentials();
     
     // Llamar al backend para invalidar tokens
     await authService.logout();
@@ -336,6 +351,7 @@ export const useAuthStore = create<AuthState>((set, get) => ({
 
   disableBiometric: async () => {
     await tokenService.setBiometricEnabled(false);
+    await tokenService.clearBiometricCredentials();
     set({ biometricEnabled: false });
   },
 }));

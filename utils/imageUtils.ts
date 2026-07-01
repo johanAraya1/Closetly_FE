@@ -79,7 +79,7 @@ export const pickImageFromGallery = async (
     const result = await ImagePicker.launchImageLibraryAsync({
       mediaTypes: ImagePicker.MediaTypeOptions.Images,
       allowsEditing: crop,
-      aspect: aspect ?? [4, 3],
+      ...(aspect ? { aspect } : {}),
       quality: 1,
     });
 

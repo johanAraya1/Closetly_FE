@@ -158,30 +158,40 @@ export default function LoginScreen() {
       return; // Usuario canceló o falló — no mostrar error
     }
 
-    // Intentar refresh directo con el token guardado
-    const result = await tokenService.biometricRefresh();
-
-    if (!result) {
-      setIsTransitioning(false);
-      setErrorMessage(
-        'No se pudo restaurar la sesión. El acceso con huella expiró, ' +
-        'ingresá con tu contraseña para renovarlo.'
-      );
-      setShowErrorModal(true);
-      return;
+    // 1. Intentar con credenciales guardadas en SecureStore (login completo)
+    const credentials = await tokenService.getBiometricCredentials();
+    if (credentials) {
+      const loginSuccess = await login(credentials.email, credentials.password);
+      if (loginSuccess) {
+        // El auth layout redirige automáticamente
+        return;
+      }
+      // Si falló el login con credenciales guardadas, limpiarlas (expiraron)
+      await tokenService.clearBiometricCredentials();
     }
 
-    // Restaurar sesión manualmente en el store
-    useAuthStore.setState({
-      user: result.session.user,
-      profile: result.session.profile,
-      token: result.token,
-      isAuthenticated: true,
-      isLoading: false,
-      error: null,
-    });
+    // 2. Fallback: intentar refresh directo con el token guardado
+    //    (útil para sesiones que expiraron hace poco)
+    const result = await tokenService.biometricRefresh();
+    if (result) {
+      useAuthStore.setState({
+        user: result.session.user,
+        profile: result.session.profile,
+        token: result.token,
+        isAuthenticated: true,
+        isLoading: false,
+        error: null,
+      });
+      return; // El auth layout redirige automáticamente
+    }
 
-    // El auth layout redirige automáticamente al detectar isAuthenticated
+    // 3. No hay forma de restaurar — pedir login manual
+    setIsTransitioning(false);
+    setErrorMessage(
+      'No se pudo iniciar sesión con huella. ' +
+      'Ingresá con tu correo y contraseña para renovar el acceso.'
+    );
+    setShowErrorModal(true);
   };
 
   return (
