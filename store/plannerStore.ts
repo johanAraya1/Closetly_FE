@@ -6,26 +6,8 @@
 import { create } from 'zustand';
 import type { WeeklyPlanDay, UpsertPlanEntry } from '@/types';
 import * as plannerService from '@/services/plannerService';
-
-/**
- * Calcula el lunes de la semana para una fecha dada
- */
-function getMondayOfWeek(date: Date = new Date()): string {
-  const d = new Date(date);
-  const day = d.getDay(); // 0=Sun, 1=Mon...
-  const diff = d.getDate() - day + (day === 0 ? -6 : 1); // adjust to Monday
-  d.setDate(diff);
-  return d.toISOString().split('T')[0];
-}
-
-/**
- * Suma/resta días a una fecha ISO string
- */
-function addDays(isoDate: string, days: number): string {
-  const d = new Date(isoDate);
-  d.setDate(d.getDate() + days);
-  return d.toISOString().split('T')[0];
-}
+import * as calendarService from '@/services/calendarService';
+import { addDays, parseLocalDate, getMondayOfWeek } from '@/utils/date';
 
 interface PlannerState {
   plan: WeeklyPlanDay[];
@@ -119,6 +101,10 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
 
     if (result.data) {
       set({ plan: result.data.plan, isSaving: false });
+
+      // Sync to calendar silently (fire-and-forget)
+      const dateStr = addDays(weekStart, dayOfWeek);
+      calendarService.logOutfit(outfitId, dateStr).catch(() => {});
     } else {
       set({ isSaving: false });
     }
@@ -148,6 +134,16 @@ export const usePlannerStore = create<PlannerState>((set, get) => ({
     // Reload to get fresh server state
     set({ isSaving: false });
     get().loadPlan(weekStart);
+
+    // Sync: remove from calendar silently (fire-and-forget)
+    const dateStr = addDays(weekStart, dayOfWeek);
+    const d = parseLocalDate(dateStr);
+    calendarService.getCalendar(d.getMonth() + 1, d.getFullYear()).then((res) => {
+      const entry = res.data?.find((e) => e.date === dateStr);
+      if (entry) {
+        calendarService.deleteLog(entry.id).catch(() => {});
+      }
+    }).catch(() => {});
   },
 
   goToNextWeek: () => {
