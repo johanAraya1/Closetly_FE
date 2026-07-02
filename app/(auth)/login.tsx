@@ -27,7 +27,6 @@ import { checkBiometric } from '@/hooks/useBiometricCheck';
 import { tokenService } from '@/services/tokenService';
 import { isValidEmail, validationMessages } from '@/utils/validation';
 
-// SOLO guarda email — NUNCA guarda contraseña
 const REMEMBER_KEY = '@closetly/remember_me';
 
 export default function LoginScreen() {
@@ -64,17 +63,15 @@ export default function LoginScreen() {
     })();
   }, []);
 
-  // Cargar email guardado al montar la pantalla
-  // SOLO email — NUNCA se guarda la contraseña
+  // Cargar email y contraseña guardados al montar la pantalla
   useEffect(() => {
     (async () => {
       try {
         const saved = await AsyncStorage.getItem(REMEMBER_KEY);
         if (saved) {
           const data = JSON.parse(saved);
-          // Migración retro: formato anterior { email, password }
-          // nuevo formato solo guarda { email }
           if (data.email) setEmail(data.email);
+          if (data.password) setPassword(data.password);
           setRememberMe(true);
         }
       } catch {
@@ -132,10 +129,10 @@ export default function LoginScreen() {
       return;
     }
 
-    // Recordar email: guardar SOLO el email, NUNCA la contraseña
+    // Recordar email y contraseña
     try {
       if (rememberMe) {
-        await AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify({ email }));
+        await AsyncStorage.setItem(REMEMBER_KEY, JSON.stringify({ email, password }));
       } else {
         await AsyncStorage.removeItem(REMEMBER_KEY);
       }

@@ -40,6 +40,7 @@ export default function CreateOutfitScreen() {
   const [errors, setErrors] = useState<{ name?: string; garments?: string }>({});
   const [isLoading, setIsLoading] = useState(false);
   const [showSuccessModal, setShowSuccessModal] = useState(false);
+  const [previewGarment, setPreviewGarment] = useState<Garment | null>(null);
   const [isLoadingEdit, setIsLoadingEdit] = useState(() => {
     if (!isEditMode) return false;
     const store = useOutfitsStore.getState();
@@ -446,7 +447,7 @@ export default function CreateOutfitScreen() {
           {selectedGarments.length > 0 && (
             <View style={styles.previewSection}>
               <Text style={styles.label}>{t('outfits.create.preview')}</Text>
-              <OutfitPreview selectedGarments={selectedGarments} />
+              <OutfitPreview selectedGarments={selectedGarments} onGarmentPress={setPreviewGarment} />
             </View>
           )}
 
@@ -812,6 +813,58 @@ export default function CreateOutfitScreen() {
               fullWidth
             />
           </TouchableOpacity>
+        </TouchableOpacity>
+      </RNModal>
+
+      {/* Modal de preview de prenda en grande */}
+      <RNModal
+        visible={previewGarment !== null}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setPreviewGarment(null)}
+      >
+        <TouchableOpacity
+          style={styles.garmentPreviewBackdrop}
+          activeOpacity={1}
+          onPress={() => setPreviewGarment(null)}
+        >
+          {previewGarment && (
+            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
+              <View style={styles.garmentPreviewCard}>
+                <View style={styles.garmentPreviewHeader}>
+                  <Text style={styles.garmentPreviewName} numberOfLines={1}>
+                    {previewGarment.name}
+                  </Text>
+                  <TouchableOpacity onPress={() => setPreviewGarment(null)}>
+                    <Ionicons name="close" size={24} color="#6B7280" />
+                  </TouchableOpacity>
+                </View>
+                <Image
+                  source={{ uri: previewGarment.imageUrl }}
+                  style={styles.garmentPreviewImage}
+                  contentFit="contain"
+                  cachePolicy="memory-disk"
+                />
+                <View style={styles.garmentPreviewDetails}>
+                  {previewGarment.category && (
+                    <Text style={styles.garmentPreviewDetail}>
+                      {t('outfits.create.category')}: {t('garments.category.' + previewGarment.category)}
+                    </Text>
+                  )}
+                  {previewGarment.color && (
+                    <Text style={styles.garmentPreviewDetail}>
+                      {t('garments.create.color')}: {previewGarment.color}
+                    </Text>
+                  )}
+                  {previewGarment.brand && (
+                    <Text style={styles.garmentPreviewDetail}>
+                      {t('garments.create.brand')}: {previewGarment.brand}
+                    </Text>
+                  )}
+                </View>
+              </View>
+            </TouchableOpacity>
+          )}
         </TouchableOpacity>
       </RNModal>
     </SafeAreaView>
@@ -1312,5 +1365,51 @@ const styles = StyleSheet.create({
     color: '#111827',
     textAlign: 'right',
     flex: 1,
+  },
+
+  // Garment preview from OutfitPreview
+  garmentPreviewBackdrop: {
+    flex: 1,
+    backgroundColor: 'rgba(0, 0, 0, 0.85)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    padding: 20,
+  },
+  garmentPreviewCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    width: '100%',
+    maxWidth: 400,
+    maxHeight: '90%',
+    overflow: 'hidden',
+  },
+  garmentPreviewHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+  },
+  garmentPreviewName: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#111827',
+    flex: 1,
+    marginRight: 12,
+  },
+  garmentPreviewImage: {
+    width: '100%',
+    height: 350,
+    backgroundColor: '#F3F4F6',
+  },
+  garmentPreviewDetails: {
+    padding: 16,
+    gap: 6,
+  },
+  garmentPreviewDetail: {
+    fontSize: 14,
+    color: '#374151',
   },
 });
