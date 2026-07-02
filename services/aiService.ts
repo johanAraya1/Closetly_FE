@@ -61,29 +61,21 @@ export async function analyzeGarmentImage(
       const errorText = await aiResponse.text();
       console.error('AI Backend Error:', aiResponse.status, errorText);
 
-      let errorMessage = `Error del servidor (${aiResponse.status})`;
-
-      if (errorText) {
-        try {
-          const parsed = JSON.parse(errorText);
-          if (parsed && typeof parsed === 'object') {
-            if (Array.isArray(parsed.message) && parsed.message.length > 0) {
-              errorMessage = parsed.message.join(', ');
-            } else if (typeof parsed.message === 'string' && parsed.message.trim()) {
-              errorMessage = parsed.message.trim();
-            } else if (typeof parsed.error === 'string' && parsed.error.trim()) {
-              errorMessage = parsed.error.trim();
-            }
-
-            if (typeof parsed.detail === 'string' && parsed.detail.trim()) {
-              errorMessage = `${errorMessage}: ${parsed.detail.trim()}`;
-            }
-          } else {
-            errorMessage = errorText;
-          }
-        } catch {
-          errorMessage = errorText;
-        }
+      // Mapear errores comunes a mensajes amigables para el usuario
+      let errorMessage: string;
+      switch (aiResponse.status) {
+        case 429:
+          errorMessage = 'El servicio de IA está temporalmente sobrecargado. Completá los datos manualmente o intentá de nuevo en unos minutos.';
+          break;
+        case 502:
+        case 503:
+          errorMessage = 'El servicio de IA no está disponible en este momento. Completá los datos manualmente.';
+          break;
+        case 504:
+          errorMessage = 'El análisis de la imagen tomó demasiado tiempo. Completá los datos manualmente.';
+          break;
+        default:
+          errorMessage = 'No se pudo analizar la imagen automáticamente. Completá los datos manualmente.';
       }
 
       return { error: errorMessage };

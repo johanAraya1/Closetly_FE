@@ -4,12 +4,13 @@
  */
 
 import React, { useMemo } from 'react';
-import { View, Text, StyleSheet, Dimensions } from 'react-native';
+import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
 import type { Garment } from '@/types';
 
 interface OutfitPreviewProps {
   selectedGarments: Garment[];
+  onGarmentPress?: (garment: Garment) => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -36,7 +37,7 @@ const BODY_ZONES = {
   'belts': 'accessories',
 } as Record<string, string>;
 
-export function OutfitPreview({ selectedGarments }: OutfitPreviewProps) {
+export function OutfitPreview({ selectedGarments, onGarmentPress }: OutfitPreviewProps) {
   // Organizar prendas por zona del cuerpo
   const garmentsByZone = useMemo(() => {
     const zones: Record<string, Garment[]> = {
@@ -71,12 +72,14 @@ export function OutfitPreview({ selectedGarments }: OutfitPreviewProps) {
           <View style={styles.fullBodyZone}>
             {garmentsByZone.full.map((garment, idx) => (
               <View key={garment.id} style={[styles.garmentWrapper, idx > 0 && styles.overlayGarment]}>
-                <Image
-                  source={{ uri: garment.imageUrl }}
-                  style={styles.fullBodyImage}
-                  contentFit="contain"
-                  cachePolicy="memory-disk"
-                />
+                <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
+                  <Image
+                    source={{ uri: garment.imageUrl }}
+                    style={styles.fullBodyImage}
+                    contentFit="contain"
+                    cachePolicy="memory-disk"
+                  />
+                </TouchableOpacity>
                 <Text style={styles.garmentLabel} numberOfLines={1}>
                   {garment.name}
                 </Text>
@@ -93,12 +96,14 @@ export function OutfitPreview({ selectedGarments }: OutfitPreviewProps) {
               <View style={styles.upperZone}>
                 {garmentsByZone.upper.map((garment, idx) => (
                   <View key={garment.id} style={[styles.garmentWrapper, idx > 0 && styles.overlayGarment]}>
-                    <Image
-                      source={{ uri: garment.imageUrl }}
-                      style={styles.upperImage}
-                      contentFit="contain"
-                      cachePolicy="memory-disk"
-                    />
+                    <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
+                      <Image
+                        source={{ uri: garment.imageUrl }}
+                        style={styles.upperImage}
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
+                      />
+                    </TouchableOpacity>
                     <Text style={styles.garmentLabel} numberOfLines={1}>
                       {garment.name}
                     </Text>
@@ -112,12 +117,14 @@ export function OutfitPreview({ selectedGarments }: OutfitPreviewProps) {
               <View style={styles.lowerZone}>
                 {garmentsByZone.lower.map((garment, idx) => (
                   <View key={garment.id} style={[styles.garmentWrapper, idx > 0 && styles.overlayGarment]}>
-                    <Image
-                      source={{ uri: garment.imageUrl }}
-                      style={styles.lowerImage}
-                      contentFit="contain"
-                      cachePolicy="memory-disk"
-                    />
+                    <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
+                      <Image
+                        source={{ uri: garment.imageUrl }}
+                        style={styles.lowerImage}
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
+                      />
+                    </TouchableOpacity>
                     <Text style={styles.garmentLabel} numberOfLines={1}>
                       {garment.name}
                     </Text>
@@ -131,19 +138,21 @@ export function OutfitPreview({ selectedGarments }: OutfitPreviewProps) {
         {/* Zona de calzado */}
         {garmentsByZone.feet.length > 0 && (
           <View style={styles.feetZone}>
-            {garmentsByZone.feet.map((garment, idx) => (
-              <View key={garment.id} style={[styles.garmentWrapper, idx > 0 && styles.overlayGarment]}>
-                <Image
-                  source={{ uri: garment.imageUrl }}
-                  style={styles.feetImage}
-                  contentFit="contain"
-                  cachePolicy="memory-disk"
-                />
-                <Text style={styles.garmentLabel} numberOfLines={1}>
-                  {garment.name}
-                </Text>
-              </View>
-            ))}
+                {garmentsByZone.feet.map((garment, idx) => (
+                  <View key={garment.id} style={[styles.garmentWrapper, idx > 0 && styles.overlayGarment]}>
+                    <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
+                      <Image
+                        source={{ uri: garment.imageUrl }}
+                        style={styles.feetImage}
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
+                      />
+                    </TouchableOpacity>
+                    <Text style={styles.garmentLabel} numberOfLines={1}>
+                      {garment.name}
+                    </Text>
+                  </View>
+                ))}
           </View>
         )}
 
@@ -152,14 +161,16 @@ export function OutfitPreview({ selectedGarments }: OutfitPreviewProps) {
           <View style={styles.accessoriesZone}>
             <Text style={styles.accessoriesTitle}>Accesorios:</Text>
             <View style={styles.accessoriesGrid}>
-              {garmentsByZone.accessories.map((garment) => (
+                {garmentsByZone.accessories.map((garment) => (
                 <View key={garment.id} style={styles.accessoryItem}>
-                  <Image
-                    source={{ uri: garment.imageUrl }}
-                    style={styles.accessoryImage}
-                    contentFit="contain"
-                    cachePolicy="memory-disk"
-                  />
+                  <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
+                    <Image
+                      source={{ uri: garment.imageUrl }}
+                      style={styles.accessoryImage}
+                      contentFit="contain"
+                      cachePolicy="memory-disk"
+                    />
+                  </TouchableOpacity>
                   <Text style={styles.accessoryLabel} numberOfLines={1}>
                     {garment.name}
                   </Text>
