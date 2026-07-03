@@ -88,7 +88,8 @@ test.describe('Garment Creation', () => {
     // Fill required fields
     await page.getByPlaceholder(/Blue Denim|Chaqueta/i).fill('My Test Garment');
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
-    await page.getByPlaceholder(/, Blue$|, Azul$/i).fill('Red');
+    // Click the "Rojo" swatch in the ColorPicker (replaced the old text input)
+    await page.getByText('Rojo').first().click();
 
     // Submit the form
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
@@ -113,8 +114,8 @@ test.describe('Garment Creation', () => {
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
     await expect(submitBtn).toBeDisabled();
 
-    // Fill color → all required fields are now complete
-    await page.getByPlaceholder(/, Blue$|, Azul$/i).fill('Red');
+    // Click the "Rojo" swatch in the ColorPicker
+    await page.getByText('Rojo').first().click();
     await expect(submitBtn).toBeEnabled();
   });
 
@@ -160,7 +161,8 @@ test.describe('Garment Creation', () => {
     // Fill required fields to enable the submit button
     await page.getByPlaceholder(/Blue Denim|Chaqueta/i).fill('Test Garment');
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
-    await page.getByPlaceholder(/, Blue$|, Azul$/i).fill('Red');
+    // Click the "Rojo" swatch in the ColorPicker
+    await page.getByText('Rojo').first().click();
 
     // Submit the form
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
