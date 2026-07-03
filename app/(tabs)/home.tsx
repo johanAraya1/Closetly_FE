@@ -4,11 +4,12 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
+import * as LocalAuthentication from 'expo-local-authentication';
 import { Button, OutfitCard, Loading, EmptyState, SkeletonCard } from '@/components';
 import { SuggestionDetailModal } from '@/components/SuggestionDetailModal';
 import type { Garment, Suggestion } from '@/types';
@@ -18,6 +19,7 @@ import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
+import { tokenService } from '@/services/tokenService';
 import { withScreenErrorBoundary } from '@/components';
 
 /** Unique key for a suggestion based on its garment IDs */
@@ -94,6 +96,31 @@ function HomeScreen() {
       t('auth.username');
     return name?.trim() || t('auth.username');
   }, [profile?.username, profile?.full_name, user?.email, t]);
+
+  // Biometric banner — invitar a activar huella solo si el hardware lo soporta
+  const [biometricBanner, setBiometricBanner] = useState<{ visible: boolean; hasHardware: boolean }>({
+    visible: false,
+    hasHardware: false,
+  });
+
+  useEffect(() => {
+    (async () => {
+      if (Platform.OS === 'web') return;
+      try {
+        const hasHardware = await LocalAuthentication.hasHardwareAsync();
+        const enabled = await tokenService.getBiometricEnabled();
+        if (hasHardware && !enabled) {
+          setBiometricBanner({ visible: true, hasHardware: true });
+        }
+      } catch {
+        // ignore — no hay soporte biométrico
+      }
+    })();
+  }, []);
+
+  const dismissBiometricBanner = useCallback(() => {
+    setBiometricBanner((prev) => ({ ...prev, visible: false }));
+  }, []);
 
   // Track which suggestions have been saved as outfits
   const savedSuggestionKeys = useMemo(() => {
@@ -218,6 +245,42 @@ function HomeScreen() {
               </View>
             ))}
             <Text style={styles.checklistHint}>{t('home.checklistHint')}</Text>
+          </View>
+        )}
+
+        {/* Banner biométrico — invitar a activar huella */}
+        {biometricBanner.visible && biometricBanner.hasHardware && (
+          <View style={styles.biometricBanner}>
+            <View style={styles.biometricBannerContent}>
+              <Ionicons name="finger-print-outline" size={24} color={COLORS.primary} />
+              <View style={styles.biometricBannerTextCol}>
+                <Text style={styles.biometricBannerTitle}>
+                  {t('biometric.inviteTitle') || '🔒 Ingresá con tu huella'}
+                </Text>
+                <Text style={styles.biometricBannerDesc}>
+                  {t('biometric.inviteDesc') ||
+                    'Activá la huella digital en Configuración para iniciar sesión más rápido.'}
+                </Text>
+              </View>
+            </View>
+            <View style={styles.biometricBannerActions}>
+              <TouchableOpacity
+                style={styles.biometricBannerBtn}
+                onPress={() => router.push('/settings')}
+              >
+                <Text style={styles.biometricBannerBtnText}>
+                  {t('biometric.goToSettings') || 'Ir a Configuración'}
+                </Text>
+              </TouchableOpacity>
+              <TouchableOpacity
+                style={styles.biometricBannerDismiss}
+                onPress={dismissBiometricBanner}
+              >
+                <Text style={styles.biometricBannerDismissText}>
+                  {t('common.remindLater') || 'Después'}
+                </Text>
+              </TouchableOpacity>
+            </View>
           </View>
         )}
 
@@ -978,6 +1041,62 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     marginTop: 4,
     lineHeight: 16,
+  },
+
+  // Banner biométrico
+  biometricBanner: {
+    marginHorizontal: 20,
+    marginBottom: 16,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 16,
+    padding: 16,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  biometricBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'flex-start',
+    gap: 12,
+  },
+  biometricBannerTextCol: {
+    flex: 1,
+  },
+  biometricBannerTitle: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#1E40AF',
+    marginBottom: 4,
+  },
+  biometricBannerDesc: {
+    fontSize: 13,
+    color: '#3B82F6',
+    lineHeight: 18,
+  },
+  biometricBannerActions: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginTop: 12,
+    marginLeft: 36,
+  },
+  biometricBannerBtn: {
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  biometricBannerBtnText: {
+    color: '#FFFFFF',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  biometricBannerDismiss: {
+    paddingHorizontal: 4,
+    paddingVertical: 8,
+  },
+  biometricBannerDismissText: {
+    color: '#6B7280',
+    fontSize: 13,
   },
 });
 

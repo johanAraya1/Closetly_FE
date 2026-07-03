@@ -821,6 +821,7 @@ export default function CreateOutfitScreen() {
         visible={previewGarment !== null}
         transparent
         animationType="fade"
+        statusBarTranslucent
         onRequestClose={() => setPreviewGarment(null)}
       >
         <TouchableOpacity
@@ -831,37 +832,54 @@ export default function CreateOutfitScreen() {
           {previewGarment && (
             <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
               <View style={styles.garmentPreviewCard}>
+                {/* Header con nombre y close */}
                 <View style={styles.garmentPreviewHeader}>
-                  <Text style={styles.garmentPreviewName} numberOfLines={1}>
-                    {previewGarment.name}
-                  </Text>
-                  <TouchableOpacity onPress={() => setPreviewGarment(null)}>
+                  <View style={styles.garmentPreviewNameWrap}>
+                    <Text style={styles.garmentPreviewName} numberOfLines={2}>
+                      {previewGarment.name}
+                    </Text>
+                  </View>
+                  <TouchableOpacity
+                    onPress={() => setPreviewGarment(null)}
+                    style={styles.garmentPreviewClose}
+                  >
                     <Ionicons name="close" size={24} color="#6B7280" />
                   </TouchableOpacity>
                 </View>
-                <Image
-                  source={{ uri: previewGarment.imageUrl }}
-                  style={styles.garmentPreviewImage}
-                  contentFit="contain"
-                  cachePolicy="memory-disk"
-                />
-                <View style={styles.garmentPreviewDetails}>
-                  {previewGarment.category && (
-                    <Text style={styles.garmentPreviewDetail}>
-                      {t('outfits.create.category')}: {t('garments.category.' + previewGarment.category)}
-                    </Text>
-                  )}
-                  {previewGarment.color && (
-                    <Text style={styles.garmentPreviewDetail}>
-                      {t('garments.create.color')}: {previewGarment.color}
-                    </Text>
-                  )}
-                  {previewGarment.brand && (
-                    <Text style={styles.garmentPreviewDetail}>
-                      {t('garments.create.brand')}: {previewGarment.brand}
-                    </Text>
-                  )}
+
+                {/* Imagen — responsive, usa aspect ratio */}
+                <View style={styles.garmentPreviewImageWrap}>
+                  <Image
+                    source={{ uri: previewGarment.imageUrl }}
+                    style={styles.garmentPreviewImage}
+                    contentFit="contain"
+                    cachePolicy="memory-disk"
+                  />
                 </View>
+
+                {/* Detalles */}
+                <ScrollView
+                  style={styles.garmentPreviewDetailsScroll}
+                  bounces={false}
+                >
+                  <View style={styles.garmentPreviewDetails}>
+                    {previewGarment.category && (
+                      <Text style={styles.garmentPreviewDetail}>
+                        {t('outfits.create.category')}: {t('garments.category.' + previewGarment.category)}
+                      </Text>
+                    )}
+                    {previewGarment.color && (
+                      <Text style={styles.garmentPreviewDetail}>
+                        {t('garments.create.color')}: {previewGarment.color}
+                      </Text>
+                    )}
+                    {previewGarment.brand && (
+                      <Text style={styles.garmentPreviewDetail}>
+                        {t('garments.create.brand')}: {previewGarment.brand}
+                      </Text>
+                    )}
+                  </View>
+                </ScrollView>
               </View>
             </TouchableOpacity>
           )}
@@ -1379,30 +1397,50 @@ const styles = StyleSheet.create({
     backgroundColor: '#FFFFFF',
     borderRadius: 16,
     width: '100%',
-    maxWidth: 400,
+    maxWidth: 420,
     maxHeight: '90%',
     overflow: 'hidden',
   },
   garmentPreviewHeader: {
     flexDirection: 'row',
-    alignItems: 'center',
+    alignItems: 'flex-start',
     justifyContent: 'space-between',
     paddingHorizontal: 16,
     paddingVertical: 12,
     borderBottomWidth: 1,
     borderBottomColor: '#E5E7EB',
   },
+  garmentPreviewNameWrap: {
+    flex: 1,
+    marginRight: 12,
+  },
   garmentPreviewName: {
     fontSize: 16,
     fontWeight: '700',
     color: '#111827',
-    flex: 1,
-    marginRight: 12,
+  },
+  garmentPreviewClose: {
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginTop: -2,
+  },
+  garmentPreviewImageWrap: {
+    width: '100%',
+    aspectRatio: 1,
+    maxHeight: 350,
+    backgroundColor: '#F3F4F6',
   },
   garmentPreviewImage: {
+    flex: 1,
     width: '100%',
-    height: 350,
-    backgroundColor: '#F3F4F6',
+    height: '100%',
+  },
+  garmentPreviewDetailsScroll: {
+    maxHeight: 140,
   },
   garmentPreviewDetails: {
     padding: 16,
