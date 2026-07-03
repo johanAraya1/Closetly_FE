@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing, Platform } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing, Platform, ActivityIndicator, Alert } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -38,6 +38,7 @@ function HomeScreen() {
 
   // Suggestion detail modal state
   const [selectedSuggestion, setSelectedSuggestion] = useState<Suggestion | null>(null);
+  const [selectedSuggestionIndex, setSelectedSuggestionIndex] = useState<number | null>(null);
   const [isSavingSuggestion, setIsSavingSuggestion] = useState(false);
   const [savedOutfitIds, setSavedOutfitIds] = useState<Record<string, string>>({});
 
@@ -50,6 +51,11 @@ function HomeScreen() {
     message: suggestionsMessage,
     fetchSuggestions,
     lastUpdated,
+    pinnedGarmentIds,
+    isRegenerating,
+    togglePin,
+    clearPins,
+    regenerateWithPinned,
   } = useSuggestionsStore();
 
   // Fetch suggestions on mount
@@ -134,12 +140,14 @@ function HomeScreen() {
     return keys;
   }, [savedOutfitIds, outfits]);
 
-  const handleOpenSuggestion = useCallback((s: Suggestion) => {
+  const handleOpenSuggestion = useCallback((s: Suggestion, index: number) => {
     setSelectedSuggestion(s);
+    setSelectedSuggestionIndex(index);
   }, []);
 
   const handleCloseSuggestion = useCallback(() => {
     setSelectedSuggestion(null);
+    setSelectedSuggestionIndex(null);
   }, []);
 
   const handleSaveSuggestion = useCallback(async (s: Suggestion) => {
@@ -480,59 +488,138 @@ function HomeScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.suggestionsScroll}
             >
-              {suggestions.map((suggestion) => {
+              {suggestions.map((suggestion, suggestionIndex) => {
                 const matchedGarments = suggestion.garmentIds
                   .map((id) => suggestionGarments.find((g) => g.id === id))
                   .filter(Boolean) as Garment[];
                 const isSaved = savedSuggestionKeys.has(suggestionKey(suggestion));
+                const currentPins = pinnedGarmentIds[suggestionIndex] || [];
+                const hasPins = currentPins.length > 0;
+                const pinnedCategories = currentPins
+                  .map((id) => {
+                    const g = suggestionGarments.find((g) => g.id === id);
+                    return g?.category;
+                  })
+                  .filter(Boolean) as string[];
+                const requiredCategories = ['tops', 'bottoms', 'shoes'];
+                const allRequiredPinned = requiredCategories.every((cat) =>
+                  pinnedCategories.includes(cat),
+                );
+                const canRegenerate = hasPins && !allRequiredPinned && !isRegenerating;
 
                 return (
-                  <TouchableOpacity
-                    key={suggestion.name}
-                    style={styles.suggestionCard}
-                    activeOpacity={0.95}
-                    onPress={() => handleOpenSuggestion(suggestion)}
-                  >
-                    {/* Garment images grid */}
-                    {matchedGarments.length > 0 && (
-                      <View style={styles.garmentGrid}>
-                        {matchedGarments.slice(0, 4).map((garment, idx) => (
-                          <View key={garment.id} style={styles.garmentThumb}>
-                            <Image
-                              source={{ uri: garment.imageUrl }}
-                              style={styles.garmentThumbImage}
-                              contentFit="cover"
-                              cachePolicy="memory-disk"
-                            />
-                            {idx === 3 && matchedGarments.length > 4 && (
-                              <View style={styles.garmentMoreOverlay}>
-                                <Text style={styles.garmentMoreText}>
-                                  +{matchedGarments.length - 4}
-                                </Text>
+                  <View key={`${suggestion.name}-${suggestionIndex}`} style={styles.suggestionCardWrapper}>
+                    <TouchableOpacity
+                      style={styles.suggestionCard}
+                      activeOpacity={0.95}
+                      onPress={() => handleOpenSuggestion(suggestion, suggestionIndex)}
+                    >
+                      {/* Garment images grid */}
+                      {matchedGarments.length > 0 && (
+                        <View style={styles.garmentGrid}>
+                          {matchedGarments.slice(0, 4).map((garment, idx) => {
+                            const isPinned = currentPins.includes(garment.id);
+                            return (
+                              <View key={garment.id} style={styles.garmentThumb}>
+                                <Image
+                                  source={{ uri: garment.imageUrl }}
+                                  style={styles.garmentThumbImage}
+                                  contentFit="cover"
+                                  cachePolicy="memory-disk"
+                                />
+                                {idx === 3 && matchedGarments.length > 4 && (
+                                  <View style={styles.garmentMoreOverlay}>
+                                    <Text style={styles.garmentMoreText}>
+                                      +{matchedGarments.length - 4}
+                                    </Text>
+                                  </View>
+                                )}
+                                {/* Pin toggle overlay */}
+                                <TouchableOpacity
+                                  style={styles.cardPinButton}
+                                  onPress={() => {
+                                    const accepted = togglePin(suggestionIndex, garment.id, garment.category);
+                                    if (!accepted) {
+                                      Alert.alert(
+                                        '',
+                                        t('suggestionPin.sameCategoryError', {
+                                          category: t(`garments.category.${garment.category}`),
+                                        }),
+                                      );
+                                    }
+                                  }}
+                                  hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                                >
+                                  <Ionicons
+                                    name={isPinned ? 'pin' : 'pin-outline'}
+                                    size={14}
+                                    color={isPinned ? '#FFFFFF' : '#FFFFFF'}
+                                    style={isPinned ? undefined : { opacity: 0.6 }}
+                                  />
+                                </TouchableOpacity>
                               </View>
-                            )}
-                          </View>
-                        ))}
-                      </View>
-                    )}
-
-                    {/* Name + occasion badge + saved indicator */}
-                    <View style={styles.suggestionInfo}>
-                      <Text style={styles.suggestionName} numberOfLines={1}>
-                        {suggestion.name}
-                      </Text>
-                      <View style={styles.badgeRow}>
-                        <View style={styles.occasionBadge}>
-                          <Text style={styles.occasionText} numberOfLines={1}>
-                            {suggestion.occasion}
-                          </Text>
+                            );
+                          })}
                         </View>
-                        {isSaved && (
-                          <Ionicons name="checkmark-circle" size={16} color="#10B981" />
-                        )}
+                      )}
+
+                      {/* Name + occasion badge + saved indicator */}
+                      <View style={styles.suggestionInfo}>
+                        <Text style={styles.suggestionName} numberOfLines={1}>
+                          {suggestion.name}
+                        </Text>
+                        <View style={styles.badgeRow}>
+                          <View style={styles.occasionBadge}>
+                            <Text style={styles.occasionText} numberOfLines={1}>
+                              {suggestion.occasion}
+                            </Text>
+                          </View>
+                          {isSaved && (
+                            <Ionicons name="checkmark-circle" size={16} color="#10B981" />
+                          )}
+                        </View>
                       </View>
+                    </TouchableOpacity>
+
+                    {/* Regenerate with pinned button */}
+                    <View style={styles.cardRegenSection}>
+                      {isRegenerating ? (
+                        <View style={styles.cardRegenLoading}>
+                          <ActivityIndicator size="small" color={COLORS.primary} />
+                        </View>
+                      ) : (
+                        <TouchableOpacity
+                          style={[
+                            styles.cardRegenButton,
+                            !canRegenerate && styles.cardRegenButtonDisabled,
+                          ]}
+                          onPress={() => regenerateWithPinned(suggestionIndex)}
+                          disabled={!canRegenerate}
+                          activeOpacity={0.7}
+                        >
+                          <Ionicons
+                            name="refresh"
+                            size={14}
+                            color={canRegenerate ? COLORS.primary : '#9CA3AF'}
+                          />
+                          <Text
+                            style={[
+                              styles.cardRegenText,
+                              !canRegenerate && styles.cardRegenTextDisabled,
+                            ]}
+                            numberOfLines={1}
+                          >
+                            {t('suggestionPin.regenerateWithPinned')}
+                          </Text>
+                        </TouchableOpacity>
+                      )}
+                      {allRequiredPinned && hasPins && (
+                        <Text style={styles.cardPinnedHelper}>
+                          {t('suggestionPin.allPinned')}
+                        </Text>
+                      )}
                     </View>
-                  </TouchableOpacity>
+                  </View>
                 );
               })}
             </ScrollView>
@@ -605,6 +692,7 @@ function HomeScreen() {
       <SuggestionDetailModal
         visible={!!selectedSuggestion}
         suggestion={selectedSuggestion}
+        suggestionIndex={selectedSuggestionIndex ?? 0}
         garments={suggestionGarments}
         weather={weather}
         isSaving={isSavingSuggestion}
@@ -812,6 +900,67 @@ const styles = StyleSheet.create({
     paddingRight: 24,
     gap: 12,
   },
+  suggestionCardWrapper: {
+    width: 220,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+    borderWidth: 1,
+    borderColor: '#F3F4F6',
+  },
+  cardPinButton: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
+    width: 22,
+    height: 22,
+    borderRadius: 11,
+    backgroundColor: 'rgba(0,0,0,0.35)',
+    alignItems: 'center',
+    justifyContent: 'center',
+    zIndex: 10,
+  },
+  cardRegenSection: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  cardRegenButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 6,
+    borderRadius: 8,
+    backgroundColor: COLORS.primary + '15',
+  },
+  cardRegenButtonDisabled: {
+    backgroundColor: '#F3F4F6',
+  },
+  cardRegenText: {
+    fontSize: 11,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  cardRegenTextDisabled: {
+    color: '#9CA3AF',
+  },
+  cardRegenLoading: {
+    alignItems: 'center',
+    paddingVertical: 6,
+  },
+  cardPinnedHelper: {
+    fontSize: 10,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginTop: 4,
+  },
   suggestionsStatusContainer: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -855,17 +1004,7 @@ const styles = StyleSheet.create({
 
   // Suggestion Card
   suggestionCard: {
-    width: 220,
-    backgroundColor: '#FFFFFF',
-    borderRadius: 16,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
-    shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-    borderWidth: 1,
-    borderColor: '#F3F4F6',
+    // Touchable area — visual styles moved to wrapper
   },
   garmentGrid: {
     flexDirection: 'row',

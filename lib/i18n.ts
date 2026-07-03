@@ -590,6 +590,14 @@ const i18n = new I18n({
       repeatMessage: 'This outfit is already planned for {{day}}. Do you want to use it again?',
       useAgain: 'Use anyway',
     },
+    suggestionPin: {
+      pinLabel: 'Keep this item',
+      unpinLabel: 'Remove pin',
+      regenerateWithPinned: 'Regenerate with selected',
+      sameCategoryError: 'Can only pin one {{category}} per suggestion',
+      allPinned: 'All items already pinned',
+      noSlots: 'No slots to regenerate',
+    },
     calendar: {
       title: 'Outfit Calendar',
       logOutfit: 'Log Outfit',
@@ -1194,6 +1202,14 @@ const i18n = new I18n({
       repeatTitle: 'Outfit ya usado',
       repeatMessage: 'Este outfit ya está planificado para {{day}}. ¿Querés usarlo de nuevo?',
       useAgain: 'Usar de todas formas',
+    },
+    suggestionPin: {
+      pinLabel: 'Mantener esta prenda',
+      unpinLabel: 'Quitar pin',
+      regenerateWithPinned: 'Regenerar con seleccionadas',
+      sameCategoryError: 'Solo podés fijar una {{category}} por sugerencia',
+      allPinned: 'Ya fijaste todas las prendas',
+      noSlots: 'No hay espacios para regenerar',
     },
     calendar: {
       title: 'Calendario de Outfits',
