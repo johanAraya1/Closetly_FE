@@ -20,6 +20,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Calendar } from 'react-native-calendars';
 import { useCalendar } from '@/hooks/useCalendar';
 import { useTranslation } from '@/hooks/useTranslation';
+import i18n from '@/lib/i18n';
 import { COLORS, FONT_SIZES } from '@/lib/constants';
 import { EmptyState, Loading, withScreenErrorBoundary } from '@/components';
 import type { CalendarLogEntry } from '@/types';
@@ -122,10 +123,11 @@ export default function CalendarScreen() {
     return marks;
   }, [entries]);
 
-  // Format month label
+  // Format month label — usa el locale de la app
   const monthLabel = useMemo(() => {
     const date = new Date(selectedYear, selectedMonth - 1, 1);
-    return date.toLocaleDateString('en-US', {
+    const locale = i18n.locale?.startsWith('es') ? 'es-AR' : 'en-US';
+    return date.toLocaleDateString(locale, {
       month: 'long',
       year: 'numeric',
     });
@@ -260,6 +262,7 @@ export default function CalendarScreen() {
 
         {/* ===== Calendar Grid ===== */}
         <Calendar
+          key={`${selectedYear}-${selectedMonth}`}
           current={`${selectedYear}-${String(selectedMonth).padStart(2, '0')}-01`}
           markedDates={markedDates}
           onDayPress={handleDayPress}
@@ -268,6 +271,7 @@ export default function CalendarScreen() {
           disableMonthChange={true}
           hideExtraDays={true}
           enableSwipeMonths={false}
+          hideDayNames={false}
           theme={{
             backgroundColor: '#FFFFFF',
             calendarBackground: '#FFFFFF',
@@ -278,19 +282,37 @@ export default function CalendarScreen() {
             selectedDayBackgroundColor: COLORS.primary,
             selectedDayTextColor: '#FFFFFF',
             arrowColor: COLORS.primary,
-            monthTextColor: COLORS.gray[800],
+            monthTextColor: 'transparent',
             textMonthFontWeight: '700',
-            textMonthFontSize: 16,
+            textMonthFontSize: 1,
             textDayHeaderFontWeight: '600',
             textDayHeaderFontSize: 12,
             textDayHeaderColor: COLORS.gray[500],
             'stylesheet.calendar.header': {
+              header: {
+                position: 'absolute',
+                top: -999,
+                left: -999,
+                width: 0,
+                height: 0,
+                overflow: 'hidden',
+                opacity: 0,
+              },
+              monthText: {
+                height: 0,
+                fontSize: 0,
+                color: 'transparent',
+                margin: 0,
+                padding: 0,
+              },
               week: {
                 flexDirection: 'row',
                 justifyContent: 'space-around',
                 paddingVertical: 8,
                 borderBottomWidth: 1,
                 borderBottomColor: COLORS.gray[100],
+                marginTop: 0,
+                zIndex: 1,
               },
             },
             'stylesheet.calendar.main': {

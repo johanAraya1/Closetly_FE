@@ -25,7 +25,7 @@ export const useCalendar = (autoLoad: boolean = true) => {
   } = useCalendarStore();
 
   useEffect(() => {
-    if (autoLoad && user) {
+    if (autoLoad && user && entries.length === 0) {
       loadMonth(selectedMonth, selectedYear);
     }
   }, [user, autoLoad]);

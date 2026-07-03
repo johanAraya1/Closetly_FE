@@ -49,9 +49,7 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
       return;
     }
 
-    if (result.data) {
-      set({ entries: result.data, isLoading: false });
-    }
+    set({ entries: result.data || [], isLoading: false });
   },
 
   logOutfit: async (outfitId: string, date: string) => {
