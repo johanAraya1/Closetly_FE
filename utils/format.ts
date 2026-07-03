@@ -58,71 +58,172 @@ export const truncate = (text: string, maxLength: number): string => {
 /**
  * Convierte un nombre de color en español a su valor hexadecimal
  */
-export const getColorFromName = (colorName: string): string => {
-  const colorMap: Record<string, string> = {
-    // Colores básicos
-    'rojo': '#DC2626',
-    'azul': '#2563EB',
-    'verde': '#16A34A',
-    'amarillo': '#EAB308',
-    'naranja': '#EA580C',
-    'morado': '#9333EA',
-    'rosa': '#EC4899',
-    'negro': '#000000',
-    'blanco': '#FFFFFF',
-    'gris': '#6B7280',
-    'marrón': '#92400E',
-    'café': '#92400E',
-    'beige': '#D4C4B0',
-    'crema': '#F5F5DC',
-    'dorado': '#FFD700',
-    'plateado': '#C0C0C0',
-    'turquesa': '#14B8A6',
-    'vino': '#7F1D1D',
-    'marino': '#1E3A8A',
-    
-    // Variantes de colores
-    'rojo oscuro': '#991B1B',
-    'azul oscuro': '#1E3A8A',
-    'verde oscuro': '#14532D',
-    'gris oscuro': '#374151',
-    'rojo claro': '#FCA5A5',
-    'azul claro': '#BFDBFE',
-    'verde claro': '#BBF7D0',
-    'gris claro': '#D1D5DB',
-    'beige claro': '#E8DCC8',
-    'rosa claro': '#FBCFE8',
-    'amarillo claro': '#FEF3C7',
-    
-    // Inglés (por si viene del backend)
-    'red': '#DC2626',
-    'blue': '#2563EB',
-    'green': '#16A34A',
-    'yellow': '#EAB308',
-    'orange': '#EA580C',
-    'purple': '#9333EA',
-    'pink': '#EC4899',
-    'black': '#000000',
-    'white': '#FFFFFF',
-    'gray': '#6B7280',
-    'grey': '#6B7280',
-    'brown': '#92400E',
+/**
+ * Normaliza un nombre de color individual: género gramatical, tildes, alias y typos comunes
+ */
+export const normalizeColorName = (name: string): string => {
+  let n = name.toLowerCase().trim();
+
+  // Mapa de género femenino → masculino y typos comunes
+  const genderMap: Record<string, string> = {
+    'blanca': 'blanco',
+    'negra': 'negro',
+    'roja': 'rojo',
+    'rojas': 'rojo',
+    'amarilla': 'amarillo',
+    'amarillas': 'amarillo',
+    'azulada': 'azul',
+    'verde claro': 'verde claro',
+    'celeste': 'celeste',
+    'naranja': 'naranja',
+    'violeta': 'morado',
+    'morada': 'morado',
   };
 
-  // Buscar coincidencia exacta (case insensitive)
-  const normalized = colorName.toLowerCase().trim();
+  // Typos comunes — solo variantes incorrectas, no la forma correcta
+  const typoMap: Record<string, string> = {
+    'blanvc': 'blanco',
+    'blanc': 'blanco',
+    'balnco': 'blanco',
+    'branco': 'blanco',
+    'negre': 'negro',
+    'negroa': 'negro',
+    'marrón': 'marron',
+    'marro': 'marron',
+    'café': 'marron',
+    'cafe': 'marron',
+    'gri': 'gris',
+    'asul': 'azul',
+    'asúl': 'azul',
+    'rrojo': 'rojo',
+    'rozo': 'rojo',
+    'berde': 'verde',
+    'bermellón': 'rojo',
+  };
+
+  // Sacar tildes
+  n = n.normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+
+  // 1. Buscar en genderMap primero
+  if (genderMap[n]) return genderMap[n];
+
+  // 2. Buscar en typoMap
+  if (typoMap[n]) return typoMap[n];
+
+  // 3. Si termina en 'a' que no es 'naranja'/'celeste'/'violeta', probar cambiarla a 'o'
+  //    (solo para colores con género gramatical)
+  const femExceptions = new Set(['naranja', 'celeste', 'violeta', 'turquesa', 'beige', 'crema', 'marino']);
+  if (n.endsWith('a') && !femExceptions.has(n) && n.length > 3) {
+    const mascTry = n.slice(0, -1) + 'o';
+    if (colorMap[mascTry]) return mascTry;
+  }
+
+  return n;
+};
+
+/**
+ * Normaliza un string completo de color(es) separados por coma.
+ * "Blanca, NEGRA, Azul marino" → "Blanco, Negro, Azul Oscuro"
+ */
+export const normalizeColorString = (colorStr: string): string => {
+  if (!colorStr?.trim()) return '';
+  return colorStr
+    .split(',')
+    .map((c) => {
+      const raw = c.trim();
+      if (!raw) return '';
+      const normalized = normalizeColorName(raw);
+      // Si normalizeColorName devolvió un alias conocido, ponerlo con primera mayúscula
+      for (const [key, _hex] of Object.entries(colorMap)) {
+        if (key === normalized) return capitalize(key);
+      }
+      // Si está en variantes (ej: "azul oscuro")
+      for (const [key, _hex] of Object.entries(colorMap)) {
+        if (key === normalized) return capitalize(key);
+      }
+      return capitalize(normalized);
+    })
+    .filter(Boolean)
+    .join(', ');
+};
+
+const colorMap: Record<string, string> = {
+  // Colores básicos
+  'rojo': '#DC2626',
+  'azul': '#2563EB',
+  'verde': '#16A34A',
+  'amarillo': '#EAB308',
+  'naranja': '#EA580C',
+  'morado': '#9333EA',
+  'rosa': '#EC4899',
+  'negro': '#000000',
+  'blanco': '#FFFFFF',
+  'gris': '#6B7280',
+  'marron': '#92400E',
+  'beige': '#D4C4B0',
+  'crema': '#F5F5DC',
+  'celeste': '#87CEEB',
+  'dorado': '#FFD700',
+  'plateado': '#C0C0C0',
+  'turquesa': '#14B8A6',
+  'vino': '#7F1D1D',
+  'marino': '#1E3A8A',
+
+  // Variantes
+  'rojo oscuro': '#991B1B',
+  'azul oscuro': '#1E3A8A',
+  'verde oscuro': '#14532D',
+  'gris oscuro': '#374151',
+  'rojo claro': '#FCA5A5',
+  'azul claro': '#BFDBFE',
+  'verde claro': '#BBF7D0',
+  'gris claro': '#D1D5DB',
+  'beige claro': '#E8DCC8',
+  'rosa claro': '#FBCFE8',
+  'amarillo claro': '#FEF3C7',
+
+  // Inglés
+  'red': '#DC2626',
+  'blue': '#2563EB',
+  'green': '#16A34A',
+  'yellow': '#EAB308',
+  'orange': '#EA580C',
+  'purple': '#9333EA',
+  'pink': '#EC4899',
+  'black': '#000000',
+  'white': '#FFFFFF',
+  'gray': '#6B7280',
+  'grey': '#6B7280',
+  'brown': '#92400E',
+};
+
+/**
+ * Retorna el array de hex para cada color en un string multi-color separado por coma.
+ * "Negro, Blanco" → ["#000000", "#FFFFFF"]
+ */
+export const getColorHexArray = (colorStr: string): string[] => {
+  if (!colorStr?.trim()) return [];
+  return colorStr
+    .split(',')
+    .map((c) => c.trim())
+    .filter(Boolean)
+    .map((c) => getColorFromName(c));
+};
+
+export const getColorFromName = (colorName: string): string => {
+  const normalized = normalizeColorName(colorName);
+
   if (colorMap[normalized]) {
     return colorMap[normalized];
   }
 
-  // Buscar coincidencia parcial (por si incluye palabras extra)
+  // Buscar coincidencia parcial
   for (const [key, value] of Object.entries(colorMap)) {
     if (normalized.includes(key) || key.includes(normalized)) {
       return value;
     }
   }
 
-  // Si no encuentra coincidencia, devolver un color por defecto
   return '#9CA3AF';
 };
 

@@ -8,7 +8,7 @@ import { View, Text, TouchableOpacity, StyleSheet } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import type { Garment } from '@/types';
-import { formatEnumValue, getColorFromName } from '@/utils/format';
+import { formatEnumValue, getColorFromName, getColorHexArray } from '@/utils/format';
 import { COLORS } from '@/lib/constants';
 
 interface GarmentCardProps {
@@ -81,15 +81,18 @@ export const GarmentCard = React.memo<GarmentCardProps>(({
         </View>
         {garment.color && (
           <View style={styles.colorRow}>
-            <View 
-              style={[
-                styles.colorDot, 
-                { 
-                  backgroundColor: getColorFromName(garment.color),
-                  borderColor: getColorFromName(garment.color) === '#FFFFFF' ? '#E5E7EB' : 'transparent',
-                }
-              ]}
-            />
+            {getColorHexArray(garment.color).map((hex, i) => (
+              <View
+                key={`${hex}-${i}`}
+                style={[
+                  styles.colorDot,
+                  {
+                    backgroundColor: hex,
+                    borderColor: hex === '#FFFFFF' ? '#E5E7EB' : 'transparent',
+                  },
+                ]}
+              />
+            ))}
             <Text numberOfLines={1} style={styles.colorText}>
               {garment.color}
             </Text>

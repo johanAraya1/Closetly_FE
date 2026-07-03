@@ -10,6 +10,8 @@ import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, Modal, GarmentVisibilityForm, DuplicateWarningModal } from '@/components';
+import { ColorPicker } from '@/components/ColorPicker';
+import { normalizeColorString } from '@/utils/format';
 import { checkDuplicate } from '@/services/garmentService';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
@@ -292,7 +294,7 @@ export default function CreateGarmentScreen() {
           name: name.trim(),
           category,
           brand: noBrand ? undefined : (brand.trim() || undefined),
-          color: color.trim() || undefined,
+          color: normalizeColorString(color) || undefined,
           season: seasonValue,
           style: selectedStyles, // Send array (empty = clear styles)
           notes: notes.trim() || undefined,
@@ -318,7 +320,7 @@ export default function CreateGarmentScreen() {
           name: name.trim(),
           category,
           brand: noBrand ? undefined : (brand.trim() || undefined),
-          color: color.trim() || undefined,
+          color: normalizeColorString(color) || undefined,
             season: seasonValue,
             style: selectedStyles.length > 0 ? selectedStyles : undefined,
             imageUrl: imageUrl || '',
@@ -380,7 +382,7 @@ export default function CreateGarmentScreen() {
             name: name.trim(),
             category,
             brand: noBrand ? undefined : (brand.trim() || undefined),
-            color: color.trim() || undefined,
+            color: normalizeColorString(color) || undefined,
             season: seasonValue,
             style: selectedStyles.length > 0 ? selectedStyles : undefined,
           },
@@ -596,14 +598,13 @@ export default function CreateGarmentScreen() {
                 <Text style={styles.checkboxLabel}>{t('garments.create.noBrand')}</Text>
               </TouchableOpacity>
 
-              <Input
+              <ColorPicker
                 label={t('garments.create.color')}
                 value={color}
-                onChangeText={(text) => {
+                onChange={(text) => {
                   setColor(text);
                   setErrors({ ...errors, color: undefined });
                 }}
-                placeholder={t('garments.create.colorPlaceholder')}
                 error={errors.color}
               />
 
