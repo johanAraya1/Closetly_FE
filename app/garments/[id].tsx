@@ -26,7 +26,7 @@ import { Loading, withScreenErrorBoundary } from '@/components';
 import { useGarments } from '@/hooks/useGarments';
 import { useTranslation } from '@/hooks/useTranslation';
 import { GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES, COLORS } from '@/lib/constants';
-import { formatEnumValue, getColorFromName } from '@/utils/format';
+import { formatEnumValue, getColorFromName, getColorHexArray } from '@/utils/format';
 import { getGarmentStats } from '@/services/statsService';
 import type { GarmentStats } from '@/services/statsService';
 
@@ -206,7 +206,7 @@ function GarmentDetailScreen() {
                 icon="color-palette-outline"
                 label={t('garments.create.color')}
                 value={garment.color}
-                colorDot={getColorFromName(garment.color)}
+                colorDots={getColorHexArray(garment.color)}
               />
             )}
             <DetailRow
@@ -350,12 +350,16 @@ function DetailRow({
   label,
   value,
   colorDot,
+  colorDots,
 }: {
   icon: keyof typeof Ionicons.glyphMap;
   label: string;
   value: string;
   colorDot?: string;
+  colorDots?: string[];
 }) {
+  const dots = colorDots ?? (colorDot ? [colorDot] : []);
+
   return (
     <View style={styles.detailRow}>
       <View style={styles.detailLabelRow}>
@@ -363,16 +367,21 @@ function DetailRow({
         <Text style={styles.detailLabel}>{label}</Text>
       </View>
       <View style={styles.detailValueRow}>
-        {colorDot && (
-          <View
-            style={[
-              styles.colorDot,
-              {
-                backgroundColor: colorDot,
-                borderColor: colorDot === '#FFFFFF' ? '#E5E7EB' : 'transparent',
-              },
-            ]}
-          />
+        {dots.length > 0 && (
+          <View style={styles.colorDotsRow}>
+            {dots.map((dot, i) => (
+              <View
+                key={`${dot}-${i}`}
+                style={[
+                  styles.colorDot,
+                  {
+                    backgroundColor: dot,
+                    borderColor: dot === '#FFFFFF' ? '#E5E7EB' : 'transparent',
+                  },
+                ]}
+              />
+            ))}
+          </View>
         )}
         <Text style={styles.detailValue}>{value}</Text>
       </View>
@@ -559,6 +568,11 @@ const styles = StyleSheet.create({
     height: 14,
     borderRadius: 7,
     borderWidth: 1,
+  },
+  colorDotsRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   detailValue: {
     fontSize: 14,

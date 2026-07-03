@@ -18,9 +18,16 @@ interface SuggestionsState {
   message: string | null;
   lastUpdated: Date | null;
 
+  // Pin & Regenerate state
+  pinnedGarmentIds: Record<number, string[]>; // keyed by suggestion index 0-2
+  isRegenerating: boolean;
+
   // Actions
   fetchSuggestions: (lat?: number, lon?: number) => Promise<void>;
   clearSuggestions: () => void;
+  togglePin: (suggestionIndex: number, garmentId: string, category: string) => boolean;
+  clearPins: () => void;
+  regenerateWithPinned: (suggestionIndex: number) => Promise<void>;
 }
 
 /**
@@ -61,6 +68,8 @@ const initialState = {
   error: null,
   message: null,
   lastUpdated: null,
+  pinnedGarmentIds: {},
+  isRegenerating: false,
 };
 
 export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
@@ -155,4 +164,100 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
   },
 
   clearSuggestions: () => set(initialState),
+
+  togglePin: (suggestionIndex: number, garmentId: string, category: string): boolean => {
+    const state = get();
+    const currentPins = state.pinnedGarmentIds[suggestionIndex] || [];
+
+    // If already pinned → unpin
+    if (currentPins.includes(garmentId)) {
+      set({
+        pinnedGarmentIds: {
+          ...state.pinnedGarmentIds,
+          [suggestionIndex]: currentPins.filter((id) => id !== garmentId),
+        },
+      });
+      return true;
+    }
+
+    // Check same-category constraint within this suggestion
+    const hasSameCategory = currentPins.some((pinnedId) => {
+      const g = state.garments.find((g) => g.id === pinnedId);
+      return g && g.category === category;
+    });
+
+    if (hasSameCategory) {
+      return false; // Rejected — same category already pinned
+    }
+
+    set({
+      pinnedGarmentIds: {
+        ...state.pinnedGarmentIds,
+        [suggestionIndex]: [...currentPins, garmentId],
+      },
+    });
+    return true;
+  },
+
+  clearPins: () => set({ pinnedGarmentIds: {} }),
+
+  regenerateWithPinned: async (suggestionIndex: number) => {
+    const state = get();
+    const pinnedIds = state.pinnedGarmentIds[suggestionIndex];
+
+    if (!pinnedIds || pinnedIds.length === 0) return;
+
+    set({ isRegenerating: true, error: null });
+
+    try {
+      const locale = i18n.locale;
+      const endpoint = `/outfits/suggestions?preferredGarmentIds=${pinnedIds.join(',')}&locale=${locale}`;
+
+      const result = await apiClient.get<SuggestionsResponse>(endpoint);
+
+      if (result.error) {
+        set({ isRegenerating: false, error: result.error });
+        return;
+      }
+
+      if (result.data) {
+        // If all categories already pinned, don't change suggestions
+        if (result.data.allPinned) {
+          set({ isRegenerating: false, message: result.data.message ?? null });
+          return;
+        }
+
+        const newSuggestions = dedupeSuggestions(result.data.suggestions ?? []);
+        const currentPins = get().pinnedGarmentIds[suggestionIndex] || [];
+
+        // Merge: keep pinned items, add regenerated items for unpinned slots
+        if (newSuggestions.length > 0 && currentPins.length > 0) {
+          const targetIndex = Math.min(suggestionIndex, newSuggestions.length - 1);
+          const mergedIds = [
+            ...currentPins,
+            ...newSuggestions[targetIndex].garmentIds.filter(
+              (id) => !currentPins.includes(id),
+            ),
+          ];
+
+          newSuggestions[targetIndex] = {
+            ...newSuggestions[targetIndex],
+            garmentIds: mergedIds,
+          };
+        }
+
+        set({
+          suggestions: newSuggestions,
+          garments: result.data.garments ?? [],
+          weather: result.data.weather ?? state.weather,
+          message: sanitizeMessage(result.data.message ?? null),
+          isRegenerating: false,
+          lastUpdated: new Date(),
+        });
+      }
+    } catch (err) {
+      const errorMsg = err instanceof Error ? err.message : 'Unknown error';
+      set({ isRegenerating: false, error: errorMsg });
+    }
+  },
 }));

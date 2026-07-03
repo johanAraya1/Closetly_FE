@@ -244,6 +244,8 @@ const i18n = new I18n({
         useFull: 'Full photo',
         useCrop: 'Crop',
         noBrand: 'No brand',
+        customColor: 'Write color manually',
+        hideCustomColor: 'Hide manual input',
         // Photo tip (max 3 times)
         photoTipTitle: '📸 Pro tip for best results',
         photoTipMessage: 'Take the photo with the garment extended against a plain background with good lighting.\n\nThis helps us remove the background for a cleaner look!',
@@ -590,6 +592,14 @@ const i18n = new I18n({
       repeatMessage: 'This outfit is already planned for {{day}}. Do you want to use it again?',
       useAgain: 'Use anyway',
     },
+    suggestionPin: {
+      pinLabel: 'Keep this item',
+      unpinLabel: 'Remove pin',
+      regenerateWithPinned: 'Regenerate with selected',
+      sameCategoryError: 'Can only pin one {{category}} per suggestion',
+      allPinned: 'All items already pinned',
+      noSlots: 'No slots to regenerate',
+    },
     calendar: {
       title: 'Outfit Calendar',
       logOutfit: 'Log Outfit',
@@ -832,6 +842,8 @@ const i18n = new I18n({
         useFull: 'Foto completa',
         useCrop: 'Recortar',
         noBrand: 'No tiene marca',
+        customColor: 'Escribir color manualmente',
+        hideCustomColor: 'Ocultar entrada manual',
         // Photo tip (max 3 times)
         photoTipTitle: '📸 Tip para mejores fotos',
         photoTipMessage: 'Tomá la foto con la prenda extendida contra un fondo liso y con buena luz.\n\n¡Esto nos ayuda a quitarle el fondo para una mejor presentación!',
@@ -1194,6 +1206,14 @@ const i18n = new I18n({
       repeatTitle: 'Outfit ya usado',
       repeatMessage: 'Este outfit ya está planificado para {{day}}. ¿Querés usarlo de nuevo?',
       useAgain: 'Usar de todas formas',
+    },
+    suggestionPin: {
+      pinLabel: 'Mantener esta prenda',
+      unpinLabel: 'Quitar pin',
+      regenerateWithPinned: 'Regenerar con seleccionadas',
+      sameCategoryError: 'Solo podés fijar una {{category}} por sugerencia',
+      allPinned: 'Ya fijaste todas las prendas',
+      noSlots: 'No hay espacios para regenerar',
     },
     calendar: {
       title: 'Calendario de Outfits',

@@ -110,7 +110,8 @@ test.describe('Duplicate Detection', () => {
     // Fill required fields
     await page.getByPlaceholder(/Blue Denim|Chaqueta/i).fill('My Test Garment');
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
-    await page.getByPlaceholder(/, Blue$|, Azul$/i).fill('Blue');
+    // Click the "Azul" swatch in the ColorPicker
+    await page.getByText('Azul').first().click();
 
     // Submit the form
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
@@ -157,7 +158,7 @@ test.describe('Duplicate Detection', () => {
     // Fill and submit
     await page.getByPlaceholder(/Blue Denim|Chaqueta/i).fill('My Test Garment');
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
-    await page.getByPlaceholder(/, Blue$|, Azul$/i).fill('Blue');
+    await page.getByText('Azul').first().click();
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
 
     // Wait for modal to appear
@@ -220,7 +221,7 @@ test.describe('Duplicate Detection', () => {
     // Fill and submit
     await page.getByPlaceholder(/Blue Denim|Chaqueta/i).fill('My Test Garment');
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
-    await page.getByPlaceholder(/, Blue$|, Azul$/i).fill('Blue');
+    await page.getByText('Azul').first().click();
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
 
     // Wait for modal to appear
@@ -281,7 +282,7 @@ test.describe('Duplicate Detection', () => {
     // Fill and submit
     await page.getByPlaceholder(/Blue Denim|Chaqueta/i).fill('My Test Garment');
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
-    await page.getByPlaceholder(/, Blue$|, Azul$/i).fill('Blue');
+    await page.getByText('Azul').first().click();
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
 
     // Should go directly to success (no duplicate modal)
@@ -314,7 +315,7 @@ test.describe('Duplicate Detection', () => {
     // Fill and submit
     await page.getByPlaceholder(/Blue Denim|Chaqueta/i).fill('My Test Garment');
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
-    await page.getByPlaceholder(/, Blue$|, Azul$/i).fill('Blue');
+    await page.getByText('Azul').first().click();
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
 
     // Modal should appear

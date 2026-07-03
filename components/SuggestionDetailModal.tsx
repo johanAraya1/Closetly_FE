@@ -4,7 +4,7 @@
  * grid completo de prendas, guardado, edición y vista ampliada
  */
 
-import React, { useState, useCallback } from 'react';
+import React, { useState, useCallback, useMemo } from 'react';
 import {
   Modal,
   View,
@@ -15,12 +15,14 @@ import {
   StatusBar,
   Dimensions,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
 import { Image } from 'expo-image';
 import { Ionicons } from '@expo/vector-icons';
 import { COLORS } from '@/lib/constants';
 import { useTranslation } from '@/hooks/useTranslation';
 import { FullScreenImage } from './FullScreenImage';
+import { useSuggestionsStore } from '@/store/suggestionsStore';
 import type { Suggestion, Garment, WeatherData } from '@/types';
 
 const { width: SCREEN_WIDTH } = Dimensions.get('window');
@@ -32,6 +34,7 @@ const ITEM_WIDTH = (SCREEN_WIDTH - GRID_PADDING * 2 - GRID_GAP * (GRID_COLUMNS -
 interface SuggestionDetailModalProps {
   visible: boolean;
   suggestion: Suggestion | null;
+  suggestionIndex: number;
   garments: Garment[];
   weather: WeatherData | null;
   isSaving: boolean;
@@ -44,6 +47,7 @@ interface SuggestionDetailModalProps {
 export const SuggestionDetailModal: React.FC<SuggestionDetailModalProps> = ({
   visible,
   suggestion,
+  suggestionIndex,
   garments,
   weather,
   isSaving,
@@ -58,11 +62,55 @@ export const SuggestionDetailModal: React.FC<SuggestionDetailModalProps> = ({
     name?: string;
   } | null>(null);
 
+  const pinnedGarmentIds = useSuggestionsStore((s) => s.pinnedGarmentIds);
+  const isRegenerating = useSuggestionsStore((s) => s.isRegenerating);
+  const togglePin = useSuggestionsStore((s) => s.togglePin);
+  const regenerateWithPinned = useSuggestionsStore((s) => s.regenerateWithPinned);
+
   const matchedGarments = suggestion
     ? (suggestion.garmentIds
         .map((id) => garments.find((g) => g.id === id))
         .filter(Boolean) as Garment[])
     : [];
+
+  const currentPins = useMemo(
+    () => pinnedGarmentIds[suggestionIndex] || [],
+    [pinnedGarmentIds, suggestionIndex],
+  );
+
+  // Check if all required categories are pinned
+  const pinnedCategories = useMemo(() => {
+    return currentPins
+      .map((id) => {
+        const g = garments.find((g) => g.id === id);
+        return g?.category;
+      })
+      .filter(Boolean) as string[];
+  }, [currentPins, garments]);
+
+  const requiredCategories = ['tops', 'bottoms', 'shoes'];
+  const allRequiredPinned = requiredCategories.every((cat) =>
+    pinnedCategories.includes(cat),
+  );
+  const hasPins = currentPins.length > 0;
+  const canRegenerate = hasPins && !allRequiredPinned && !isRegenerating;
+
+  const handlePin = useCallback(
+    (garmentId: string, category: string) => {
+      const accepted = togglePin(suggestionIndex, garmentId, category);
+      if (!accepted) {
+        Alert.alert(
+          '',
+          t('suggestionPin.sameCategoryError', { category: t(`garments.category.${category}`) }),
+        );
+      }
+    },
+    [suggestionIndex, togglePin, t],
+  );
+
+  const handleRegenerate = useCallback(() => {
+    regenerateWithPinned(suggestionIndex);
+  }, [regenerateWithPinned, suggestionIndex]);
 
   const handleSave = useCallback(() => {
     if (!suggestion) return;
@@ -122,34 +170,55 @@ export const SuggestionDetailModal: React.FC<SuggestionDetailModalProps> = ({
               <Text style={styles.sectionLabel}>{t('home.suggestionGarments')}</Text>
               {matchedGarments.length > 0 ? (
                 <View style={styles.garmentGrid}>
-                  {matchedGarments.map((garment) => (
-                    <TouchableOpacity
-                      key={garment.id}
-                      style={[styles.gridItem, { width: ITEM_WIDTH }]}
-                      activeOpacity={0.85}
-                      onPress={() =>
-                        setFullScreenImage({
-                          url: garment.imageUrl,
-                          name: garment.name,
-                        })
-                      }
-                    >
-                      <Image
-                        source={{ uri: garment.imageUrl }}
-                        style={[styles.garmentImage, { height: ITEM_WIDTH }]}
-                        contentFit="cover"
-                        cachePolicy="memory-disk"
-                      />
-                      <View style={styles.garmentInfo}>
-                        <Text style={styles.garmentName} numberOfLines={1}>
-                          {garment.name}
-                        </Text>
-                        <Text style={styles.garmentCategory} numberOfLines={1}>
-                          {garment.category}
-                        </Text>
+                  {matchedGarments.map((garment) => {
+                    const isPinned = currentPins.includes(garment.id);
+                    return (
+                      <View
+                        key={garment.id}
+                        style={[styles.gridItem, { width: ITEM_WIDTH }]}
+                      >
+                        <TouchableOpacity
+                          activeOpacity={0.85}
+                          onPress={() =>
+                            setFullScreenImage({
+                              url: garment.imageUrl,
+                              name: garment.name,
+                            })
+                          }
+                        >
+                          <Image
+                            source={{ uri: garment.imageUrl }}
+                            style={[styles.garmentImage, { height: ITEM_WIDTH }]}
+                            contentFit="cover"
+                            cachePolicy="memory-disk"
+                          />
+                        </TouchableOpacity>
+                        <View style={styles.garmentInfo}>
+                          <View style={styles.garmentInfoRow}>
+                            <View style={styles.garmentInfoText}>
+                              <Text style={styles.garmentName} numberOfLines={1}>
+                                {garment.name}
+                              </Text>
+                              <Text style={styles.garmentCategory} numberOfLines={1}>
+                                {garment.category}
+                              </Text>
+                            </View>
+                            <TouchableOpacity
+                              onPress={() => handlePin(garment.id, garment.category)}
+                              style={styles.pinButton}
+                              hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                            >
+                              <Ionicons
+                                name={isPinned ? 'pin' : 'pin-outline'}
+                                size={18}
+                                color={isPinned ? COLORS.primary : '#9CA3AF'}
+                              />
+                            </TouchableOpacity>
+                          </View>
+                        </View>
                       </View>
-                    </TouchableOpacity>
-                  ))}
+                    );
+                  })}
                 </View>
               ) : (
                 <View style={styles.emptyGarments}>
@@ -174,6 +243,49 @@ export const SuggestionDetailModal: React.FC<SuggestionDetailModalProps> = ({
                 </View>
               )}
             </ScrollView>
+
+            {/* Regenerate with pinned */}
+            <View style={styles.pinActionBar}>
+              {isRegenerating ? (
+                <View style={styles.regenLoading}>
+                  <ActivityIndicator size="small" color={COLORS.primary} />
+                  <Text style={styles.regenLoadingText}>
+                    {t('home.loading')}
+                  </Text>
+                </View>
+              ) : (
+                <>
+                  {allRequiredPinned && hasPins && (
+                    <Text style={styles.pinHelperText}>
+                      {t('suggestionPin.allPinned')}
+                    </Text>
+                  )}
+                  <TouchableOpacity
+                    style={[
+                      styles.regenButton,
+                      (!canRegenerate) && styles.regenButtonDisabled,
+                    ]}
+                    onPress={handleRegenerate}
+                    disabled={!canRegenerate}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons
+                      name="refresh"
+                      size={16}
+                      color={canRegenerate ? '#FFFFFF' : '#9CA3AF'}
+                    />
+                    <Text
+                      style={[
+                        styles.regenButtonText,
+                        !canRegenerate && styles.regenButtonTextDisabled,
+                      ]}
+                    >
+                      {t('suggestionPin.regenerateWithPinned')}
+                    </Text>
+                  </TouchableOpacity>
+                </>
+              )}
+            </View>
 
             {/* Bottom action bar */}
             <View style={styles.actionBar}>
@@ -427,5 +539,66 @@ const styles = StyleSheet.create({
   garmentTouch: {
     width: '50%',
     height: 60,
+  },
+  garmentInfoRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  garmentInfoText: {
+    flex: 1,
+    marginRight: 4,
+  },
+  pinButton: {
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  pinActionBar: {
+    paddingHorizontal: 24,
+    paddingVertical: 8,
+    backgroundColor: '#FFFFFF',
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  regenButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    backgroundColor: COLORS.primary,
+    borderRadius: 10,
+    paddingVertical: 10,
+  },
+  regenButtonDisabled: {
+    backgroundColor: '#F3F4F6',
+  },
+  regenButtonText: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#FFFFFF',
+  },
+  regenButtonTextDisabled: {
+    color: '#9CA3AF',
+  },
+  regenLoading: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    paddingVertical: 10,
+  },
+  regenLoadingText: {
+    fontSize: 14,
+    color: COLORS.primary,
+    fontWeight: '500',
+  },
+  pinHelperText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    textAlign: 'center',
+    marginBottom: 8,
   },
 });

@@ -321,6 +321,7 @@ export interface SuggestionsResponse {
   garments: Garment[];
   weather?: WeatherData;
   message?: string;
+  allPinned?: boolean;
 }
 
 // ==================== CLOSET STATS ====================
