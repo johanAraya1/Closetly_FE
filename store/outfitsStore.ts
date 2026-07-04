@@ -121,18 +121,14 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
       const state = get();
       const existing = state.outfits.find((o) => o.id === id);
       if (existing) {
-        console.log('🔍 [Store] loadOutfitById found in cache for id:', id, '- name:', existing.name);
         set({ currentOutfit: existing, isLoading: false });
         return;
       }
 
-      console.log('🔍 [Store] loadOutfitById NOT in cache, fetching for id:', id);
-      
       // Si no está en el store local, obtenerlo del listado general
       // (el BE no tiene GET /outfits/:id, usamos el mismo endpoint de lista)
       const userId = useAuthStore.getState().user?.id;
       if (!userId) {
-        console.log('🔍 [Store] loadOutfitById ERROR: no userId available');
         set({ isLoading: false, error: 'User not authenticated' });
         return;
       }
@@ -140,17 +136,14 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
       
       if (signal.aborted) return;
       if (result.error) {
-        console.log('🔍 [Store] loadOutfitById ERROR for id:', id, '-', result.error);
         set({ isLoading: false, error: result.error });
         return;
       }
 
       const outfit = (result.data || []).find((o) => o.id === id);
       if (outfit) {
-        console.log('🔍 [Store] loadOutfitById found from list for id:', id, '- name:', outfit.name);
         set({ currentOutfit: outfit, isLoading: false });
       } else {
-        console.log('🔍 [Store] loadOutfitById NOT FOUND for id:', id);
         set({ isLoading: false, error: 'Outfit not found' });
       }
     },
