@@ -78,18 +78,10 @@ export default function OutfitDetailScreen() {
 
   // Load outfit on mount
   useEffect(() => {
-    console.log('🔍 [OutfitDetail] mounted with id from params:', id);
     if (id) {
       loadOutfitById(id);
     }
   }, [id]);
-
-  // Log when currentOutfit changes
-  useEffect(() => {
-    if (currentOutfit) {
-      console.log('🔍 [OutfitDetail] currentOutfit set:', JSON.stringify({ id: currentOutfit.id, name: currentOutfit.name }));
-    }
-  }, [currentOutfit]);
 
   // Cleanup on unmount
   useEffect(() => {
