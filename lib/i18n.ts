@@ -600,6 +600,11 @@ const i18n = new I18n({
       allPinned: 'All items already pinned',
       noSlots: 'No slots to regenerate',
     },
+    biometric: {
+      inviteTitle: '🔒 Log in with your fingerprint',
+      inviteDesc: 'Enable fingerprint in Settings for faster login',
+      goToSettings: 'Go to Settings',
+    },
     calendar: {
       title: 'Outfit Calendar',
       logOutfit: 'Log Outfit',
@@ -1214,6 +1219,11 @@ const i18n = new I18n({
       sameCategoryError: 'Solo podés fijar una {{category}} por sugerencia',
       allPinned: 'Ya fijaste todas las prendas',
       noSlots: 'No hay espacios para regenerar',
+    },
+    biometric: {
+      inviteTitle: '🔒 Ingresá con tu huella',
+      inviteDesc: 'Activá la huella digital en Configuración para iniciar sesión más rápido',
+      goToSettings: 'Ir a Configuración',
     },
     calendar: {
       title: 'Calendario de Outfits',
