@@ -14,7 +14,7 @@ import { Button, Input, EmptyState, Modal, OutfitPreview } from '@/components';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useOutfits } from '@/hooks/useOutfits';
-import { SEASONS, COLORS, GARMENT_CATEGORIES, OCCASIONS, GARMENT_STYLES } from '@/lib/constants';
+import { SEASONS, COLORS, GARMENT_CATEGORIES, OCCASIONS, GARMENT_STYLES, OCCASION_STYLE_MAP } from '@/lib/constants';
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
 import { useOutfitsStore } from '@/store/outfitsStore';
@@ -34,7 +34,7 @@ export default function CreateOutfitScreen() {
 
   const [name, setName] = useState('');
   const [description, setDescription] = useState('');
-  const [occasion, setOccasion] = useState('casual');
+  const [occasions, setOccasions] = useState<string[]>(['casual']);
   const [season, setSeason] = useState<GarmentSeason>('all_season');
   const [selectedGarments, setSelectedGarments] = useState<Garment[]>([]);
   const [errors, setErrors] = useState<{ name?: string; garments?: string }>({});
@@ -74,7 +74,7 @@ export default function CreateOutfitScreen() {
       // Already loaded (e.g. from detail screen), pre-fill immediately
       setName(outfit.name || '');
       setDescription(outfit.description || '');
-      setOccasion(outfit.occasion || 'casual');
+      setOccasions(outfit.occasion ? outfit.occasion.split(/,\s*/) : ['casual']);
       setSeason(outfit.season || 'all_season');
       if (outfit.garments) {
         setSelectedGarments(outfit.garments);
@@ -91,7 +91,7 @@ export default function CreateOutfitScreen() {
       if (loaded && loaded.id === id) {
         setName(loaded.name || '');
         setDescription(loaded.description || '');
-        setOccasion(loaded.occasion || 'casual');
+        setOccasions(loaded.occasion ? loaded.occasion.split(/,\s*/) : ['casual']);
         setSeason(loaded.season || 'all_season');
         if (loaded.garments) {
           setSelectedGarments(loaded.garments);
@@ -150,12 +150,21 @@ export default function CreateOutfitScreen() {
       let attempts = 0;
       const maxAttempts = 20;
 
+      // If no explicit styles passed, merge styles from all selected occasions
+      const mergedStyles: GarmentStyle[] | undefined = styles ?? (
+        occasions.length > 0
+          ? [...new Set(occasions.flatMap((oc) => OCCASION_STYLE_MAP[oc] || []))]
+          : undefined
+      );
+      // Use empty array to indicate "no occasion filter" when mergedStyles is empty
+      const effectiveStyles = mergedStyles?.length === 0 ? undefined : mergedStyles;
+
       while (attempts < maxAttempts) {
         const result = generateRandomOutfit(
           garments,
-          occasion as Occasion,
+          occasions.length > 0 ? occasions[0] as Occasion : 'casual',
           weather,
-          styles,
+          effectiveStyles,
         );
 
         if (result.error) {
@@ -177,7 +186,7 @@ export default function CreateOutfitScreen() {
         'Ya viste todas las combinaciones posibles. Agregá más prendas o cambiá de ocasión.',
       );
     },
-    [garments, occasion, weather, dismissedOutfits],
+    [garments, occasions, weather, dismissedOutfits],
   );
 
   const handleGenerateWithStyles = useCallback(() => {
@@ -267,7 +276,7 @@ export default function CreateOutfitScreen() {
     const data = {
       name: name.trim(),
       description: description.trim() || undefined,
-      occasion: occasion.trim() || undefined,
+      occasion: occasions.length > 0 ? occasions.join(', ') : undefined,
       season,
       garmentIds: selectedGarments.map((g) => g.id),
     };
@@ -350,7 +359,7 @@ export default function CreateOutfitScreen() {
             numberOfLines={3}
           />
 
-          {/* Ocasión — chip picker */}
+          {/* Ocasión — multi-select chips */}
           <View style={styles.section}>
             <Text style={styles.label}>{t('outfits.create.occasion')}</Text>
             <ScrollView
@@ -358,24 +367,31 @@ export default function CreateOutfitScreen() {
               showsHorizontalScrollIndicator={false}
               contentContainerStyle={styles.seasonScroll}
             >
-              {OCCASIONS.map((o) => (
-                <TouchableOpacity
-                  key={o.value}
-                  onPress={() => {
-                    setOccasion(o.value);
-                    setHasGenerated(false);
-                    setGenerationError(null);
-                  }}
-                  style={[
-                    styles.chip,
-                    occasion === o.value ? styles.chipActiveSecondary : styles.chipInactive,
-                  ]}
-                >
-                  <Text style={occasion === o.value ? styles.chipTextActive : styles.chipTextInactive}>
-                    {o.label}
-                  </Text>
-                </TouchableOpacity>
-              ))}
+              {OCCASIONS.map((o) => {
+                const isSelected = occasions.includes(o.value);
+                return (
+                  <TouchableOpacity
+                    key={o.value}
+                    onPress={() => {
+                      setOccasions((prev) =>
+                        isSelected
+                          ? prev.filter((v) => v !== o.value)
+                          : [...prev, o.value]
+                      );
+                      setHasGenerated(false);
+                      setGenerationError(null);
+                    }}
+                    style={[
+                      styles.chip,
+                      isSelected ? styles.chipActiveSecondary : styles.chipInactive,
+                    ]}
+                  >
+                    <Text style={isSelected ? styles.chipTextActive : styles.chipTextInactive}>
+                      {o.label}
+                    </Text>
+                  </TouchableOpacity>
+                );
+              })}
             </ScrollView>
           </View>
 
@@ -632,7 +648,7 @@ export default function CreateOutfitScreen() {
                     setShowSuccessModal(false);
                     setName('');
                     setDescription('');
-                    setOccasion('casual');
+                    setOccasions(['casual']);
                     setSeason('all_season');
                     setSelectedGarments([]);
                     setErrors({});
