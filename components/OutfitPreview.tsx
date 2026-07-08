@@ -6,11 +6,14 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Dimensions, TouchableOpacity } from 'react-native';
 import { Image } from 'expo-image';
+import { Ionicons } from '@expo/vector-icons';
 import type { Garment } from '@/types';
 
 interface OutfitPreviewProps {
   selectedGarments: Garment[];
   onGarmentPress?: (garment: Garment) => void;
+  pinnedGarmentIds?: Set<string>;
+  onTogglePin?: (garmentId: string) => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -37,7 +40,7 @@ const BODY_ZONES = {
   'belts': 'accessories',
 } as Record<string, string>;
 
-export function OutfitPreview({ selectedGarments, onGarmentPress }: OutfitPreviewProps) {
+export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentIds, onTogglePin }: OutfitPreviewProps) {
   // Organizar prendas por zona del cuerpo
   const garmentsByZone = useMemo(() => {
     const zones: Record<string, Garment[]> = {
@@ -72,14 +75,29 @@ export function OutfitPreview({ selectedGarments, onGarmentPress }: OutfitPrevie
           <View style={styles.fullBodyZone}>
             {garmentsByZone.full.map((garment, idx) => (
               <View key={garment.id} style={[styles.garmentWrapper, idx > 0 && styles.overlayGarment]}>
-                <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
-                  <Image
-                    source={{ uri: garment.imageUrl }}
-                    style={styles.fullBodyImage}
-                    contentFit="contain"
-                    cachePolicy="memory-disk"
-                  />
-                </TouchableOpacity>
+                <View>
+                  <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
+                    <Image
+                      source={{ uri: garment.imageUrl }}
+                      style={styles.fullBodyImage}
+                      contentFit="contain"
+                      cachePolicy="memory-disk"
+                    />
+                  </TouchableOpacity>
+                  {onTogglePin && (
+                    <TouchableOpacity
+                      onPress={() => onTogglePin(garment.id)}
+                      style={styles.pinButton}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons
+                        name={pinnedGarmentIds?.has(garment.id) ? 'pin' : 'pin-outline'}
+                        size={18}
+                        color={pinnedGarmentIds?.has(garment.id) ? '#4F46E5' : '#9CA3AF'}
+                      />
+                    </TouchableOpacity>
+                  )}
+                </View>
                 <Text style={styles.garmentLabel} numberOfLines={1}>
                   {garment.name}
                 </Text>
@@ -96,14 +114,29 @@ export function OutfitPreview({ selectedGarments, onGarmentPress }: OutfitPrevie
               <View style={styles.upperZone}>
                 {garmentsByZone.upper.map((garment, idx) => (
                   <View key={garment.id} style={[styles.garmentWrapper, idx > 0 && styles.overlayGarment]}>
-                    <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
-                      <Image
-                        source={{ uri: garment.imageUrl }}
-                        style={styles.upperImage}
-                        contentFit="contain"
-                        cachePolicy="memory-disk"
-                      />
-                    </TouchableOpacity>
+                    <View>
+                      <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
+                        <Image
+                          source={{ uri: garment.imageUrl }}
+                          style={styles.upperImage}
+                          contentFit="contain"
+                          cachePolicy="memory-disk"
+                        />
+                      </TouchableOpacity>
+                      {onTogglePin && (
+                        <TouchableOpacity
+                          onPress={() => onTogglePin(garment.id)}
+                          style={styles.pinButton}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons
+                            name={pinnedGarmentIds?.has(garment.id) ? 'pin' : 'pin-outline'}
+                            size={18}
+                            color={pinnedGarmentIds?.has(garment.id) ? '#4F46E5' : '#9CA3AF'}
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     <Text style={styles.garmentLabel} numberOfLines={1}>
                       {garment.name}
                     </Text>
@@ -117,14 +150,29 @@ export function OutfitPreview({ selectedGarments, onGarmentPress }: OutfitPrevie
               <View style={styles.lowerZone}>
                 {garmentsByZone.lower.map((garment, idx) => (
                   <View key={garment.id} style={[styles.garmentWrapper, idx > 0 && styles.overlayGarment]}>
-                    <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
-                      <Image
-                        source={{ uri: garment.imageUrl }}
-                        style={styles.lowerImage}
-                        contentFit="contain"
-                        cachePolicy="memory-disk"
-                      />
-                    </TouchableOpacity>
+                    <View>
+                      <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
+                        <Image
+                          source={{ uri: garment.imageUrl }}
+                          style={styles.lowerImage}
+                          contentFit="contain"
+                          cachePolicy="memory-disk"
+                        />
+                      </TouchableOpacity>
+                      {onTogglePin && (
+                        <TouchableOpacity
+                          onPress={() => onTogglePin(garment.id)}
+                          style={styles.pinButton}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons
+                            name={pinnedGarmentIds?.has(garment.id) ? 'pin' : 'pin-outline'}
+                            size={18}
+                            color={pinnedGarmentIds?.has(garment.id) ? '#4F46E5' : '#9CA3AF'}
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     <Text style={styles.garmentLabel} numberOfLines={1}>
                       {garment.name}
                     </Text>
@@ -140,14 +188,29 @@ export function OutfitPreview({ selectedGarments, onGarmentPress }: OutfitPrevie
           <View style={styles.feetZone}>
                 {garmentsByZone.feet.map((garment, idx) => (
                   <View key={garment.id} style={[styles.garmentWrapper, idx > 0 && styles.overlayGarment]}>
-                    <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
-                      <Image
-                        source={{ uri: garment.imageUrl }}
-                        style={styles.feetImage}
-                        contentFit="contain"
-                        cachePolicy="memory-disk"
-                      />
-                    </TouchableOpacity>
+                    <View>
+                      <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
+                        <Image
+                          source={{ uri: garment.imageUrl }}
+                          style={styles.feetImage}
+                          contentFit="contain"
+                          cachePolicy="memory-disk"
+                        />
+                      </TouchableOpacity>
+                      {onTogglePin && (
+                        <TouchableOpacity
+                          onPress={() => onTogglePin(garment.id)}
+                          style={styles.pinButton}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons
+                            name={pinnedGarmentIds?.has(garment.id) ? 'pin' : 'pin-outline'}
+                            size={18}
+                            color={pinnedGarmentIds?.has(garment.id) ? '#4F46E5' : '#9CA3AF'}
+                          />
+                        </TouchableOpacity>
+                      )}
+                    </View>
                     <Text style={styles.garmentLabel} numberOfLines={1}>
                       {garment.name}
                     </Text>
@@ -163,14 +226,29 @@ export function OutfitPreview({ selectedGarments, onGarmentPress }: OutfitPrevie
             <View style={styles.accessoriesGrid}>
                 {garmentsByZone.accessories.map((garment) => (
                 <View key={garment.id} style={styles.accessoryItem}>
-                  <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
-                    <Image
-                      source={{ uri: garment.imageUrl }}
-                      style={styles.accessoryImage}
-                      contentFit="contain"
-                      cachePolicy="memory-disk"
-                    />
-                  </TouchableOpacity>
+                  <View>
+                    <TouchableOpacity onPress={() => onGarmentPress?.(garment)} activeOpacity={0.8}>
+                      <Image
+                        source={{ uri: garment.imageUrl }}
+                        style={styles.accessoryImage}
+                        contentFit="contain"
+                        cachePolicy="memory-disk"
+                      />
+                    </TouchableOpacity>
+                    {onTogglePin && (
+                      <TouchableOpacity
+                        onPress={() => onTogglePin(garment.id)}
+                        style={styles.pinButton}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons
+                          name={pinnedGarmentIds?.has(garment.id) ? 'pin' : 'pin-outline'}
+                          size={16}
+                          color={pinnedGarmentIds?.has(garment.id) ? '#4F46E5' : '#9CA3AF'}
+                        />
+                      </TouchableOpacity>
+                    )}
+                  </View>
                   <Text style={styles.accessoryLabel} numberOfLines={1}>
                     {garment.name}
                   </Text>
@@ -340,6 +418,24 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: '#4F46E5',
     fontWeight: '600',
+  },
+
+  /* ===== PIN BUTTON ===== */
+  pinButton: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    width: 28,
+    height: 28,
+    borderRadius: 14,
+    backgroundColor: 'rgba(255, 255, 255, 0.9)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 3,
   },
 });
 
