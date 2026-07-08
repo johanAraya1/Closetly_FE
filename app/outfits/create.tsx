@@ -149,7 +149,6 @@ export default function CreateOutfitScreen() {
 
   const handleOpenStyleSelector = useCallback(() => {
     setGenerationError(null);
-    setSelectedRandomStyles([]);
     setShowStyleModal(true);
   }, []);
 
@@ -213,6 +212,13 @@ export default function CreateOutfitScreen() {
       selectedRandomStyles.length > 0 ? selectedRandomStyles : undefined,
     );
   }, [selectedRandomStyles, generateWithRetry]);
+
+  const handleQuickRegenerate = useCallback(() => {
+    if (garments.length === 0) return;
+    generateWithRetry(
+      selectedRandomStyles.length > 0 ? selectedRandomStyles : undefined,
+    );
+  }, [garments, selectedRandomStyles, generateWithRetry]);
 
   /**
    * Descarta el outfit actual y genera uno nuevo.
@@ -449,21 +455,33 @@ export default function CreateOutfitScreen() {
             )}
             {hasGenerated ? (
               <View style={styles.generatedActions}>
-                <TouchableOpacity
-                  onPress={handleOpenStyleSelector}
-                  style={styles.generateButton}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="refresh" size={20} color="#FFFFFF" style={styles.generateButtonIcon} />
-                  <Text style={styles.generateButtonText}>Probar otro outfit</Text>
-                </TouchableOpacity>
+                {/* Top row: regenerar rápido + cambiar estilo */}
+                <View style={styles.generatedActionsRow}>
+                  <TouchableOpacity
+                    onPress={handleQuickRegenerate}
+                    style={styles.generateButton}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="refresh" size={20} color="#FFFFFF" style={styles.generateButtonIcon} />
+                    <Text style={styles.generateButtonText}>Probar otro</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleOpenStyleSelector}
+                    style={styles.changeStyleButton}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="options-outline" size={20} color={COLORS.secondary} />
+                    <Text style={styles.changeStyleText}>Cambiar estilo</Text>
+                  </TouchableOpacity>
+                </View>
+                {/* Dismiss: descarta la combinación */}
                 <TouchableOpacity
                   onPress={handleDismissOutfit}
-                  style={styles.dismissButton}
-                  activeOpacity={0.7}
+                  style={styles.dismissLink}
+                  activeOpacity={0.6}
                 >
-                  <Ionicons name="close-circle" size={18} color="#EF4444" />
-                  <Text style={styles.dismissButtonText}>No me gusta</Text>
+                  <Ionicons name="close-circle" size={16} color="#DC2626" />
+                  <Text style={styles.dismissLinkText}>No me gusta esta combinación</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -866,24 +884,29 @@ export default function CreateOutfitScreen() {
           onPress={() => setPreviewGarment(null)}
         >
           {previewGarment && (
-            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-              <View style={styles.garmentPreviewCard}>
-                {/* Header con nombre y close */}
-                <View style={styles.garmentPreviewHeader}>
-                  <View style={styles.garmentPreviewNameWrap}>
-                    <Text style={styles.garmentPreviewName} numberOfLines={2}>
-                      {previewGarment.name}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setPreviewGarment(null)}
-                    style={styles.garmentPreviewClose}
-                  >
-                    <Ionicons name="close" size={24} color="#6B7280" />
-                  </TouchableOpacity>
+            <View style={styles.garmentPreviewCard} onStartShouldSetResponder={() => true}>
+              {/* Header con nombre y close — fijo arriba */}
+              <View style={styles.garmentPreviewHeader}>
+                <View style={styles.garmentPreviewNameWrap}>
+                  <Text style={styles.garmentPreviewName} numberOfLines={2}>
+                    {previewGarment.name}
+                  </Text>
                 </View>
+                <TouchableOpacity
+                  onPress={() => setPreviewGarment(null)}
+                  style={styles.garmentPreviewClose}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
 
-                {/* Imagen — responsive, usa aspect ratio */}
+              {/* Cuerpo scrolleable: imagen + detalles juntos */}
+              <ScrollView
+                style={styles.garmentPreviewBody}
+                bounces={false}
+                showsVerticalScrollIndicator={true}
+              >
+                {/* Imagen — más alta para que se vea bien */}
                 <View style={styles.garmentPreviewImageWrap}>
                   <Image
                     source={{ uri: previewGarment.imageUrl }}
@@ -893,31 +916,26 @@ export default function CreateOutfitScreen() {
                   />
                 </View>
 
-                {/* Detalles */}
-                <ScrollView
-                  style={styles.garmentPreviewDetailsScroll}
-                  bounces={false}
-                >
-                  <View style={styles.garmentPreviewDetails}>
-                    {previewGarment.category && (
-                      <Text style={styles.garmentPreviewDetail}>
-                        {t('outfits.create.category')}: {t('garments.category.' + previewGarment.category)}
-                      </Text>
-                    )}
-                    {previewGarment.color && (
-                      <Text style={styles.garmentPreviewDetail}>
-                        {t('garments.create.color')}: {previewGarment.color}
-                      </Text>
-                    )}
-                    {previewGarment.brand && (
-                      <Text style={styles.garmentPreviewDetail}>
-                        {t('garments.create.brand')}: {previewGarment.brand}
-                      </Text>
-                    )}
-                  </View>
-                </ScrollView>
-              </View>
-            </TouchableOpacity>
+                {/* Detalles — sin límite, crecen naturalmente */}
+                <View style={styles.garmentPreviewDetails}>
+                  {previewGarment.category && (
+                    <Text style={styles.garmentPreviewDetail}>
+                      {t('outfits.create.category')}: {t('garments.category.' + previewGarment.category)}
+                    </Text>
+                  )}
+                  {previewGarment.color && (
+                    <Text style={styles.garmentPreviewDetail}>
+                      {t('garments.create.color')}: {previewGarment.color}
+                    </Text>
+                  )}
+                  {previewGarment.brand && (
+                    <Text style={styles.garmentPreviewDetail}>
+                      {t('garments.create.brand')}: {previewGarment.brand}
+                    </Text>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
           )}
         </TouchableOpacity>
       </RNModal>
@@ -1193,6 +1211,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   generateButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1215,26 +1234,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   generatedActions: {
+    gap: 8,
+  },
+  generatedActionsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
   },
-  dismissButton: {
+  changeStyleButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
+    backgroundColor: '#FFFFFF',
   },
-  dismissButtonText: {
-    color: '#DC2626',
+  changeStyleText: {
+    color: COLORS.secondary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  dismissLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  dismissLinkText: {
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '500',
   },
   generateErrorBanner: {
     flexDirection: 'row',
@@ -1437,6 +1471,9 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     overflow: 'hidden',
   },
+  garmentPreviewBody: {
+    flexGrow: 0,
+  },
   garmentPreviewHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1466,17 +1503,13 @@ const styles = StyleSheet.create({
   },
   garmentPreviewImageWrap: {
     width: '100%',
-    aspectRatio: 1,
-    maxHeight: 350,
+    aspectRatio: 3 / 4,
     backgroundColor: '#F3F4F6',
   },
   garmentPreviewImage: {
     flex: 1,
     width: '100%',
     height: '100%',
-  },
-  garmentPreviewDetailsScroll: {
-    maxHeight: 140,
   },
   garmentPreviewDetails: {
     padding: 16,
