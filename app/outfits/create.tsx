@@ -57,6 +57,7 @@ export default function CreateOutfitScreen() {
   const [selectedRandomStyles, setSelectedRandomStyles] = useState<GarmentStyle[]>([]);
   const [expandedGarment, setExpandedGarment] = useState<Garment | null>(null);
   const [dismissedOutfits, setDismissedOutfits] = useState<Set<string>>(new Set());
+  const [pinnedGarmentIds, setPinnedGarmentIds] = useState<Set<string>>(new Set());
 
   // Cargar outfits descartados al montar el componente
   useEffect(() => {
@@ -134,6 +135,18 @@ export default function CreateOutfitScreen() {
     }
   };
 
+  const togglePin = useCallback((garmentId: string) => {
+    setPinnedGarmentIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(garmentId)) {
+        next.delete(garmentId);
+      } else {
+        next.add(garmentId);
+      }
+      return next;
+    });
+  }, []);
+
   const handleOpenStyleSelector = useCallback(() => {
     setGenerationError(null);
     setSelectedRandomStyles([]);
@@ -159,9 +172,13 @@ export default function CreateOutfitScreen() {
       // Use empty array to indicate "no occasion filter" when mergedStyles is empty
       const effectiveStyles = mergedStyles?.length === 0 ? undefined : mergedStyles;
 
+      // Exclude pinned garments from the pool so they stay fixed
+      const pinnedList = garments.filter((g) => pinnedGarmentIds.has(g.id));
+      const poolGarments = garments.filter((g) => !pinnedGarmentIds.has(g.id));
+
       while (attempts < maxAttempts) {
         const result = generateRandomOutfit(
-          garments,
+          poolGarments,
           occasions.length > 0 ? occasions[0] as Occasion : 'casual',
           weather,
           effectiveStyles,
@@ -174,7 +191,8 @@ export default function CreateOutfitScreen() {
 
         const key = [...result.outfit.map((g) => g.id)].sort().join(',');
         if (!skip.has(key)) {
-          setSelectedGarments(result.outfit);
+          // Merge pinned garments back + random result
+          setSelectedGarments([...pinnedList, ...result.outfit]);
           setHasGenerated(true);
           setGenerationError(null);
           return;
@@ -186,7 +204,7 @@ export default function CreateOutfitScreen() {
         'Ya viste todas las combinaciones posibles. Agregá más prendas o cambiá de ocasión.',
       );
     },
-    [garments, occasions, weather, dismissedOutfits],
+    [garments, occasions, weather, dismissedOutfits, pinnedGarmentIds],
   );
 
   const handleGenerateWithStyles = useCallback(() => {
@@ -380,6 +398,7 @@ export default function CreateOutfitScreen() {
                       );
                       setHasGenerated(false);
                       setGenerationError(null);
+                      setPinnedGarmentIds(new Set());
                     }}
                     style={[
                       styles.chip,
@@ -463,7 +482,7 @@ export default function CreateOutfitScreen() {
           {selectedGarments.length > 0 && (
             <View style={styles.previewSection}>
               <Text style={styles.label}>{t('outfits.create.preview')}</Text>
-              <OutfitPreview selectedGarments={selectedGarments} onGarmentPress={setPreviewGarment} />
+              <OutfitPreview selectedGarments={selectedGarments} onGarmentPress={setPreviewGarment} pinnedGarmentIds={pinnedGarmentIds} onTogglePin={togglePin} />
             </View>
           )}
 
@@ -654,6 +673,7 @@ export default function CreateOutfitScreen() {
                     setErrors({});
                     setGenerationError(null);
                     setHasGenerated(false);
+                    setPinnedGarmentIds(new Set());
                   },
                   variant: 'primary',
                 },
