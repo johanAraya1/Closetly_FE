@@ -866,24 +866,29 @@ export default function CreateOutfitScreen() {
           onPress={() => setPreviewGarment(null)}
         >
           {previewGarment && (
-            <TouchableOpacity activeOpacity={1} onPress={(e) => e.stopPropagation()}>
-              <View style={styles.garmentPreviewCard}>
-                {/* Header con nombre y close */}
-                <View style={styles.garmentPreviewHeader}>
-                  <View style={styles.garmentPreviewNameWrap}>
-                    <Text style={styles.garmentPreviewName} numberOfLines={2}>
-                      {previewGarment.name}
-                    </Text>
-                  </View>
-                  <TouchableOpacity
-                    onPress={() => setPreviewGarment(null)}
-                    style={styles.garmentPreviewClose}
-                  >
-                    <Ionicons name="close" size={24} color="#6B7280" />
-                  </TouchableOpacity>
+            <View style={styles.garmentPreviewCard} onStartShouldSetResponder={() => true}>
+              {/* Header con nombre y close — fijo arriba */}
+              <View style={styles.garmentPreviewHeader}>
+                <View style={styles.garmentPreviewNameWrap}>
+                  <Text style={styles.garmentPreviewName} numberOfLines={2}>
+                    {previewGarment.name}
+                  </Text>
                 </View>
+                <TouchableOpacity
+                  onPress={() => setPreviewGarment(null)}
+                  style={styles.garmentPreviewClose}
+                >
+                  <Ionicons name="close" size={24} color="#6B7280" />
+                </TouchableOpacity>
+              </View>
 
-                {/* Imagen — responsive, usa aspect ratio */}
+              {/* Cuerpo scrolleable: imagen + detalles juntos */}
+              <ScrollView
+                style={styles.garmentPreviewBody}
+                bounces={false}
+                showsVerticalScrollIndicator={true}
+              >
+                {/* Imagen — más alta para que se vea bien */}
                 <View style={styles.garmentPreviewImageWrap}>
                   <Image
                     source={{ uri: previewGarment.imageUrl }}
@@ -893,31 +898,26 @@ export default function CreateOutfitScreen() {
                   />
                 </View>
 
-                {/* Detalles */}
-                <ScrollView
-                  style={styles.garmentPreviewDetailsScroll}
-                  bounces={false}
-                >
-                  <View style={styles.garmentPreviewDetails}>
-                    {previewGarment.category && (
-                      <Text style={styles.garmentPreviewDetail}>
-                        {t('outfits.create.category')}: {t('garments.category.' + previewGarment.category)}
-                      </Text>
-                    )}
-                    {previewGarment.color && (
-                      <Text style={styles.garmentPreviewDetail}>
-                        {t('garments.create.color')}: {previewGarment.color}
-                      </Text>
-                    )}
-                    {previewGarment.brand && (
-                      <Text style={styles.garmentPreviewDetail}>
-                        {t('garments.create.brand')}: {previewGarment.brand}
-                      </Text>
-                    )}
-                  </View>
-                </ScrollView>
-              </View>
-            </TouchableOpacity>
+                {/* Detalles — sin límite, crecen naturalmente */}
+                <View style={styles.garmentPreviewDetails}>
+                  {previewGarment.category && (
+                    <Text style={styles.garmentPreviewDetail}>
+                      {t('outfits.create.category')}: {t('garments.category.' + previewGarment.category)}
+                    </Text>
+                  )}
+                  {previewGarment.color && (
+                    <Text style={styles.garmentPreviewDetail}>
+                      {t('garments.create.color')}: {previewGarment.color}
+                    </Text>
+                  )}
+                  {previewGarment.brand && (
+                    <Text style={styles.garmentPreviewDetail}>
+                      {t('garments.create.brand')}: {previewGarment.brand}
+                    </Text>
+                  )}
+                </View>
+              </ScrollView>
+            </View>
           )}
         </TouchableOpacity>
       </RNModal>
@@ -1437,6 +1437,9 @@ const styles = StyleSheet.create({
     maxHeight: '90%',
     overflow: 'hidden',
   },
+  garmentPreviewBody: {
+    flexGrow: 0,
+  },
   garmentPreviewHeader: {
     flexDirection: 'row',
     alignItems: 'flex-start',
@@ -1466,17 +1469,13 @@ const styles = StyleSheet.create({
   },
   garmentPreviewImageWrap: {
     width: '100%',
-    aspectRatio: 1,
-    maxHeight: 350,
+    aspectRatio: 3 / 4,
     backgroundColor: '#F3F4F6',
   },
   garmentPreviewImage: {
     flex: 1,
     width: '100%',
     height: '100%',
-  },
-  garmentPreviewDetailsScroll: {
-    maxHeight: 140,
   },
   garmentPreviewDetails: {
     padding: 16,
