@@ -149,7 +149,6 @@ export default function CreateOutfitScreen() {
 
   const handleOpenStyleSelector = useCallback(() => {
     setGenerationError(null);
-    setSelectedRandomStyles([]);
     setShowStyleModal(true);
   }, []);
 
@@ -213,6 +212,13 @@ export default function CreateOutfitScreen() {
       selectedRandomStyles.length > 0 ? selectedRandomStyles : undefined,
     );
   }, [selectedRandomStyles, generateWithRetry]);
+
+  const handleQuickRegenerate = useCallback(() => {
+    if (garments.length === 0) return;
+    generateWithRetry(
+      selectedRandomStyles.length > 0 ? selectedRandomStyles : undefined,
+    );
+  }, [garments, selectedRandomStyles, generateWithRetry]);
 
   /**
    * Descarta el outfit actual y genera uno nuevo.
@@ -449,21 +455,33 @@ export default function CreateOutfitScreen() {
             )}
             {hasGenerated ? (
               <View style={styles.generatedActions}>
-                <TouchableOpacity
-                  onPress={handleOpenStyleSelector}
-                  style={styles.generateButton}
-                  activeOpacity={0.8}
-                >
-                  <Ionicons name="refresh" size={20} color="#FFFFFF" style={styles.generateButtonIcon} />
-                  <Text style={styles.generateButtonText}>Probar otro outfit</Text>
-                </TouchableOpacity>
+                {/* Top row: regenerar rápido + cambiar estilo */}
+                <View style={styles.generatedActionsRow}>
+                  <TouchableOpacity
+                    onPress={handleQuickRegenerate}
+                    style={styles.generateButton}
+                    activeOpacity={0.8}
+                  >
+                    <Ionicons name="refresh" size={20} color="#FFFFFF" style={styles.generateButtonIcon} />
+                    <Text style={styles.generateButtonText}>Probar otro</Text>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    onPress={handleOpenStyleSelector}
+                    style={styles.changeStyleButton}
+                    activeOpacity={0.7}
+                  >
+                    <Ionicons name="options-outline" size={20} color={COLORS.secondary} />
+                    <Text style={styles.changeStyleText}>Cambiar estilo</Text>
+                  </TouchableOpacity>
+                </View>
+                {/* Dismiss: descarta la combinación */}
                 <TouchableOpacity
                   onPress={handleDismissOutfit}
-                  style={styles.dismissButton}
-                  activeOpacity={0.7}
+                  style={styles.dismissLink}
+                  activeOpacity={0.6}
                 >
-                  <Ionicons name="close-circle" size={18} color="#EF4444" />
-                  <Text style={styles.dismissButtonText}>No me gusta</Text>
+                  <Ionicons name="close-circle" size={16} color="#DC2626" />
+                  <Text style={styles.dismissLinkText}>No me gusta esta combinación</Text>
                 </TouchableOpacity>
               </View>
             ) : (
@@ -1193,6 +1211,7 @@ const styles = StyleSheet.create({
     elevation: 5,
   },
   generateButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
@@ -1215,26 +1234,41 @@ const styles = StyleSheet.create({
     fontWeight: '700',
   },
   generatedActions: {
+    gap: 8,
+  },
+  generatedActionsRow: {
     flexDirection: 'row',
-    alignItems: 'center',
     gap: 10,
   },
-  dismissButton: {
+  changeStyleButton: {
+    flex: 1,
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 12,
-    paddingHorizontal: 16,
+    paddingVertical: 14,
+    paddingHorizontal: 12,
     borderRadius: 12,
-    backgroundColor: '#FEF2F2',
-    borderWidth: 1,
-    borderColor: '#FECACA',
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
+    backgroundColor: '#FFFFFF',
   },
-  dismissButtonText: {
-    color: '#DC2626',
+  changeStyleText: {
+    color: COLORS.secondary,
     fontSize: 14,
     fontWeight: '600',
+  },
+  dismissLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  dismissLinkText: {
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '500',
   },
   generateErrorBanner: {
     flexDirection: 'row',
