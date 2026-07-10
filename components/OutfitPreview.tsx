@@ -14,6 +14,7 @@ interface OutfitPreviewProps {
   onGarmentPress?: (garment: Garment) => void;
   pinnedGarmentIds?: Set<string>;
   onTogglePin?: (garmentId: string) => void;
+  baseGarmentIds?: Set<string>;            // ← NUEVO: IDs de prendas base del mix
 }
 
 const { width } = Dimensions.get('window');
@@ -40,7 +41,7 @@ const BODY_ZONES = {
   'belts': 'accessories',
 } as Record<string, string>;
 
-export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentIds, onTogglePin }: OutfitPreviewProps) {
+export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentIds, onTogglePin, baseGarmentIds }: OutfitPreviewProps) {
   // Organizar prendas por zona del cuerpo
   const garmentsByZone = useMemo(() => {
     const zones: Record<string, Garment[]> = {
@@ -97,6 +98,11 @@ export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentI
                       />
                     </TouchableOpacity>
                   )}
+                  {baseGarmentIds?.has(garment.id) && (
+                    <View style={styles.baseBadge}>
+                      <Text style={styles.baseBadgeText}>BASE</Text>
+                    </View>
+                  )}
                 </View>
                 <Text style={styles.garmentLabel} numberOfLines={1}>
                   {garment.name}
@@ -136,6 +142,11 @@ export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentI
                           />
                         </TouchableOpacity>
                       )}
+                      {baseGarmentIds?.has(garment.id) && (
+                        <View style={styles.baseBadge}>
+                          <Text style={styles.baseBadgeText}>BASE</Text>
+                        </View>
+                      )}
                     </View>
                     <Text style={styles.garmentLabel} numberOfLines={1}>
                       {garment.name}
@@ -171,6 +182,11 @@ export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentI
                             color={pinnedGarmentIds?.has(garment.id) ? '#4F46E5' : '#9CA3AF'}
                           />
                         </TouchableOpacity>
+                      )}
+                      {baseGarmentIds?.has(garment.id) && (
+                        <View style={styles.baseBadge}>
+                          <Text style={styles.baseBadgeText}>BASE</Text>
+                        </View>
                       )}
                     </View>
                     <Text style={styles.garmentLabel} numberOfLines={1}>
@@ -210,6 +226,11 @@ export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentI
                           />
                         </TouchableOpacity>
                       )}
+                      {baseGarmentIds?.has(garment.id) && (
+                        <View style={styles.baseBadge}>
+                          <Text style={styles.baseBadgeText}>BASE</Text>
+                        </View>
+                      )}
                     </View>
                     <Text style={styles.garmentLabel} numberOfLines={1}>
                       {garment.name}
@@ -247,6 +268,11 @@ export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentI
                           color={pinnedGarmentIds?.has(garment.id) ? '#4F46E5' : '#9CA3AF'}
                         />
                       </TouchableOpacity>
+                    )}
+                    {baseGarmentIds?.has(garment.id) && (
+                      <View style={styles.baseBadge}>
+                        <Text style={styles.baseBadgeText}>BASE</Text>
+                      </View>
                     )}
                   </View>
                   <Text style={styles.accessoryLabel} numberOfLines={1}>
@@ -436,6 +462,28 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 2,
     elevation: 3,
+  },
+
+  /* ===== BASE BADGE ===== */
+  baseBadge: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  baseBadgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
   },
 });
 

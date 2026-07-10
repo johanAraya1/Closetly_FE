@@ -18,6 +18,7 @@ import { SEASONS, COLORS, GARMENT_CATEGORIES, OCCASIONS, GARMENT_STYLES, OCCASIO
 import { useTranslation } from '@/hooks/useTranslation';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
 import { useOutfitsStore } from '@/store/outfitsStore';
+import { useMixOutfitStore } from '@/store/mixOutfitStore';
 import { generateRandomOutfit } from '@/utils';
 import type { GarmentSeason, Garment, GarmentStyle } from '@/types';
 import type { Occasion } from '@/utils/randomOutfit';
@@ -58,6 +59,19 @@ export default function CreateOutfitScreen() {
   const [expandedGarment, setExpandedGarment] = useState<Garment | null>(null);
   const [dismissedOutfits, setDismissedOutfits] = useState<Set<string>>(new Set());
   const [pinnedGarmentIds, setPinnedGarmentIds] = useState<Set<string>>(new Set());
+
+  // Mix mode state — independiente del flujo aleatorio
+  const [isMixMode, setIsMixMode] = useState(false);
+  const [baseGarments, setBaseGarments] = useState<Garment[]>([]);
+
+  const {
+    mixSuggestion,
+    mixGarments,
+    mixLoading,
+    mixError,
+    mixOutfit,
+    clearMix,
+  } = useMixOutfitStore();
 
   // Cargar outfits descartados al montar el componente
   useEffect(() => {
@@ -146,6 +160,55 @@ export default function CreateOutfitScreen() {
       return next;
     });
   }, []);
+
+  // ─── Mix Mode Handlers ───────────────────────────────────────
+
+  const toggleBaseGarment = useCallback((garment: Garment) => {
+    setBaseGarments((prev) => {
+      const exists = prev.find((g) => g.id === garment.id);
+      if (exists) {
+        return prev.filter((g) => g.id !== garment.id);
+      }
+      if (prev.length >= 2) {
+        Alert.alert(t('outfits.create.mixMaxReached'));
+        return prev;
+      }
+      return [...prev, garment];
+    });
+  }, [t]);
+
+  const handleMixComplete = useCallback(() => {
+    if (baseGarments.length === 0) return;
+    const ids = baseGarments.map((g) => g.id);
+    mixOutfit(ids);
+  }, [baseGarments, mixOutfit]);
+
+  const handleAcceptMix = useCallback(() => {
+    const state = useMixOutfitStore.getState();
+    if (!state.mixSuggestion) return;
+
+    const accepted = state.mixSuggestion.garmentIds
+      .map((id) => state.mixGarments.find((g) => g.id === id))
+      .filter(Boolean) as Garment[];
+
+    setSelectedGarments(accepted);
+    setIsMixMode(false);
+    setBaseGarments([]);
+    clearMix();
+  }, [clearMix]);
+
+  const handleRegenerateMix = useCallback(() => {
+    const ids = baseGarments.map((g) => g.id);
+    mixOutfit(ids);
+  }, [baseGarments, mixOutfit]);
+
+  const handleClearMix = useCallback(() => {
+    setIsMixMode(false);
+    setBaseGarments([]);
+    clearMix();
+  }, [clearMix]);
+
+  // ─── Style Selector ──────────────────────────────────────────
 
   const handleOpenStyleSelector = useCallback(() => {
     setGenerationError(null);
@@ -445,7 +508,8 @@ export default function CreateOutfitScreen() {
             </ScrollView>
           </View>
 
-          {/* Generar Outfit Aleatorio */}
+          {/* Generar Outfit Aleatorio — oculto en mix mode */}
+          {!isMixMode && (
           <View style={styles.section}>
             {generationError && (
               <View style={styles.generateErrorBanner}>
@@ -495,6 +559,7 @@ export default function CreateOutfitScreen() {
               </TouchableOpacity>
             )}
           </View>
+          )}
 
           {/* Outfit Preview - Muestra el outfit completo */}
           {selectedGarments.length > 0 && (
@@ -584,16 +649,26 @@ export default function CreateOutfitScreen() {
             <View style={styles.garmentGrid}>
               {filteredGarments.map((garment) => {
                 const isSelected = !!selectedGarments.find((g) => g.id === garment.id);
+                const isBaseGarment = !!baseGarments.find((g) => g.id === garment.id);
+                const cardBorderStyle = isMixMode
+                  ? isBaseGarment
+                    ? styles.cardBaseSelected
+                    : isSelected
+                      ? styles.cardSelected
+                      : undefined
+                  : isSelected
+                    ? styles.cardSelected
+                    : undefined;
                 return (
                   <TouchableOpacity
                     key={garment.id}
-                    onPress={() => toggleGarment(garment)}
+                    onPress={isMixMode ? () => toggleBaseGarment(garment) : () => toggleGarment(garment)}
                     style={styles.garmentCard}
                     activeOpacity={0.7}
                   >
                     <View style={[
                       styles.cardContainer,
-                      isSelected && styles.cardSelected,
+                      cardBorderStyle,
                     ]}>
                       {/* Imagen */}
                       <View style={styles.imageWrapper}>
@@ -616,11 +691,23 @@ export default function CreateOutfitScreen() {
                           <Ionicons name="expand-outline" size={18} color="#FFFFFF" />
                         </TouchableOpacity>
 
-                        {isSelected && (
+                        {isBaseGarment && (
+                          <View style={styles.baseBadgeGrid}>
+                            <Text style={styles.baseBadgeGridText}>BASE</Text>
+                          </View>
+                        )}
+
+                        {!isMixMode && isSelected && (
                           <View style={styles.selectedOverlay}>
                             <View style={styles.checkmarkBadge}>
                               <Ionicons name="checkmark-circle" size={28} color={COLORS.primary} />
                             </View>
+                          </View>
+                        )}
+
+                        {isMixMode && isBaseGarment && (
+                          <View style={styles.baseOverlay}>
+                            <Ionicons name="layers-outline" size={22} color="#FFFFFF" />
                           </View>
                         )}
                       </View>
@@ -644,6 +731,164 @@ export default function CreateOutfitScreen() {
                 );
               })}
             </View>
+          </View>
+
+          {/* ─── Outfit Mixto IA ─── */}
+          <View style={styles.mixSection}>
+            {/* Toggle de activación */}
+            <TouchableOpacity
+              onPress={() => {
+                if (isMixMode) {
+                  handleClearMix();
+                } else {
+                  setIsMixMode(true);
+                }
+              }}
+              style={styles.mixToggleRow}
+              activeOpacity={0.7}
+            >
+              <Ionicons
+                name={isMixMode ? 'sparkles' : 'sparkles-outline'}
+                size={22}
+                color={isMixMode ? '#F59E0B' : COLORS.secondary}
+                style={styles.mixToggleIcon}
+              />
+              <Text style={[
+                styles.mixToggleText,
+                isMixMode && styles.mixToggleTextActive,
+              ]}>
+                {t('outfits.create.mixSectionTitle')}
+              </Text>
+              <Ionicons
+                name={isMixMode ? 'chevron-up' : 'chevron-forward'}
+                size={20}
+                color={isMixMode ? '#F59E0B' : '#9CA3AF'}
+              />
+            </TouchableOpacity>
+
+            {isMixMode && !mixSuggestion && (
+              <View style={styles.mixBody}>
+                <Text style={styles.mixHint}>
+                  {t('outfits.create.mixSelectHint')}
+                </Text>
+
+                {/* Prendas base seleccionadas */}
+                {baseGarments.length > 0 && (
+                  <View style={styles.mixBaseChips}>
+                    {baseGarments.map((g) => (
+                      <View key={g.id} style={styles.mixBaseChip}>
+                        <Image
+                          source={{ uri: g.imageUrl }}
+                          style={styles.mixBaseChipImage}
+                          contentFit="contain"
+                        />
+                        <Text style={styles.mixBaseChipText} numberOfLines={1}>
+                          {g.name}
+                        </Text>
+                        <TouchableOpacity
+                          onPress={() => toggleBaseGarment(g)}
+                          hitSlop={{ top: 6, bottom: 6, left: 6, right: 6 }}
+                        >
+                          <Ionicons name="close-circle" size={18} color="#6B7280" />
+                        </TouchableOpacity>
+                      </View>
+                    ))}
+                  </View>
+                )}
+
+                {/* Error banner */}
+                {mixError && (
+                  <View style={styles.mixErrorBanner}>
+                    <Ionicons name="alert-circle" size={18} color="#EF4444" />
+                    <Text style={styles.mixErrorText}>{mixError}</Text>
+                    <TouchableOpacity
+                      onPress={handleMixComplete}
+                      style={styles.mixErrorRetry}
+                    >
+                      <Text style={styles.mixErrorRetryText}>{t('outfits.create.mixRetry')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                )}
+
+                {/* Botón Completar con IA */}
+                <TouchableOpacity
+                  onPress={handleMixComplete}
+                  disabled={baseGarments.length === 0 || mixLoading}
+                  style={[
+                    styles.mixCompleteButton,
+                    (baseGarments.length === 0 || mixLoading) && styles.mixCompleteButtonDisabled,
+                  ]}
+                  activeOpacity={0.8}
+                >
+                  {mixLoading ? (
+                    <ActivityIndicator size="small" color="#FFFFFF" />
+                  ) : (
+                    <>
+                      <Ionicons name="sparkles" size={20} color="#FFFFFF" style={styles.mixButtonIcon} />
+                      <Text style={styles.mixCompleteButtonText}>
+                        {t('outfits.create.mixButton')}
+                      </Text>
+                    </>
+                  )}
+                </TouchableOpacity>
+                {mixLoading && (
+                  <Text style={styles.mixLoadingHint}>{t('outfits.create.mixLoading')}</Text>
+                )}
+              </View>
+            )}
+
+            {/* Resultado de la sugerencia mix */}
+            {isMixMode && mixSuggestion && (() => {
+              const mixDisplayGarments = mixSuggestion.garmentIds
+                .map((id) => mixGarments.find((g) => g.id === id))
+                .filter(Boolean) as Garment[];
+              const baseSet = new Set(baseGarments.map((g) => g.id));
+
+              return (
+                <View style={styles.mixResult}>
+                  <OutfitPreview
+                    selectedGarments={mixDisplayGarments}
+                    baseGarmentIds={baseSet}
+                    onGarmentPress={setPreviewGarment}
+                  />
+
+                  {/* Acciones post-sugerencia */}
+                  <View style={styles.mixResultActions}>
+                    <TouchableOpacity
+                      onPress={handleAcceptMix}
+                      style={styles.mixAcceptButton}
+                      activeOpacity={0.8}
+                    >
+                      <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" style={styles.mixButtonIcon} />
+                      <Text style={styles.mixAcceptText}>{t('outfits.create.mixAccept')}</Text>
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleRegenerateMix}
+                      style={styles.mixRegenerateButton}
+                      activeOpacity={0.7}
+                      disabled={mixLoading}
+                    >
+                      {mixLoading ? (
+                        <ActivityIndicator size="small" color={COLORS.secondary} />
+                      ) : (
+                        <>
+                          <Ionicons name="refresh" size={20} color={COLORS.secondary} style={styles.mixButtonIcon} />
+                          <Text style={styles.mixRegenerateText}>{t('common.retry')}</Text>
+                        </>
+                      )}
+                    </TouchableOpacity>
+                    <TouchableOpacity
+                      onPress={handleClearMix}
+                      style={styles.mixClearLink}
+                      activeOpacity={0.6}
+                    >
+                      <Ionicons name="close-circle" size={16} color="#DC2626" />
+                      <Text style={styles.mixClearText}>{t('outfits.create.mixClear')}</Text>
+                    </TouchableOpacity>
+                  </View>
+                </View>
+              );
+            })()}
           </View>
 
         </View>
@@ -1518,5 +1763,228 @@ const styles = StyleSheet.create({
   garmentPreviewDetail: {
     fontSize: 14,
     color: '#374151',
+  },
+
+  // ─── Outfit Mixto IA ───
+  mixSection: {
+    marginBottom: 24,
+    backgroundColor: '#FFFFFF',
+    borderRadius: 16,
+    borderWidth: 1,
+    borderColor: '#E5E7EB',
+    overflow: 'hidden',
+  },
+  mixToggleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingHorizontal: 16,
+    paddingVertical: 14,
+  },
+  mixToggleIcon: {
+    marginRight: 10,
+  },
+  mixToggleText: {
+    flex: 1,
+    fontSize: 16,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  mixToggleTextActive: {
+    color: '#F59E0B',
+  },
+  mixBody: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    paddingTop: 14,
+  },
+  mixHint: {
+    fontSize: 14,
+    color: '#6B7280',
+    lineHeight: 20,
+    marginBottom: 14,
+  },
+  mixBaseChips: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+    marginBottom: 14,
+  },
+  mixBaseChip: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFBEB',
+    borderWidth: 1,
+    borderColor: '#FDE68A',
+    borderRadius: 8,
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    gap: 6,
+  },
+  mixBaseChipImage: {
+    width: 28,
+    height: 28,
+    borderRadius: 4,
+    backgroundColor: '#F3F4F6',
+  },
+  mixBaseChipText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: '#92400E',
+    maxWidth: 120,
+  },
+  mixCompleteButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: '#F59E0B',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    shadowColor: '#F59E0B',
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  mixCompleteButtonDisabled: {
+    backgroundColor: '#D1D5DB',
+    shadowOpacity: 0,
+    elevation: 0,
+  },
+  mixButtonIcon: {
+    marginRight: 8,
+  },
+  mixCompleteButtonText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  mixLoadingHint: {
+    textAlign: 'center',
+    fontSize: 13,
+    color: '#9CA3AF',
+    marginTop: 8,
+  },
+  mixErrorBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+    borderRadius: 12,
+    padding: 14,
+    marginBottom: 12,
+  },
+  mixErrorText: {
+    flex: 1,
+    color: '#DC2626',
+    fontSize: 14,
+    fontWeight: '500',
+    marginLeft: 10,
+    lineHeight: 20,
+  },
+  mixErrorRetry: {
+    marginLeft: 8,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#FEE2E2',
+    borderRadius: 8,
+  },
+  mixErrorRetryText: {
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '600',
+  },
+  mixResult: {
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+    paddingHorizontal: 16,
+    paddingBottom: 16,
+    paddingTop: 14,
+  },
+  mixResultActions: {
+    marginTop: 12,
+    gap: 8,
+  },
+  mixAcceptButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    backgroundColor: COLORS.secondary,
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    shadowColor: COLORS.secondary,
+    shadowOffset: { width: 0, height: 4 },
+    shadowOpacity: 0.3,
+    shadowRadius: 8,
+    elevation: 4,
+  },
+  mixAcceptText: {
+    color: '#FFFFFF',
+    fontSize: 16,
+    fontWeight: '700',
+  },
+  mixRegenerateButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    paddingVertical: 14,
+    paddingHorizontal: 24,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: COLORS.secondary,
+    backgroundColor: '#FFFFFF',
+  },
+  mixRegenerateText: {
+    color: COLORS.secondary,
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  mixClearLink: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 8,
+  },
+  mixClearText: {
+    color: '#DC2626',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+
+  // ─── Grid: badge prenda base ───
+  cardBaseSelected: {
+    borderColor: '#F59E0B',
+    borderWidth: 3,
+  },
+  baseBadgeGrid: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    backgroundColor: '#F59E0B',
+    paddingHorizontal: 6,
+    paddingVertical: 2,
+    borderRadius: 4,
+    zIndex: 3,
+  },
+  baseBadgeGridText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+    letterSpacing: 0.5,
+  },
+  baseOverlay: {
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
+    backgroundColor: 'rgba(245, 158, 11, 0.15)',
+    justifyContent: 'center',
+    alignItems: 'center',
   },
 });
