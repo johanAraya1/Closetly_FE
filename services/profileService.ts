@@ -7,20 +7,20 @@ import { apiClient } from '@/utils/apiClient';
 import type { Profile, ApiResponse } from '@/types';
 
 /**
- * Obtiene el perfil de un usuario por su ID
+ * Obtiene el perfil del usuario autenticado
  */
 export const getProfile = async (userId: string): Promise<ApiResponse<Profile>> => {
-  return apiClient.get<Profile>(`/profile/${userId}`, { timeout: 10000 });
+  return apiClient.get<Profile>(`/users/me`, { timeout: 10000 });
 };
 
 /**
- * Actualiza el perfil del usuario
+ * Actualiza el perfil del usuario autenticado
  */
 export const updateProfile = async (
   userId: string,
   updates: Partial<Omit<Profile, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
 ): Promise<ApiResponse<Profile>> => {
-  return apiClient.put<Profile>(`/profile/${userId}`, updates, { timeout: 10000 });
+  return apiClient.put<Profile>(`/users/me`, updates, { timeout: 10000 });
 };
 
 /**
@@ -35,13 +35,13 @@ export const uploadAvatar = async (
   const fileName = `avatar-${userId}-${Date.now()}.jpg`;
   
   // En React Native, necesitamos crear un objeto con uri, name y type
-  formData.append('avatar', {
+  formData.append('file', {
     uri: imageUri,
     name: fileName,
     type: 'image/jpeg',
   } as any);
 
-  return apiClient.upload<{ url: string }>(`/profile/${userId}/avatar`, formData).then(
+  return apiClient.upload<{ url: string }>(`/users/me/avatar`, formData).then(
     (response) => {
       if (response.error) {
         return { error: response.error };
