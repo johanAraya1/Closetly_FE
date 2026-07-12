@@ -44,12 +44,12 @@ function buildCalendarEntries(year: number, month: string) {
   return [
     {
       id: 'entry-1',
-      date: `${year}-${month}-10`,
+      date: `${year}-${month}-01`,
       outfit: outfits[0],
     },
     {
       id: 'entry-2',
-      date: `${year}-${month}-12`,
+      date: `${year}-${month}-28`,
       outfit: outfits[1],
     },
   ];
@@ -143,10 +143,10 @@ test.describe('Calendar', () => {
 
     // Calendar grid shows day numbers (our mocked dates)
     await expect(
-      page.getByText('10', { exact: true }),
+      page.getByText('1', { exact: true }).first(),
     ).toBeVisible({ timeout: 5000 });
     await expect(
-      page.getByText('12', { exact: true }),
+      page.getByText('28', { exact: true }),
     ).toBeVisible({ timeout: 5000 });
 
     // Legend is visible (shown when entries exist)
