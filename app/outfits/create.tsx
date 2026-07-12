@@ -139,11 +139,75 @@ export default function CreateOutfitScreen() {
     'all_season': t('outfits.create.seasonAll'),
   } as Record<string, string>), [t]);
 
+  // ─── Validación de reglas de vestimenta ─────────────────────
+  const SINGLE_CATEGORIES = ['tops', 'bottoms', 'dresses', 'outerwear', 'shoes', 'bags'];
+  const DRESS_CONFLICT_CATEGORIES = ['tops', 'bottoms'];
+  const MULTI_CATEGORIES = ['accessories', 'other'];
+
+  const validateGarmentAddition = useCallback((
+    garment: Garment,
+    currentSelection: Garment[],
+  ): { allowed: boolean; message?: string } => {
+    // Si ya está seleccionada, es un remover — siempre permitido
+    if (currentSelection.some((g) => g.id === garment.id)) {
+      return { allowed: true };
+    }
+
+    const cat = garment.category;
+
+    // Multi-categoría: ilimitado
+    if (MULTI_CATEGORIES.includes(cat)) {
+      return { allowed: true };
+    }
+
+    // Categoría única: checkear duplicado
+    if (SINGLE_CATEGORIES.includes(cat)) {
+      const existing = currentSelection.find((g) => g.category === cat);
+      if (existing) {
+        return {
+          allowed: false,
+          message: `Ya tenés "${existing.name}" en esta categoría. Solo se permite una prenda de ${cat}.`,
+        };
+      }
+    }
+
+    // Vestido no se combina con tops/bottoms
+    if (cat === 'dresses') {
+      const conflict = currentSelection.find((g) =>
+        DRESS_CONFLICT_CATEGORIES.includes(g.category),
+      );
+      if (conflict) {
+        return {
+          allowed: false,
+          message: `No podés combinar un vestido con "${conflict.name}". Elegí una de las dos.`,
+        };
+      }
+    }
+
+    // Tops/bottoms no se combinan con vestido
+    if (DRESS_CONFLICT_CATEGORIES.includes(cat)) {
+      const dress = currentSelection.find((g) => g.category === 'dresses');
+      if (dress) {
+        return {
+          allowed: false,
+          message: `No podés agregar "${garment.name}" porque ya seleccionaste un vestido.`,
+        };
+      }
+    }
+
+    return { allowed: true };
+  }, []);
+
   const toggleGarment = (garment: Garment) => {
     if (selectedGarments.find((g) => g.id === garment.id)) {
       setSelectedGarments(selectedGarments.filter((g) => g.id !== garment.id));
       setErrors({ ...errors, garments: undefined });
     } else {
+      const validation = validateGarmentAddition(garment, selectedGarments);
+      if (!validation.allowed) {
+        Alert.alert('Combinación no válida', validation.message);
+        return;
+      }
       setSelectedGarments([...selectedGarments, garment]);
       setErrors({ ...errors, garments: undefined });
     }
@@ -159,6 +223,10 @@ export default function CreateOutfitScreen() {
       }
       return next;
     });
+  }, []);
+
+  const handleRemoveGarment = useCallback((garmentId: string) => {
+    setSelectedGarments((prev) => prev.filter((g) => g.id !== garmentId));
   }, []);
 
   // ─── Mix Mode Handlers ───────────────────────────────────────
@@ -565,7 +633,7 @@ export default function CreateOutfitScreen() {
           {selectedGarments.length > 0 && (
             <View style={styles.previewSection}>
               <Text style={styles.label}>{t('outfits.create.preview')}</Text>
-              <OutfitPreview selectedGarments={selectedGarments} onGarmentPress={setPreviewGarment} pinnedGarmentIds={pinnedGarmentIds} onTogglePin={togglePin} />
+              <OutfitPreview selectedGarments={selectedGarments} onGarmentPress={setPreviewGarment} pinnedGarmentIds={pinnedGarmentIds} onTogglePin={togglePin} onRemoveGarment={handleRemoveGarment} />
             </View>
           )}
 
@@ -1508,12 +1576,17 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: 6,
-    paddingVertical: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 12,
+    borderWidth: 1.5,
+    borderColor: '#FCA5A5',
+    backgroundColor: '#FEF2F2',
   },
   dismissLinkText: {
     color: '#DC2626',
-    fontSize: 13,
-    fontWeight: '500',
+    fontSize: 14,
+    fontWeight: '600',
   },
   generateErrorBanner: {
     flexDirection: 'row',

@@ -14,7 +14,8 @@ interface OutfitPreviewProps {
   onGarmentPress?: (garment: Garment) => void;
   pinnedGarmentIds?: Set<string>;
   onTogglePin?: (garmentId: string) => void;
-  baseGarmentIds?: Set<string>;            // ← NUEVO: IDs de prendas base del mix
+  baseGarmentIds?: Set<string>;
+  onRemoveGarment?: (garmentId: string) => void;
 }
 
 const { width } = Dimensions.get('window');
@@ -41,7 +42,7 @@ const BODY_ZONES = {
   'belts': 'accessories',
 } as Record<string, string>;
 
-export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentIds, onTogglePin, baseGarmentIds }: OutfitPreviewProps) {
+export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentIds, onTogglePin, baseGarmentIds, onRemoveGarment }: OutfitPreviewProps) {
   // Organizar prendas por zona del cuerpo
   const garmentsByZone = useMemo(() => {
     const zones: Record<string, Garment[]> = {
@@ -103,6 +104,15 @@ export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentI
                       <Text style={styles.baseBadgeText}>BASE</Text>
                     </View>
                   )}
+                  {onRemoveGarment && !baseGarmentIds?.has(garment.id) && (
+                    <TouchableOpacity
+                      onPress={() => onRemoveGarment(garment.id)}
+                      style={styles.removeButton}
+                      hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                    >
+                      <Ionicons name="close-circle" size={22} color="#DC2626" />
+                    </TouchableOpacity>
+                  )}
                 </View>
                 <Text style={styles.garmentLabel} numberOfLines={1}>
                   {garment.name}
@@ -147,6 +157,15 @@ export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentI
                           <Text style={styles.baseBadgeText}>BASE</Text>
                         </View>
                       )}
+                      {onRemoveGarment && !baseGarmentIds?.has(garment.id) && (
+                        <TouchableOpacity
+                          onPress={() => onRemoveGarment(garment.id)}
+                          style={styles.removeButton}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="close-circle" size={22} color="#DC2626" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                     <Text style={styles.garmentLabel} numberOfLines={1}>
                       {garment.name}
@@ -187,6 +206,15 @@ export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentI
                         <View style={styles.baseBadge}>
                           <Text style={styles.baseBadgeText}>BASE</Text>
                         </View>
+                      )}
+                      {onRemoveGarment && !baseGarmentIds?.has(garment.id) && (
+                        <TouchableOpacity
+                          onPress={() => onRemoveGarment(garment.id)}
+                          style={styles.removeButton}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="close-circle" size={22} color="#DC2626" />
+                        </TouchableOpacity>
                       )}
                     </View>
                     <Text style={styles.garmentLabel} numberOfLines={1}>
@@ -231,6 +259,15 @@ export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentI
                           <Text style={styles.baseBadgeText}>BASE</Text>
                         </View>
                       )}
+                      {onRemoveGarment && !baseGarmentIds?.has(garment.id) && (
+                        <TouchableOpacity
+                          onPress={() => onRemoveGarment(garment.id)}
+                          style={styles.removeButton}
+                          hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                        >
+                          <Ionicons name="close-circle" size={22} color="#DC2626" />
+                        </TouchableOpacity>
+                      )}
                     </View>
                     <Text style={styles.garmentLabel} numberOfLines={1}>
                       {garment.name}
@@ -273,6 +310,15 @@ export function OutfitPreview({ selectedGarments, onGarmentPress, pinnedGarmentI
                       <View style={styles.baseBadge}>
                         <Text style={styles.baseBadgeText}>BASE</Text>
                       </View>
+                    )}
+                    {onRemoveGarment && !baseGarmentIds?.has(garment.id) && (
+                      <TouchableOpacity
+                        onPress={() => onRemoveGarment(garment.id)}
+                        style={styles.removeButton}
+                        hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                      >
+                        <Ionicons name="close-circle" size={20} color="#DC2626" />
+                      </TouchableOpacity>
                     )}
                   </View>
                   <Text style={styles.accessoryLabel} numberOfLines={1}>
@@ -462,6 +508,24 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.15,
     shadowRadius: 2,
     elevation: 3,
+  },
+
+  /* ===== REMOVE BUTTON ===== */
+  removeButton: {
+    position: 'absolute',
+    top: 6,
+    left: 6,
+    width: 30,
+    height: 30,
+    borderRadius: 15,
+    backgroundColor: 'rgba(255, 255, 255, 0.95)',
+    justifyContent: 'center',
+    alignItems: 'center',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.2,
+    shadowRadius: 3,
+    elevation: 4,
   },
 
   /* ===== BASE BADGE ===== */
