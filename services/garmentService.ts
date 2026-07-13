@@ -175,9 +175,9 @@ export const createGarment = async (
     if (garmentData.style && garmentData.style.length > 0) bodyFields.style = garmentData.style;
     if (garmentData.size) bodyFields.size = garmentData.size;
     if (sanitizedNotes) bodyFields.notes = sanitizedNotes;
-    bodyFields.is_public = garmentData.isPublic ?? false;
+    bodyFields.isPublic = garmentData.isPublic ?? false;
     if (garmentData.isPublic && garmentData.listingType) {
-      bodyFields.listing_type = garmentData.listingType;
+      bodyFields.listingType = garmentData.listingType;
     }
     
     // On web, send JSON with base64 image to avoid Multer issues on Vercel serverless
@@ -255,9 +255,9 @@ export const createGarment = async (
       } as any);
     }
     
-    formData.append('is_public', String(garmentData.isPublic ?? false));
+    formData.append('isPublic', String(garmentData.isPublic ?? false));
     if (garmentData.isPublic && garmentData.listingType) {
-      formData.append('listing_type', garmentData.listingType);
+      formData.append('listingType', garmentData.listingType);
     }
     
     const headers: Record<string, string> = {};
@@ -456,10 +456,10 @@ export const updateGarment = async (
     }
     
     if (updates.isPublic !== undefined) {
-      body.is_public = updates.isPublic;
-      // Solo enviar listing_type cuando is_public es true y listingType tiene valor
+      body.isPublic = updates.isPublic;
+      // Solo enviar listingType cuando isPublic es true y listingType tiene valor
       if (updates.isPublic && updates.listingType) {
-        body.listing_type = updates.listingType;
+        body.listingType = updates.listingType;
       }
     }
     
