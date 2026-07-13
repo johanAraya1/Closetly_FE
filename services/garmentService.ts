@@ -28,6 +28,9 @@ function normalizeGarment(item: any): any {
   const imageUrl = item.imageUrl || item.image_url || item.image || (Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls[0] : '');
   return {
     ...item,
+    // Normalizar is_public ↔ isPublic (la API puede devolver cualquiera)
+    isPublic: item.isPublic ?? item.is_public ?? false,
+    is_public: item.is_public ?? item.isPublic ?? false,
     imageUrl,
     image_url: imageUrl,
     imageUrls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
@@ -172,9 +175,9 @@ export const createGarment = async (
     if (garmentData.style && garmentData.style.length > 0) bodyFields.style = garmentData.style;
     if (garmentData.size) bodyFields.size = garmentData.size;
     if (sanitizedNotes) bodyFields.notes = sanitizedNotes;
-    bodyFields.isPublic = garmentData.isPublic ?? false;
+    bodyFields.is_public = garmentData.isPublic ?? false;
     if (garmentData.isPublic && garmentData.listingType) {
-      bodyFields.listingType = garmentData.listingType;
+      bodyFields.listing_type = garmentData.listingType;
     }
     
     // On web, send JSON with base64 image to avoid Multer issues on Vercel serverless
