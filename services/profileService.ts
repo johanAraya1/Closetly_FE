@@ -20,7 +20,15 @@ export const updateProfile = async (
   userId: string,
   updates: Partial<Omit<Profile, 'id' | 'user_id' | 'created_at' | 'updated_at'>>
 ): Promise<ApiResponse<Profile>> => {
-  return apiClient.put<Profile>(`/users/me`, updates, { timeout: 10000 });
+  // El backend espera camelCase, no snake_case
+  const body: Record<string, any> = {};
+  if (updates.username !== undefined) body.username = updates.username;
+  if (updates.full_name !== undefined) body.fullName = updates.full_name;
+  if (updates.bio !== undefined) body.bio = updates.bio;
+  if (updates.avatar_url !== undefined) body.avatarUrl = updates.avatar_url;
+  if (updates.is_public !== undefined) body.isPublic = updates.is_public;
+
+  return apiClient.put<Profile>(`/users/me`, body, { timeout: 10000 });
 };
 
 /**
