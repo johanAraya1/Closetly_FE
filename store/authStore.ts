@@ -332,7 +332,28 @@ export const useAuthStore = create<AuthState>((set, get) => ({
     }
 
     if (result.data) {
-      set({ profile: result.data, isLoading: false });
+      // Mapear camelCase del BE a snake_case que espera la FE
+      const beProfile: any = result.data;
+      const mappedProfile = {
+        id: beProfile.id || beProfile.userId,
+        user_id: beProfile.userId || beProfile.id,
+        username: beProfile.username || null,
+        full_name: beProfile.fullName || beProfile.full_name || null,
+        bio: beProfile.bio || null,
+        avatar_url: beProfile.avatarUrl || beProfile.avatar_url || null,
+        is_public: beProfile.isPublic ?? beProfile.is_public ?? false,
+        created_at: beProfile.createdAt || beProfile.created_at || null,
+        updated_at: beProfile.updatedAt || beProfile.updated_at || null,
+      };
+
+      set({ profile: mappedProfile, isLoading: false });
+
+      // Persistir perfil actualizado en la sesión guardada
+      const sessionData = await tokenService.getSessionData();
+      if (sessionData?.user) {
+        await tokenService.saveSessionData(sessionData.user, mappedProfile);
+      }
+
       return true;
     }
 
