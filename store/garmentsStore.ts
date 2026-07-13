@@ -171,7 +171,16 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => {
   updateGarment: async (id: string, updates: UpdateGarmentDTO, token?: string) => {
     set({ isLoading: true, error: null });
     
+    console.log('[DEBUG store] updateGarment called with id:', id);
+    console.log('[DEBUG store] updates:', JSON.stringify(updates));
+    
     const result = await garmentService.updateGarment(id, updates, token);
+    
+    console.log('[DEBUG store] updateGarment result:', JSON.stringify(result));
+    console.log('[DEBUG store] result.data?.isPublic:', result.data?.isPublic);
+    console.log('[DEBUG store] result.data?.is_public:', (result.data as any)?.is_public);
+    console.log('[DEBUG store] result.data?.listingType:', result.data?.listingType);
+    console.log('[DEBUG store] result.error:', result.error);
     
     if (result.error) {
       set({ isLoading: false, error: result.error });
@@ -179,6 +188,7 @@ export const useGarmentsStore = create<GarmentsState>((set, get) => {
     }
 
     if (result.data) {
+      console.log('[DEBUG store] Reemplazando garment en store con id:', id);
       set((state) => ({
         garments: state.garments.map((g) =>
           g.id === id ? result.data! : g
