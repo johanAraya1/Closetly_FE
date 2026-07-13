@@ -95,6 +95,12 @@ export default function CreateGarmentScreen() {
           setSelectedStyles([]);
         }
         setNotes(garment.notes || '');
+        console.log('[DEBUG create.tsx] Edit mode - garment loaded:', garment.id);
+        console.log('[DEBUG create.tsx] garment.isPublic:', garment.isPublic);
+        console.log('[DEBUG create.tsx] garment.is_public:', (garment as any).is_public);
+        console.log('[DEBUG create.tsx] garment.listingType:', garment.listingType);
+        console.log('[DEBUG create.tsx] garment.listing_type:', (garment as any).listing_type);
+        console.log('[DEBUG create.tsx] garment keys:', Object.keys(garment));
         setIsPublic((garment as any).is_public ?? false);
         setListingType((garment as any).listing_type ?? null);
         const existingExtraUris = (garment as any).imageUrls?.slice(1) || (garment as any).image_urls?.slice(1) || [];
@@ -302,9 +308,13 @@ export default function CreateGarmentScreen() {
           ...(isPublic && listingType ? { listingType } : {}),
         };
 
-        console.log('[DEBUG create.tsx] updateData a enviar:', JSON.stringify(updateData));
+        console.log('[DEBUG create.tsx] ===== INICIO UPDATE =====');
         console.log('[DEBUG create.tsx] isEditMode:', isEditMode, 'id:', id);
-        console.log('[DEBUG create.tsx] isPublic state:', isPublic, 'listingType:', listingType);
+        console.log('[DEBUG create.tsx] isPublic state:', isPublic, 'typeof:', typeof isPublic);
+        console.log('[DEBUG create.tsx] listingType state:', listingType);
+        console.log('[DEBUG create.tsx] updateData completo:', JSON.stringify(updateData));
+        console.log('[DEBUG create.tsx] updateData.isPublic:', updateData.isPublic, 'typeof:', typeof updateData.isPublic);
+        console.log('[DEBUG create.tsx] token presente:', !!token);
 
         // Actualizar prenda existente (sin enviar image_url)
         const success = await updateGarment(id, updateData, token || undefined);
