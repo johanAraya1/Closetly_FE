@@ -29,6 +29,8 @@ function ProfileScreen() {
   const [bio, setBio] = useState('');
   const [isPublic, setIsPublic] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [feedback, setFeedback] = useState<{ type: 'success' | 'error'; message: string } | null>(null);
+  const feedbackTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   const originalUsername = useRef('');
   const originalFullName = useRef('');
   const originalBio = useRef('');
@@ -53,6 +55,17 @@ function ProfileScreen() {
     originalBio.current = profile?.bio || '';
     originalIsPublic.current = Boolean(profile?.is_public);
   }, [profile?.username, profile?.full_name, profile?.bio, profile?.is_public]);
+
+  // Auto-dismiss feedback banner
+  useEffect(() => {
+    if (feedback) {
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+      feedbackTimer.current = setTimeout(() => setFeedback(null), 3500);
+    }
+    return () => {
+      if (feedbackTimer.current) clearTimeout(feedbackTimer.current);
+    };
+  }, [feedback]);
 
   const hasChanges = useMemo(() => {
     return (
@@ -85,15 +98,29 @@ function ProfileScreen() {
     });
     setIsSaving(false);
 
-    if (success) {
-      Alert.alert(t('common.success'), t('profile.updateSuccess'));
-    } else {
-      Alert.alert(t('common.error'), t('profile.updateError'));
-    }
+    setFeedback({
+      type: success ? 'success' : 'error',
+      message: success ? t('profile.updateSuccess') : t('profile.updateError'),
+    });
   };
 
   return (
     <SafeAreaView style={styles.container}>
+      {feedback && (
+        <View style={[styles.feedbackBanner, feedback.type === 'success' ? styles.feedbackSuccess : styles.feedbackError]}>
+          <Ionicons
+            name={feedback.type === 'success' ? 'checkmark-circle' : 'alert-circle'}
+            size={20}
+            color={feedback.type === 'success' ? '#059669' : '#DC2626'}
+          />
+          <Text style={[styles.feedbackText, { color: feedback.type === 'success' ? '#059669' : '#DC2626' }]}>
+            {feedback.message}
+          </Text>
+          <TouchableOpacity onPress={() => setFeedback(null)} hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}>
+            <Ionicons name="close" size={18} color={feedback.type === 'success' ? '#059669' : '#DC2626'} />
+          </TouchableOpacity>
+        </View>
+      )}
       <ScrollView style={styles.scrollView}>
         {/* Header */}
         <View style={styles.header}>
@@ -466,6 +493,31 @@ const styles = StyleSheet.create({
   adminText: {
     color: COLORS.primary,
     fontWeight: '600',
+  },
+  feedbackBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginHorizontal: 24,
+    marginTop: 8,
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    borderRadius: 10,
+  },
+  feedbackSuccess: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 1,
+    borderColor: '#A7F3D0',
+  },
+  feedbackError: {
+    backgroundColor: '#FEF2F2',
+    borderWidth: 1,
+    borderColor: '#FECACA',
+  },
+  feedbackText: {
+    flex: 1,
+    fontSize: 14,
+    fontWeight: '500',
   },
   divider: {
     height: 1,
