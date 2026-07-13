@@ -302,8 +302,14 @@ export default function CreateGarmentScreen() {
           ...(isPublic && listingType ? { listingType } : {}),
         };
 
+        console.log('[DEBUG create.tsx] updateData a enviar:', JSON.stringify(updateData));
+        console.log('[DEBUG create.tsx] isEditMode:', isEditMode, 'id:', id);
+        console.log('[DEBUG create.tsx] isPublic state:', isPublic, 'listingType:', listingType);
+
         // Actualizar prenda existente (sin enviar image_url)
         const success = await updateGarment(id, updateData, token || undefined);
+
+        console.log('[DEBUG create.tsx] updateGarment resultado success:', success);
 
         setIsLoading(false);
 

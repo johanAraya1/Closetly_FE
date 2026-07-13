@@ -26,7 +26,7 @@ const CACHE_TTL = 5 * 60 * 1000;
 function normalizeGarment(item: any): any {
   const imageUrls = item.imageUrls || item.image_urls || [];
   const imageUrl = item.imageUrl || item.image_url || item.image || (Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls[0] : '');
-  return {
+  const normalized = {
     ...item,
     // Normalizar is_public ↔ isPublic (la API puede devolver cualquiera)
     isPublic: item.isPublic ?? item.is_public ?? false,
@@ -36,6 +36,12 @@ function normalizeGarment(item: any): any {
     imageUrls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
     image_urls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
   };
+  
+  console.log('[DEBUG normalizeGarment] item.isPublic:', item.isPublic, 'item.is_public:', item.is_public);
+  console.log('[DEBUG normalizeGarment] normalized.isPublic:', normalized.isPublic, 'normalized.is_public:', normalized.is_public);
+  console.log('[DEBUG normalizeGarment] item keys:', Object.keys(item));
+  
+  return normalized;
 }
 
 function garmentsCacheKey(userId: string, limit?: number, offset?: number): string {
@@ -473,6 +479,13 @@ export const updateGarment = async (
     
     // NO enviar imageUrl - el backend no permite actualizar la imagen
     
+    console.log('[DEBUG garmentService] URL:', `${API_URL}/garments/${id}`);
+    console.log('[DEBUG garmentService] method: PUT');
+    console.log('[DEBUG garmentService] body a enviar:', JSON.stringify(body));
+    console.log('[DEBUG garmentService] headers:', JSON.stringify(headers));
+    console.log('[DEBUG garmentService] updates.isPublic:', updates.isPublic);
+    console.log('[DEBUG garmentService] body.isPublic y body.is_public:', body.isPublic, body.is_public);
+    
     const response = await fetchWithTimeout(`${API_URL}/garments/${id}`, {
       method: 'PUT',
       headers,
@@ -480,20 +493,33 @@ export const updateGarment = async (
       timeout: 10000,
     });
 
+    console.log('[DEBUG garmentService] response status:', response.status);
+    console.log('[DEBUG garmentService] response ok:', response.ok);
+
     if (!response.ok) {
       const errorText = await response.text();
+      console.log('[DEBUG garmentService] error response body:', errorText);
       return { error: `Error al actualizar prenda (${response.status})` };
     }
 
     const result = await response.json();
     
+    console.log('[DEBUG garmentService] response body (raw):', JSON.stringify(result));
+    console.log('[DEBUG garmentService] result.isPublic:', result.isPublic);
+    console.log('[DEBUG garmentService] result.is_public:', result.is_public);
+    console.log('[DEBUG garmentService] result.data?.isPublic:', result.data?.isPublic);
+    
     const garment = normalizeGarment(result.data || result);
+    
+    console.log('[DEBUG garmentService] garment normalizado (isPublic):', garment.isPublic);
+    console.log('[DEBUG garmentService] garment normalizado (is_public):', garment.is_public);
 
     invalidateGarmentsCache();
     apiCache.invalidate(`garment:${id}`);
 
     return { data: garment };
   } catch (error) {
+    console.error('[DEBUG garmentService] catch error:', error);
     return { error: error instanceof Error ? error.message : 'Error desconocido' };
   }
 };
