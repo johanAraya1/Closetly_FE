@@ -73,7 +73,15 @@ export const createRealtimeChannel = (
   onMessage: (message: Message) => void,
   onTyping?: (isTyping: boolean) => void
 ): { unsubscribe: () => void } => {
-  const channel = getClient().channel(`messages:conv_${conversationId}`);
+  let client: RealtimeClient;
+  try {
+    client = getClient();
+  } catch {
+    // Realtime no configurado — devolver no-op para evitar crash
+    console.warn('chatRealtime: Supabase Realtime no está configurado, omitiendo subscripción');
+    return { unsubscribe: () => {} };
+  }
+  const channel = client.channel(`messages:conv_${conversationId}`);
 
   // Track para poder enviar broadcasts desde fuera
   _channels.set(conversationId, channel);
