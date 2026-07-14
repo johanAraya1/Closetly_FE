@@ -264,6 +264,7 @@ function MarketplaceScreen() {
       </View>
 
       {activeTab === 'all' ? (
+        <>
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Ionicons name="search-outline" size={18} color={COLORS.gray[400]} />
@@ -401,6 +402,7 @@ function MarketplaceScreen() {
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmpty}
       />
+        </>
       ) : (
         /* ── Mis Prendas ─────────────────────────────── */
         <ScrollView
