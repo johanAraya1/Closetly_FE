@@ -88,19 +88,9 @@ export const sanitizeFilename = (filename: string): string => {
 };
 
 /**
- * Sanitiza color (hex o nombre) — inglés y español
+ * Valida un nombre de color individual contra la lista blanca.
  */
-export const sanitizeColor = (color: string): string => {
-  if (!color) return '';
-  
-  const sanitized = color.trim().toLowerCase();
-  
-  // Validar formato hex (#RGB o #RRGGBB)
-  if (/^#([a-f0-9]{3}|[a-f0-9]{6})$/i.test(sanitized)) {
-    return sanitized;
-  }
-  
-  // Lista blanca de nombres de colores (inglés + español + variantes)
+function isValidColorName(name: string): boolean {
   const validColorNames = [
     // English
     'red', 'blue', 'green', 'yellow', 'orange', 'purple', 'pink',
@@ -120,13 +110,41 @@ export const sanitizeColor = (color: string): string => {
     'rojo claro', 'azul claro', 'verde claro', 'gris claro',
     'beige claro', 'rosa claro', 'amarillo claro',
   ];
+  return validColorNames.includes(name.trim().toLowerCase());
+}
+
+/**
+ * Sanitiza color (hex o nombre) — inglés y español.
+ * Soporta múltiples colores separados por coma: "Negro, Blanco, Rojo"
+ */
+export const sanitizeColor = (color: string): string => {
+  if (!color) return '';
   
-  if (validColorNames.includes(sanitized)) {
-    return sanitized;
-  }
+  // Separar por coma y sanitizar cada uno
+  const parts = color.split(',').map((c) => c.trim()).filter(Boolean);
+  if (parts.length === 0) return '';
   
-  // Si no es válido, retornar vacío
-  return '';
+  const sanitized = parts
+    .map((part) => {
+      const lower = part.toLowerCase();
+      
+      // Validar formato hex (#RGB o #RRGGBB)
+      if (/^#([a-f0-9]{3}|[a-f0-9]{6})$/i.test(lower)) {
+        return lower;
+      }
+      
+      // Validar contra lista blanca
+      if (isValidColorName(lower)) {
+        return lower;
+      }
+      
+      // No válido → descartar este color
+      return '';
+    })
+    .filter(Boolean)
+    .join(', ');
+  
+  return sanitized;
 };
 
 /**

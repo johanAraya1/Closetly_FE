@@ -702,14 +702,9 @@ function HomeScreen() {
             <View style={styles.recentDayList}>
               {[1, 2, 3, 4, 5].map((i) => (
                 <View key={i} style={styles.recentDayCard}>
-                  <View style={styles.recentDayDateCol}>
-                    <View style={[styles.skeletonLine, { width: 36, height: 14 }]} />
-                    <View style={[styles.skeletonLine, { width: 24, height: 12, marginTop: 4 }]} />
-                  </View>
-                  <View style={styles.recentDayContentCol}>
-                    <View style={[styles.skeletonLine, { width: '60%', height: 14 }]} />
-                    <View style={[styles.skeletonLine, { width: '30%', height: 12, marginTop: 8 }]} />
-                  </View>
+                  <View style={[styles.skeletonLine, { height: 14, width: '30%', marginBottom: 8 }]} />
+                  <View style={styles.rCardImageSkeleton} />
+                  <View style={[styles.skeletonLine, { height: 14, width: '50%', marginTop: 8 }]} />
                 </View>
               ))}
             </View>
@@ -721,7 +716,6 @@ function HomeScreen() {
                   locale === 'es' ? 'es-AR' : 'en-US',
                   { weekday: 'short', day: 'numeric', month: 'short' },
                 ).split(' ');
-                // dateParts example: ["jue,", "13", "jul."] or ["Thu,", "13", "Jul"]
                 const weekday = dateParts[0]?.replace(',', '') || '';
                 const dayNum = dateParts[1] || '';
                 const month = dateParts[2]?.replace('.', '') || '';
@@ -735,63 +729,86 @@ function HomeScreen() {
                       key={day.date}
                       style={styles.recentDayCard}
                       onPress={() => router.push(`/outfits/${outfit.id}`)}
-                      activeOpacity={0.7}
+                      activeOpacity={0.95}
                     >
-                      <View style={styles.recentDayDateCol}>
-                        <Text style={styles.recentDayWeekday}>{weekday}</Text>
-                        <Text style={styles.recentDayDayNum}>{dayNum}</Text>
-                        <Text style={styles.recentDayMonth}>{month}</Text>
+                      {/* Date header */}
+                      <View style={styles.rCardDateBar}>
+                        <Ionicons name="calendar-outline" size={14} color={COLORS.primary} />
+                        <Text style={styles.rCardDateText}>
+                          {`${weekday}, ${dayNum} ${month}`}
+                        </Text>
                       </View>
-                      <View style={styles.recentDayContentCol}>
-                        {/* Imagen hero del outfit (primera prenda) */}
-                        {heroGarment && (
-                          <View style={styles.recentDayHeroWrap}>
+                      {/* Hero image */}
+                      <View style={styles.rCardImageWrap}>
+                        {heroGarment ? (
+                          <>
                             <Image
                               source={{ uri: heroGarment.imageUrl }}
-                              style={styles.recentDayHeroImage}
+                              style={styles.rCardImage}
                               contentFit="cover"
                               cachePolicy="memory-disk"
                             />
                             {extraCount > 0 && (
-                              <View style={styles.recentDayBadge}>
-                                <Text style={styles.recentDayBadgeText}>+{extraCount}</Text>
+                              <View style={styles.rCardBadge}>
+                                <Text style={styles.rCardBadgeText}>+{extraCount}</Text>
                               </View>
                             )}
+                          </>
+                        ) : (
+                          <View style={styles.rCardPlaceholder}>
+                            <Ionicons name="shirt-outline" size={32} color="#D1D5DB" />
                           </View>
                         )}
-                        <Text style={styles.recentDayOutfitName} numberOfLines={1}>
+                      </View>
+                      {/* Outfit name */}
+                      <View style={styles.rCardInfo}>
+                        <Text style={styles.rCardName} numberOfLines={1}>
                           {outfit.name}
                         </Text>
+                        {outfit.occasion && (
+                          <Text style={styles.rCardOccasion} numberOfLines={1}>
+                            {outfit.occasion}
+                          </Text>
+                        )}
                       </View>
-                      <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
                     </TouchableOpacity>
                   );
                 }
 
-                // Empty day — invitar a registrar
+                // Empty day — placeholder con imagen + invitar a registrar
                 return (
-                  <View key={day.date} style={styles.recentDayCard}>
-                    <View style={styles.recentDayDateCol}>
-                      <Text style={[styles.recentDayWeekday, styles.recentDayEmpty]}>{weekday}</Text>
-                      <Text style={[styles.recentDayDayNum, styles.recentDayEmpty]}>{dayNum}</Text>
-                      <Text style={[styles.recentDayMonth, styles.recentDayEmpty]}>{month}</Text>
-                    </View>
-                    <View style={styles.recentDayContentCol}>
-                      <Text style={styles.recentDayEmptyText} numberOfLines={1}>
-                        {t('home.notLoggedForDay')}
+                  <TouchableOpacity
+                    key={day.date}
+                    style={styles.recentDayCard}
+                    onPress={() => router.push(`/calendar/log-today?date=${day.date}`)}
+                    activeOpacity={0.95}
+                  >
+                    {/* Date header */}
+                    <View style={styles.rCardDateBar}>
+                      <Ionicons name="calendar-outline" size={14} color="#9CA3AF" />
+                      <Text style={[styles.rCardDateText, { color: '#9CA3AF' }]}>
+                        {`${weekday}, ${dayNum} ${month}`}
                       </Text>
-                      <TouchableOpacity
-                        style={styles.recentDayEmptyButton}
-                        onPress={() => router.push(`/calendar/log-today?date=${day.date}`)}
-                        activeOpacity={0.7}
-                      >
-                        <Ionicons name="add-circle-outline" size={14} color={COLORS.primary} />
-                        <Text style={styles.recentDayEmptyButtonText}>
+                    </View>
+                    {/* Placeholder image */}
+                    <View style={styles.rCardImageWrap}>
+                      <View style={[styles.rCardPlaceholder, { backgroundColor: '#F9FAFB' }]}>
+                        <Ionicons name="image-outline" size={36} color="#D1D5DB" />
+                        <Text style={styles.rCardEmptyLabel}>
+                          {t('home.notLoggedForDay')}
+                        </Text>
+                      </View>
+                    </View>
+                    {/* CTA */}
+                    <View style={styles.rCardInfo}>
+                      <View style={styles.rCardEmptyButton}>
+                        <Ionicons name="add-circle-outline" size={16} color={COLORS.primary} />
+                        <Text style={styles.rCardEmptyButtonText}>
                           {t('home.logForDay')}
                         </Text>
-                      </TouchableOpacity>
+                      </View>
                     </View>
-                  </View>
+                  </TouchableOpacity>
                 );
               })}
             </View>
@@ -1372,101 +1389,95 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  // Recently Used — Last 5 Days cards
+  // Recently Used — Last 5 Days (card style)
   recentDayList: {
-    gap: 8,
+    gap: 12,
   },
   recentDayCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 14,
+    overflow: 'hidden',
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.08,
+    shadowRadius: 6,
+    elevation: 3,
+  },
+  rCardDateBar: {
     flexDirection: 'row',
     alignItems: 'center',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    padding: 12,
-    gap: 12,
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.05,
-    shadowRadius: 2,
-    elevation: 2,
+    gap: 6,
+    paddingHorizontal: 14,
+    paddingTop: 12,
+    paddingBottom: 8,
   },
-  recentDayDateCol: {
-    width: 44,
-    alignItems: 'center',
-    gap: 1,
-  },
-  recentDayWeekday: {
-    fontSize: 10,
+  rCardDateText: {
+    fontSize: 13,
     fontWeight: '600',
-    color: '#6B7280',
-    textTransform: 'uppercase',
+    color: '#374151',
   },
-  recentDayDayNum: {
-    fontSize: 20,
-    fontWeight: '700',
-    color: '#111827',
-    lineHeight: 24,
-  },
-  recentDayMonth: {
-    fontSize: 10,
-    fontWeight: '500',
-    color: '#9CA3AF',
-  },
-  recentDayEmpty: {
-    color: '#D1D5DB',
-  },
-  recentDayContentCol: {
-    flex: 1,
-    gap: 8,
-  },
-  recentDayHeroWrap: {
-    width: '100%',
-    height: 100,
-    borderRadius: 8,
-    overflow: 'hidden',
+  rCardImageWrap: {
+    height: 160,
     backgroundColor: '#F3F4F6',
     position: 'relative',
   },
-  recentDayHeroImage: {
+  rCardImage: {
     width: '100%',
     height: '100%',
   },
-  recentDayBadge: {
+  rCardBadge: {
     position: 'absolute',
-    top: 6,
-    right: 6,
+    top: 8,
+    right: 8,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 10,
-    paddingHorizontal: 7,
-    paddingVertical: 2,
+    borderRadius: 12,
+    paddingHorizontal: 8,
+    paddingVertical: 3,
   },
-  recentDayBadgeText: {
-    fontSize: 11,
+  rCardBadgeText: {
+    fontSize: 12,
     fontWeight: '700',
     color: '#FFFFFF',
   },
-  recentDayOutfitName: {
+  rCardPlaceholder: {
+    flex: 1,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+  },
+  rCardEmptyLabel: {
     fontSize: 13,
+    color: '#9CA3AF',
+  },
+  rCardInfo: {
+    paddingHorizontal: 14,
+    paddingVertical: 12,
+  },
+  rCardName: {
+    fontSize: 15,
     fontWeight: '600',
     color: '#111827',
   },
-  recentDayEmptyText: {
+  rCardOccasion: {
     fontSize: 12,
-    color: '#9CA3AF',
+    color: '#6B7280',
+    marginTop: 2,
   },
-  recentDayEmptyButton: {
+  rCardEmptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    alignSelf: 'flex-start',
-    gap: 4,
-    paddingHorizontal: 10,
-    paddingVertical: 5,
-    borderRadius: 8,
-    backgroundColor: COLORS.primary + '15',
+    gap: 6,
   },
-  recentDayEmptyButtonText: {
-    fontSize: 12,
+  rCardEmptyButtonText: {
+    fontSize: 14,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+  rCardImageSkeleton: {
+    height: 160,
+    backgroundColor: '#F3F4F6',
+    marginHorizontal: 0,
   },
 });
 
