@@ -18,10 +18,12 @@ import { useGarments } from '@/hooks/useGarments';
 import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
+import { parseLocalDate } from '@/utils/date';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
 import { useSmartSuggestions } from '@/hooks/useSmartSuggestions';
 import { tokenService } from '@/services/tokenService';
 import { withScreenErrorBoundary } from '@/components';
+import { useRecentCalendarEntries } from '@/hooks/useRecentCalendarEntries';
 
 /** Unique key for a suggestion based on its garment IDs */
 function suggestionKey(s: Pick<Suggestion, 'garmentIds'>): string {
@@ -89,13 +91,15 @@ function HomeScreen() {
   });
 
   const favoriteOutfits = outfits.filter((o) => o.is_favorite);
-  const recentOutfits = outfits.slice(0, 3);
   const checklistSteps = useMemo(() => [
     { key: 'garment', label: t('home.addFirstGarment'), done: garments.length > 0 },
     { key: 'outfit', label: t('home.createFirstOutfit'), done: outfits.length > 0 },
   ], [garments.length, outfits.length, t]);
 
   const allStepsDone = useMemo(() => checklistSteps.every((s) => s.done), [checklistSteps]);
+
+  // Últimos 5 días desde el calendario (outfits usados recientemente)
+  const { dayEntries: recentDayEntries, isLoading: recentDaysLoading } = useRecentCalendarEntries(5);
 
   const displayName = useMemo(() => {
     const name =
@@ -680,42 +684,104 @@ function HomeScreen() {
           </View>
         )}
 
-        {/* Recent Outfits */}
+        {/* Recently Used — Last 5 Days from Calendar */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
-              {t('home.recentOutfits')}
+              {t('home.recentlyUsed')}
             </Text>
           </View>
-          {recentOutfits.length > 0 ? (
-            recentOutfits.map((outfit) => (
-              <OutfitCard
-                key={outfit.id}
-                outfit={outfit}
-                onPress={() => router.push(`/outfits/${outfit.id}`)}
-              />
-            ))
-          ) : isLoading ? (
-            <View style={styles.recentSkeleton}>
-              {[1, 2, 3].map((i) => (
-                <View key={i} style={styles.skeletonCard}>
-                  <View style={styles.skeletonImage} />
-                  <View style={styles.skeletonTextRow}>
-                    <View style={styles.skeletonLine} />
-                    <View style={[styles.skeletonLine, { width: '40%' }]} />
+          {recentDaysLoading ? (
+            <View style={styles.recentDayList}>
+              {[1, 2, 3, 4, 5].map((i) => (
+                <View key={i} style={styles.recentDayCard}>
+                  <View style={styles.recentDayDateCol}>
+                    <View style={[styles.skeletonLine, { width: 36, height: 14 }]} />
+                    <View style={[styles.skeletonLine, { width: 24, height: 12, marginTop: 4 }]} />
+                  </View>
+                  <View style={styles.recentDayContentCol}>
+                    <View style={[styles.skeletonLine, { width: '60%', height: 14 }]} />
+                    <View style={[styles.skeletonLine, { width: '30%', height: 12, marginTop: 8 }]} />
                   </View>
                 </View>
               ))}
             </View>
           ) : (
-            <View style={styles.emptyContainer}>
-              <EmptyState
-                icon="shirt-outline"
-                title={t('home.noOutfits')}
-                message={t('home.noOutfitsMessage')}
-                actionLabel={t('home.createOutfit')}
-                onAction={() => router.push('/outfits/create')}
-              />
+            <View style={styles.recentDayList}>
+              {recentDayEntries.map((day) => {
+                const dayDate = parseLocalDate(day.date);
+                const dateParts = dayDate.toLocaleDateString(
+                  locale === 'es' ? 'es-AR' : 'en-US',
+                  { weekday: 'short', day: 'numeric', month: 'short' },
+                ).split(' ');
+                // dateParts example: ["jue,", "13", "jul."] or ["Thu,", "13", "Jul"]
+                const weekday = dateParts[0]?.replace(',', '') || '';
+                const dayNum = dateParts[1] || '';
+                const month = dateParts[2]?.replace('.', '') || '';
+
+                if (day.entry) {
+                  const outfit = day.entry.outfit;
+                  return (
+                    <TouchableOpacity
+                      key={day.date}
+                      style={styles.recentDayCard}
+                      onPress={() => router.push(`/outfits/${outfit.id}`)}
+                      activeOpacity={0.7}
+                    >
+                      <View style={styles.recentDayDateCol}>
+                        <Text style={styles.recentDayWeekday}>{weekday}</Text>
+                        <Text style={styles.recentDayDayNum}>{dayNum}</Text>
+                        <Text style={styles.recentDayMonth}>{month}</Text>
+                      </View>
+                      <View style={styles.recentDayContentCol}>
+                        <Text style={styles.recentDayOutfitName} numberOfLines={1}>
+                          {outfit.name}
+                        </Text>
+                        {outfit.garments && outfit.garments.length > 0 && (
+                          <View style={styles.recentDayThumbs}>
+                            {outfit.garments.slice(0, 4).map((g) => (
+                              <Image
+                                key={g.id}
+                                source={{ uri: g.imageUrl }}
+                                style={styles.recentDayThumb}
+                                contentFit="cover"
+                                cachePolicy="memory-disk"
+                              />
+                            ))}
+                          </View>
+                        )}
+                      </View>
+                      <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
+                    </TouchableOpacity>
+                  );
+                }
+
+                // Empty day — invitar a registrar
+                return (
+                  <View key={day.date} style={styles.recentDayCard}>
+                    <View style={styles.recentDayDateCol}>
+                      <Text style={[styles.recentDayWeekday, styles.recentDayEmpty]}>{weekday}</Text>
+                      <Text style={[styles.recentDayDayNum, styles.recentDayEmpty]}>{dayNum}</Text>
+                      <Text style={[styles.recentDayMonth, styles.recentDayEmpty]}>{month}</Text>
+                    </View>
+                    <View style={styles.recentDayContentCol}>
+                      <Text style={styles.recentDayEmptyText} numberOfLines={1}>
+                        {t('home.notLoggedForDay')}
+                      </Text>
+                      <TouchableOpacity
+                        style={styles.recentDayEmptyButton}
+                        onPress={() => router.push(`/calendar/log-today?date=${day.date}`)}
+                        activeOpacity={0.7}
+                      >
+                        <Ionicons name="add-circle-outline" size={14} color={COLORS.primary} />
+                        <Text style={styles.recentDayEmptyButtonText}>
+                          {t('home.logForDay')}
+                        </Text>
+                      </TouchableOpacity>
+                    </View>
+                  </View>
+                );
+              })}
             </View>
           )}
         </View>
@@ -1292,6 +1358,87 @@ const styles = StyleSheet.create({
   biometricBannerDismissText: {
     color: '#6B7280',
     fontSize: 13,
+  },
+
+  // Recently Used — Last 5 Days cards
+  recentDayList: {
+    gap: 8,
+  },
+  recentDayCard: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    padding: 12,
+    gap: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.05,
+    shadowRadius: 2,
+    elevation: 2,
+  },
+  recentDayDateCol: {
+    width: 44,
+    alignItems: 'center',
+    gap: 1,
+  },
+  recentDayWeekday: {
+    fontSize: 10,
+    fontWeight: '600',
+    color: '#6B7280',
+    textTransform: 'uppercase',
+  },
+  recentDayDayNum: {
+    fontSize: 20,
+    fontWeight: '700',
+    color: '#111827',
+    lineHeight: 24,
+  },
+  recentDayMonth: {
+    fontSize: 10,
+    fontWeight: '500',
+    color: '#9CA3AF',
+  },
+  recentDayEmpty: {
+    color: '#D1D5DB',
+  },
+  recentDayContentCol: {
+    flex: 1,
+    gap: 6,
+  },
+  recentDayOutfitName: {
+    fontSize: 14,
+    fontWeight: '600',
+    color: '#111827',
+  },
+  recentDayThumbs: {
+    flexDirection: 'row',
+    gap: 4,
+  },
+  recentDayThumb: {
+    width: 28,
+    height: 28,
+    borderRadius: 6,
+    backgroundColor: '#F3F4F6',
+  },
+  recentDayEmptyText: {
+    fontSize: 12,
+    color: '#9CA3AF',
+  },
+  recentDayEmptyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    alignSelf: 'flex-start',
+    gap: 4,
+    paddingHorizontal: 10,
+    paddingVertical: 5,
+    borderRadius: 8,
+    backgroundColor: COLORS.primary + '15',
+  },
+  recentDayEmptyButtonText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 });
 
