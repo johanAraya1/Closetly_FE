@@ -130,7 +130,7 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => {
         const batch = missingIds.slice(i, i + BATCH_SIZE);
         const results = await Promise.allSettled(
           batch.map((userId) =>
-            apiClient.get<{ data: PublicProfileResult }>(
+            apiClient.get<PublicProfileResult>(
               `/users/public/${userId}`,
               { requiresAuth: false },
             ),
@@ -139,8 +139,8 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => {
 
         for (let j = 0; j < batch.length; j++) {
           const result = results[j];
-          if (result.status === 'fulfilled' && result.value.data?.data) {
-            const profile = result.value.data.data;
+          if (result.status === 'fulfilled' && result.value.data) {
+            const profile = result.value.data;
             newProfiles[batch[j]] = profile;
           }
         }

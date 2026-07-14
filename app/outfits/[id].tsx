@@ -15,7 +15,6 @@ import {
   ActivityIndicator,
   Modal,
   Dimensions,
-  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -63,6 +62,7 @@ export default function OutfitDetailScreen() {
   const { currentOutfit, isLoading, error, loadOutfitById, deleteOutfit, toggleFavorite, clearError } = useOutfits();
 
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
   const shareCardRef = useRef<ViewShot>(null);
@@ -147,45 +147,27 @@ export default function OutfitDetailScreen() {
     }
   }, [outfit, t]);
 
-  // --- Delete Handler with stronger confirmation ---
+  // --- Delete Handler — abre el modal de confirmación ---
   const handleDelete = useCallback(() => {
     if (!outfit) return;
+    setShowDeleteModal(true);
+  }, [outfit]);
 
-    const doDelete = async () => {
-      setIsDeleting(true);
-      try {
-        const success = await deleteOutfit(outfit.id);
-        if (success) {
-          router.back();
-        } else {
-          Alert.alert(t('common.error'), t('outfits.errorDelete'));
-        }
-      } catch (err) {
+  const handleConfirmDelete = useCallback(async () => {
+    if (!outfit) return;
+    setShowDeleteModal(false);
+    setIsDeleting(true);
+    try {
+      const success = await deleteOutfit(outfit.id);
+      if (success) {
+        router.back();
+      } else {
         Alert.alert(t('common.error'), t('outfits.errorDelete'));
-      } finally {
-        setIsDeleting(false);
       }
-    };
-
-    if (Platform.OS === 'web') {
-      // RNW 0.19 Alert.alert ignora los botones — usamos window.confirm directamente
-      const confirmed = window.confirm(
-        `⚠️ ${t('outfits.deleteTitle')}\n${t('outfits.deleteWarning', { name: outfit.name })}`,
-      );
-      if (confirmed) doDelete();
-    } else {
-      Alert.alert(
-        `⚠️ ${t('outfits.deleteTitle')}`,
-        t('outfits.deleteWarning', { name: outfit.name }),
-        [
-          { text: t('common.cancel'), style: 'cancel' },
-          {
-              text: t('outfits.deleteConfirmButton'),
-              style: 'destructive',
-              onPress: doDelete,
-          },
-        ]
-      );
+    } catch (err) {
+      Alert.alert(t('common.error'), t('outfits.errorDelete'));
+    } finally {
+      setIsDeleting(false);
     }
   }, [outfit, t, router]);
 
@@ -527,6 +509,50 @@ export default function OutfitDetailScreen() {
           </View>
         </View>
       </Modal>
+
+      {/* ===== Delete Confirmation Modal ===== */}
+      <Modal
+        visible={showDeleteModal}
+        transparent
+        animationType="fade"
+        onRequestClose={() => setShowDeleteModal(false)}
+      >
+        <View style={styles.modalBackdrop}>
+          <View style={styles.deleteModalContainer}>
+            {/* Icon */}
+            <View style={styles.deleteModalIconCircle}>
+              <Ionicons name="trash-outline" size={32} color="#DC2626" />
+            </View>
+
+            <Text style={styles.deleteModalTitle}>
+              {`⚠️ ${t('outfits.deleteTitle')}`}
+            </Text>
+            <Text style={styles.deleteModalMessage}>
+              {t('outfits.deleteWarning', { name: outfit?.name || '' })}
+            </Text>
+
+            {/* Modal Actions */}
+            <View style={styles.deleteModalActions}>
+              <TouchableOpacity
+                style={styles.deleteCancelButton}
+                onPress={() => setShowDeleteModal(false)}
+              >
+                <Text style={styles.deleteCancelText}>{t('common.cancel')}</Text>
+              </TouchableOpacity>
+
+              <TouchableOpacity
+                style={styles.deleteConfirmButton}
+                onPress={handleConfirmDelete}
+              >
+                <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.deleteConfirmText}>
+                  {t('outfits.deleteConfirmButton')}
+                </Text>
+              </TouchableOpacity>
+            </View>
+          </View>
+        </View>
+      </Modal>
     </SafeAreaView>
   );
 }
@@ -694,7 +720,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 3,
     elevation: 2,
-    ...(Platform.OS === 'web' ? { cursor: 'pointer' } : {}),
+    // cursor: 'pointer' (web-compatible via className)
   },
   actionIconCircle: {
     width: 40,
@@ -959,5 +985,69 @@ const styles = StyleSheet.create({
     color: COLORS.gray[400],
     textAlign: 'center',
     paddingVertical: 8,
+  },
+  // ── Delete Modal ──────────────────────────────────────────────
+  deleteModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    marginHorizontal: 32,
+    alignItems: 'center',
+  },
+  deleteModalIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  deleteModalMessage: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  deleteModalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  deleteCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  deleteCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  deleteConfirmButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#DC2626',
+  },
+  deleteConfirmText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

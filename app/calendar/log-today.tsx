@@ -46,6 +46,7 @@ export default function LogTodayScreen() {
   const [isLogging, setIsLogging] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [seasonFilter, setSeasonFilter] = useState('all');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const numColumns = useMemo(() => (screenWidth > 600 ? 3 : 2), [screenWidth]);
 
@@ -168,16 +169,11 @@ export default function LogTodayScreen() {
       // 3. Log it
       const success = await logOutfit(selectedOutfitId, targetDate);
       if (success) {
-        Alert.alert(
-          t('common.success'),
-          t('calendar.loggedSuccess', { date: formattedDate }),
-          [
-            {
-              text: t('common.ok'),
-              onPress: () => router.replace(`/calendar?date=${targetDate}`),
-            },
-          ],
-        );
+        // Mostrar toast visual y redirigir automáticamente
+        setSuccessMessage(t('calendar.loggedSuccess', { date: formattedDate }));
+        setTimeout(() => {
+          router.replace(`/calendar?date=${targetDate}`);
+        }, 1500);
       } else {
         const freshError = useCalendarStore.getState().error || t('common.error');
         Alert.alert(t('common.error'), freshError);
@@ -350,6 +346,14 @@ export default function LogTodayScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* ===== Success Toast ===== */}
+      {successMessage && (
+        <View style={styles.successToast}>
+          <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+          <Text style={styles.successToastText}>{successMessage}</Text>
+        </View>
+      )}
+
       {/* ===== Header ===== */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -666,5 +670,22 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  successToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 10,
+  },
+  successToastText: {
+    color: '#FFFFFF',
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    flex: 1,
   },
 });

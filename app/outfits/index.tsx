@@ -343,8 +343,8 @@ function OutfitsScreen() {
               </View>
             )}
 
-            {/* End of list indicator */}
-            {!hasMore && outfits.length >= 20 && (
+            {/* End of list indicator — solo cuando NO está cargando */}
+            {!isLoadingMore && !hasMore && outfits.length >= 20 && (
               <View style={styles.endMessage}>
                 <Ionicons name="checkmark-circle" size={20} color="#10B981" />
                 <Text style={styles.endMessageText}>Has visto todos los outfits</Text>
