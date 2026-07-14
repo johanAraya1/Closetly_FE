@@ -256,6 +256,42 @@ export async function mockSuggestionsApi(context: BrowserContext) {
   });
 }
 
+// ─── Mock para Calendar API ────────────────────────────────────
+
+/** Intercepta GET /calendar?month=...&year=... y retorna entradas mock.
+ *  Necesario porque el home ahora muestra "Recently Used" desde el calendario. */
+export async function mockCalendarApi(
+  context: BrowserContext,
+  entries: any[] = [],
+) {
+  await context.route('**/calendar?month=*', async (route) => {
+    await route.fulfill({
+      status: 200,
+      contentType: 'application/json',
+      body: JSON.stringify({ data: entries }),
+    });
+  });
+}
+
+/** Crea entradas de calendario mock para los últimos N días usando outfits dados.
+ *  Útil para tests del home con "Recently Used". */
+export function createMockCalendarEntries(
+  outfits: any[],
+  daysBack: number = 5,
+): any[] {
+  const today = new Date();
+  return outfits.slice(0, daysBack).map((outfit, i) => {
+    const d = new Date(today);
+    d.setDate(d.getDate() - i);
+    const dateStr = d.toISOString().split('T')[0];
+    return {
+      id: `e2e-cal-${outfit.id}`,
+      date: dateStr,
+      outfit,
+    };
+  });
+}
+
 // ─── Selectors ────────────────────────────────────────────────
 
 /** Botón de logout en el header de home (aria-label en DOM).

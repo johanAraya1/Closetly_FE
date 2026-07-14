@@ -16,6 +16,8 @@ import {
   mockOutfitsApiWithData,
   mockGarmentsApi,
   mockSuggestionsApi,
+  mockCalendarApi,
+  createMockCalendarEntries,
   createMockOutfits,
   homeLoaded,
 } from './helpers/auth';
@@ -60,6 +62,8 @@ test.describe('Home Screen', () => {
     await mockOutfitsApiWithData(page.context(), mockOutfits);
     await mockGarmentsApi(page.context(), MOCK_GARMENTS);
     await mockSuggestionsApi(page.context());
+    // Mock calendario para la nueva sección "Recently Used"
+    await mockCalendarApi(page.context(), createMockCalendarEntries(mockOutfits));
 
     await page.goto('/(tabs)/home');
     await page.waitForLoadState('networkidle');
@@ -67,9 +71,7 @@ test.describe('Home Screen', () => {
     // Verificar que el header de bienvenida se renderiza
     await expect(homeLoaded(page)).toBeVisible({ timeout: 15000 });
 
-    // Verificar que los 3 outfits aparecen en la sección de recientes
-    // Usamos .first() porque "Casual Monday" puede aparecer en
-    // "Recientes" + "Favoritos" (isFavorite: true) en simultáneo
+    // Verificar la nueva sección "Recently Used" con outfits del calendario
     await expect(page.getByText('Casual Monday').first()).toBeVisible({ timeout: 10000 });
     await expect(page.getByText('Office Tuesday').first()).toBeVisible({ timeout: 5000 });
     await expect(page.getByText('Evening Glam').first()).toBeVisible({ timeout: 5000 });
@@ -88,6 +90,7 @@ test.describe('Home Screen', () => {
     await mockOutfitsApiWithData(page.context(), []);
     await mockGarmentsApi(page.context(), []);
     await mockSuggestionsApi(page.context());
+    await mockCalendarApi(page.context(), []);
 
     await page.goto('/(tabs)/home');
     await page.waitForLoadState('networkidle');
@@ -132,6 +135,7 @@ test.describe('Home Screen', () => {
     // Mockear el resto de APIs normalmente (no deben interferir)
     await mockGarmentsApi(page.context(), []);
     await mockSuggestionsApi(page.context());
+    await mockCalendarApi(page.context(), []);
 
     await page.goto('/(tabs)/home');
 
