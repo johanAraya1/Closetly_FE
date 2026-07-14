@@ -6,7 +6,7 @@
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
 import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing, Platform, ActivityIndicator, Alert } from 'react-native';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
@@ -99,7 +99,14 @@ function HomeScreen() {
   const allStepsDone = useMemo(() => checklistSteps.every((s) => s.done), [checklistSteps]);
 
   // Últimos 5 días desde el calendario (outfits usados recientemente)
-  const { dayEntries: recentDayEntries, isLoading: recentDaysLoading } = useRecentCalendarEntries(5);
+  const { dayEntries: recentDayEntries, isLoading: recentDaysLoading, refresh: refreshRecentDays } = useRecentCalendarEntries(5);
+
+  // Refrescar al volver al home (después de loguear un outfit, etc.)
+  useFocusEffect(
+    useCallback(() => {
+      refreshRecentDays();
+    }, [refreshRecentDays]),
+  );
 
   const displayName = useMemo(() => {
     const name =
@@ -721,6 +728,8 @@ function HomeScreen() {
 
                 if (day.entry) {
                   const outfit = day.entry.outfit;
+                  const heroGarment = outfit.garments?.[0];
+                  const extraCount = (outfit.garments?.length || 1) - 1;
                   return (
                     <TouchableOpacity
                       key={day.date}
@@ -734,22 +743,25 @@ function HomeScreen() {
                         <Text style={styles.recentDayMonth}>{month}</Text>
                       </View>
                       <View style={styles.recentDayContentCol}>
+                        {/* Imagen hero del outfit (primera prenda) */}
+                        {heroGarment && (
+                          <View style={styles.recentDayHeroWrap}>
+                            <Image
+                              source={{ uri: heroGarment.imageUrl }}
+                              style={styles.recentDayHeroImage}
+                              contentFit="cover"
+                              cachePolicy="memory-disk"
+                            />
+                            {extraCount > 0 && (
+                              <View style={styles.recentDayBadge}>
+                                <Text style={styles.recentDayBadgeText}>+{extraCount}</Text>
+                              </View>
+                            )}
+                          </View>
+                        )}
                         <Text style={styles.recentDayOutfitName} numberOfLines={1}>
                           {outfit.name}
                         </Text>
-                        {outfit.garments && outfit.garments.length > 0 && (
-                          <View style={styles.recentDayThumbs}>
-                            {outfit.garments.slice(0, 4).map((g) => (
-                              <Image
-                                key={g.id}
-                                source={{ uri: g.imageUrl }}
-                                style={styles.recentDayThumb}
-                                contentFit="cover"
-                                cachePolicy="memory-disk"
-                              />
-                            ))}
-                          </View>
-                        )}
                       </View>
                       <Ionicons name="chevron-forward" size={16} color="#9CA3AF" />
                     </TouchableOpacity>
@@ -1404,22 +1416,38 @@ const styles = StyleSheet.create({
   },
   recentDayContentCol: {
     flex: 1,
-    gap: 6,
+    gap: 8,
+  },
+  recentDayHeroWrap: {
+    width: '100%',
+    height: 100,
+    borderRadius: 8,
+    overflow: 'hidden',
+    backgroundColor: '#F3F4F6',
+    position: 'relative',
+  },
+  recentDayHeroImage: {
+    width: '100%',
+    height: '100%',
+  },
+  recentDayBadge: {
+    position: 'absolute',
+    top: 6,
+    right: 6,
+    backgroundColor: 'rgba(0,0,0,0.55)',
+    borderRadius: 10,
+    paddingHorizontal: 7,
+    paddingVertical: 2,
+  },
+  recentDayBadgeText: {
+    fontSize: 11,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
   recentDayOutfitName: {
-    fontSize: 14,
+    fontSize: 13,
     fontWeight: '600',
     color: '#111827',
-  },
-  recentDayThumbs: {
-    flexDirection: 'row',
-    gap: 4,
-  },
-  recentDayThumb: {
-    width: 28,
-    height: 28,
-    borderRadius: 6,
-    backgroundColor: '#F3F4F6',
   },
   recentDayEmptyText: {
     fontSize: 12,

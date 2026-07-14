@@ -252,6 +252,10 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
       outfits: state.outfits.map((o) =>
         o.id === id ? { ...o, is_favorite: isFavorite } : o
       ),
+      // También actualizar currentOutfit para que el detalle se vea al instante
+      currentOutfit: state.currentOutfit?.id === id
+        ? { ...state.currentOutfit, is_favorite: isFavorite }
+        : state.currentOutfit,
     }));
     
     const result = await outfitService.toggleOutfitFavorite(id, isFavorite);

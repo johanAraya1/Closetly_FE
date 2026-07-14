@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useMemo, useEffect, useRef, useCallback } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, TextInput, ActivityIndicator, Modal as RNModal } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, TextInput, ActivityIndicator, Platform, Modal as RNModal } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -253,23 +253,32 @@ export default function CreateOutfitScreen() {
     if (SINGLE_CATEGORIES.includes(garment.category)) {
       const existing = selectedGarments.find((g) => g.category === garment.category);
       if (existing) {
-        Alert.alert(
-          'Reemplazar prenda',
-          `Ya tenés "${existing.name}" en esta categoría. ¿Querés reemplazarla por "${garment.name}"?`,
-          [
-            { text: t('common.cancel'), style: 'cancel' },
-            {
-              text: 'Reemplazar',
-              onPress: () => {
-                setSelectedGarments([
-                  ...selectedGarments.filter((g) => g.id !== existing.id),
-                  garment,
-                ]);
-                setErrors({ ...errors, garments: undefined });
+        const doReplace = () => {
+          setSelectedGarments([
+            ...selectedGarments.filter((g) => g.id !== existing.id),
+            garment,
+          ]);
+          setErrors({ ...errors, garments: undefined });
+        };
+
+        if (Platform.OS === 'web') {
+          const ok = window.confirm(
+            `Reemplazar prenda\nYa tenés "${existing.name}" en esta categoría. ¿Querés reemplazarla por "${garment.name}"?`,
+          );
+          if (ok) doReplace();
+        } else {
+          Alert.alert(
+            'Reemplazar prenda',
+            `Ya tenés "${existing.name}" en esta categoría. ¿Querés reemplazarla por "${garment.name}"?`,
+            [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: 'Reemplazar',
+                onPress: doReplace,
               },
-            },
-          ],
-        );
+            ],
+          );
+        }
         return;
       }
     }
@@ -1103,7 +1112,7 @@ export default function CreateOutfitScreen() {
                   text: t('outfits.create.viewOutfits'),
                   onPress: () => {
                     setShowSuccessModal(false);
-                    router.push('/(tabs)/home');
+                    router.push('/outfits');
                   },
                   variant: 'secondary',
                 },

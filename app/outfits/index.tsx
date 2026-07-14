@@ -212,7 +212,7 @@ function OutfitsScreen() {
         <View style={styles.titleContainer}>
           <Text style={styles.title}>{t('outfits.title')}</Text>
           <Text style={styles.subtitle}>
-            {t('outfits.outfitCount', { count: filteredAndSortedOutfits.length })}
+            {t('outfits.outfitCount', { count: total })}
           </Text>
         </View>
         <TouchableOpacity style={styles.addButton} onPress={handleCreateOutfit}>

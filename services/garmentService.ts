@@ -35,6 +35,8 @@ function normalizeGarment(item: any): any {
     image_url: imageUrl,
     imageUrls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
     image_urls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
+    // Normalizar color: asegurar string (puede venir null/undefined o como array)
+    color: item.color ? String(item.color) : (Array.isArray(item.colors) ? item.colors.join(', ') : undefined),
   };
   
   return normalized;
