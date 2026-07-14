@@ -2,6 +2,8 @@
  * useRecentCalendarEntries Hook
  * Carga los últimos N días del calendario y devuelve si hay outfit registrado o no.
  * Ideal para mostrar en el home los outfits usados recientemente.
+ *
+ * Expone refresh() para recargar cuando la pantalla recupera el foco.
  */
 
 import { useState, useEffect, useMemo, useCallback } from 'react';
@@ -48,6 +50,7 @@ function uniqueMonths(dates: string[]): { month: number; year: number }[] {
 export function useRecentCalendarEntries(days: number = 5) {
   const [allEntries, setAllEntries] = useState<CalendarLogEntry[]>([]);
   const [isLoading, setIsLoading] = useState(true);
+  const [version, setVersion] = useState(0);
 
   // Últimos N días
   const dates = useMemo(
@@ -62,7 +65,7 @@ export function useRecentCalendarEntries(days: number = 5) {
     [monthsToLoad],
   );
 
-  // Cargar meses
+  // Cargar meses (se re-ejecuta si cambia monthsKey o version)
   useEffect(() => {
     let cancelled = false;
     (async () => {
@@ -85,7 +88,10 @@ export function useRecentCalendarEntries(days: number = 5) {
     return () => {
       cancelled = true;
     };
-  }, [monthsKey]);
+  }, [monthsKey, version]);
+
+  // Exponer refresh para recargar desde el componente
+  const refresh = useCallback(() => setVersion((v) => v + 1), []);
 
   // Matchear entries por fecha
   const dayEntries = useMemo<RecentDayInfo[]>(
@@ -97,5 +103,5 @@ export function useRecentCalendarEntries(days: number = 5) {
     [dates, allEntries],
   );
 
-  return { dayEntries, isLoading };
+  return { dayEntries, isLoading, refresh };
 }

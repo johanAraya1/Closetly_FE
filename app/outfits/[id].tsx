@@ -151,32 +151,42 @@ export default function OutfitDetailScreen() {
   const handleDelete = useCallback(() => {
     if (!outfit) return;
 
-    Alert.alert(
-      `⚠️ ${t('outfits.deleteTitle')}`,
-      t('outfits.deleteWarning', { name: outfit.name }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-            text: t('outfits.deleteConfirmButton'),
-            style: 'destructive',
-            onPress: async () => {
-              setIsDeleting(true);
-              try {
-                const success = await deleteOutfit(outfit.id);
-                if (success) {
-                  router.back();
-                } else {
-                  Alert.alert(t('common.error'), t('outfits.errorDelete'));
-                }
-              } catch (err) {
-                Alert.alert(t('common.error'), t('outfits.errorDelete'));
-              } finally {
-                setIsDeleting(false);
-              }
-            },
-        },
-      ]
-    );
+    const doDelete = async () => {
+      setIsDeleting(true);
+      try {
+        const success = await deleteOutfit(outfit.id);
+        if (success) {
+          router.back();
+        } else {
+          Alert.alert(t('common.error'), t('outfits.errorDelete'));
+        }
+      } catch (err) {
+        Alert.alert(t('common.error'), t('outfits.errorDelete'));
+      } finally {
+        setIsDeleting(false);
+      }
+    };
+
+    if (Platform.OS === 'web') {
+      // RNW 0.19 Alert.alert ignora los botones — usamos window.confirm directamente
+      const confirmed = window.confirm(
+        `⚠️ ${t('outfits.deleteTitle')}\n${t('outfits.deleteWarning', { name: outfit.name })}`,
+      );
+      if (confirmed) doDelete();
+    } else {
+      Alert.alert(
+        `⚠️ ${t('outfits.deleteTitle')}`,
+        t('outfits.deleteWarning', { name: outfit.name }),
+        [
+          { text: t('common.cancel'), style: 'cancel' },
+          {
+              text: t('outfits.deleteConfirmButton'),
+              style: 'destructive',
+              onPress: doDelete,
+          },
+        ]
+      );
+    }
   }, [outfit, t, router]);
 
   // --- Error retry ---
