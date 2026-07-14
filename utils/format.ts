@@ -90,8 +90,8 @@ export const normalizeColorName = (name: string): string => {
     'negroa': 'negro',
     'marrón': 'marron',
     'marro': 'marron',
-    'café': 'marron',
-    'cafe': 'marron',
+    'café': 'cafe',
+    'cafe': 'cafe',
     'gri': 'gris',
     'asul': 'azul',
     'asúl': 'azul',
@@ -99,6 +99,13 @@ export const normalizeColorName = (name: string): string => {
     'rozo': 'rojo',
     'berde': 'verde',
     'bermellón': 'rojo',
+    'burgundy': 'borgona',
+    'borgogna': 'borgona',
+    'lavendar': 'lavanda',
+    'peach': 'melocoton',
+    'mustard': 'mostaza',
+    'olive': 'oliva',
+    'sand': 'arena',
   };
 
   // Sacar tildes
@@ -168,6 +175,17 @@ const colorMap: Record<string, string> = {
   'turquesa': '#14B8A6',
   'vino': '#7F1D1D',
   'marino': '#1E3A8A',
+  'azul marino': '#1E3A8A',
+  'cafe': '#8B4513',
+  'coral': '#FF7F50',
+  'mostaza': '#FFDB58',
+  'oliva': '#808000',
+  'menta': '#98FB98',
+  'teal': '#008080',
+  'lavanda': '#E6E6FA',
+  'melocoton': '#FFDAB9',
+  'arena': '#C2B280',
+  'borgona': '#800020',
 
   // Variantes
   'rojo oscuro': '#991B1B',
@@ -195,6 +213,15 @@ const colorMap: Record<string, string> = {
   'gray': '#6B7280',
   'grey': '#6B7280',
   'brown': '#92400E',
+  'coral': '#FF7F50',
+  'mustard': '#FFDB58',
+  'olive': '#808000',
+  'mint': '#98FB98',
+  'teal': '#008080',
+  'lavender': '#E6E6FA',
+  'peach': '#FFDAB9',
+  'sand': '#C2B280',
+  'burgundy': '#800020',
 };
 
 /**

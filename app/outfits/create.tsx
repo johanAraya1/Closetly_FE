@@ -243,17 +243,46 @@ export default function CreateOutfitScreen() {
 
   const toggleGarment = (garment: Garment) => {
     if (selectedGarments.find((g) => g.id === garment.id)) {
+      // Ya está seleccionada → remover
       setSelectedGarments(selectedGarments.filter((g) => g.id !== garment.id));
       setErrors({ ...errors, garments: undefined });
-    } else {
-      const validation = validateGarmentAddition(garment, selectedGarments);
-      if (!validation.allowed) {
-        Alert.alert('Combinación no válida', validation.message);
+      return;
+    }
+
+    // Misma categoría single → ofrecer reemplazo
+    if (SINGLE_CATEGORIES.includes(garment.category)) {
+      const existing = selectedGarments.find((g) => g.category === garment.category);
+      if (existing) {
+        Alert.alert(
+          'Reemplazar prenda',
+          `Ya tenés "${existing.name}" en esta categoría. ¿Querés reemplazarla por "${garment.name}"?`,
+          [
+            { text: t('common.cancel'), style: 'cancel' },
+            {
+              text: 'Reemplazar',
+              onPress: () => {
+                setSelectedGarments([
+                  ...selectedGarments.filter((g) => g.id !== existing.id),
+                  garment,
+                ]);
+                setErrors({ ...errors, garments: undefined });
+              },
+            },
+          ],
+        );
         return;
       }
-      setSelectedGarments([...selectedGarments, garment]);
-      setErrors({ ...errors, garments: undefined });
     }
+
+    // Otros conflictos (vestido vs tops/bottoms) — bloquear con mensaje
+    const validation = validateGarmentAddition(garment, selectedGarments);
+    if (!validation.allowed) {
+      Alert.alert('Combinación no válida', validation.message);
+      return;
+    }
+
+    setSelectedGarments([...selectedGarments, garment]);
+    setErrors({ ...errors, garments: undefined });
   };
 
   const togglePin = useCallback((garmentId: string) => {
