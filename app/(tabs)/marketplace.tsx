@@ -134,7 +134,7 @@ function MarketplaceScreen() {
         <View style={styles.cardUserRow}>
           <Ionicons name="person-circle-outline" size={14} color="#9CA3AF" />
           <Text style={styles.cardUserText}>
-            @usuario_{item.userId.slice(0, 8)}
+            @desconocido
           </Text>
         </View>
       </View>

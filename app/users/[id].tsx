@@ -138,7 +138,7 @@ function PublicProfileScreen() {
           )}
 
           <Text style={styles.username}>
-            @{profile.username || `usuario_${profile.userId.slice(0, 8)}`}
+            @{profile.username || 'desconocido'}
           </Text>
 
           {profile.fullName && (
@@ -180,18 +180,21 @@ function PublicProfileScreen() {
                   })}
                 >
                   <View style={styles.garmentImageContainer}>
-                    {(garment as any).image_url ? (
-                      <Image
-                        source={{ uri: (garment as any).image_url }}
-                        style={styles.garmentImage}
-                        contentFit="cover"
-                        cachePolicy="memory-disk"
-                      />
-                    ) : (
-                      <View style={styles.garmentImagePlaceholder}>
-                        <Ionicons name="shirt-outline" size={32} color={COLORS.gray[300]} />
-                      </View>
-                    )}
+                    {(() => {
+                      const uri = (garment as any).image_url || (garment as any).imageUrl || '';
+                      return uri ? (
+                        <Image
+                          source={{ uri }}
+                          style={styles.garmentImage}
+                          contentFit="cover"
+                          cachePolicy="memory-disk"
+                        />
+                      ) : (
+                        <View style={styles.garmentImagePlaceholder}>
+                          <Ionicons name="shirt-outline" size={32} color={COLORS.gray[300]} />
+                        </View>
+                      );
+                    })()}
                     {garment.listingType && (
                       <View style={styles.garmentBadgeOverlay}>
                         <ListingTypeBadge type={garment.listingType} />
