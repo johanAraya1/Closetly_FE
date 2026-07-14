@@ -169,6 +169,7 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
       
       set((state) => ({
         outfits: [{ ...result.data!, garments: outfitGarments }, ...state.outfits],
+        total: state.total + 1,
         isLoading: false,
       }));
       return result.data;
@@ -238,7 +239,7 @@ export const useOutfitsStore = create<OutfitsState>((set, get) => {
       return false;
     }
 
-    set({ isLoading: false });
+    set((state) => ({ isLoading: false, total: Math.max(0, state.total - 1) }));
     return true;
   },
 
