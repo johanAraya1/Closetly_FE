@@ -722,7 +722,7 @@ function HomeScreen() {
 
                 if (day.entry) {
                   const outfit = day.entry.outfit;
-                  const heroGarment = outfit.garments?.[0];
+                  const heroImageUrl = outfit.garments?.[0]?.imageUrl || outfit.imageUrl;
                   const extraCount = (outfit.garments?.length || 1) - 1;
                   return (
                     <TouchableOpacity
@@ -731,19 +731,12 @@ function HomeScreen() {
                       onPress={() => router.push(`/outfits/${outfit.id}`)}
                       activeOpacity={0.95}
                     >
-                      {/* Date header */}
-                      <View style={styles.rCardDateBar}>
-                        <Ionicons name="calendar-outline" size={14} color={COLORS.primary} />
-                        <Text style={styles.rCardDateText}>
-                          {`${weekday}, ${dayNum} ${month}`}
-                        </Text>
-                      </View>
                       {/* Hero image */}
                       <View style={styles.rCardImageWrap}>
-                        {heroGarment ? (
+                        {heroImageUrl ? (
                           <>
                             <Image
-                              source={{ uri: heroGarment.imageUrl }}
+                              source={{ uri: heroImageUrl }}
                               style={styles.rCardImage}
                               contentFit="cover"
                               cachePolicy="memory-disk"
@@ -756,26 +749,27 @@ function HomeScreen() {
                           </>
                         ) : (
                           <View style={styles.rCardPlaceholder}>
-                            <Ionicons name="shirt-outline" size={32} color="#D1D5DB" />
+                            <Ionicons name="shirt-outline" size={28} color="#D1D5DB" />
                           </View>
                         )}
                       </View>
-                      {/* Outfit name */}
+                      {/* Outfit name + date */}
                       <View style={styles.rCardInfo}>
                         <Text style={styles.rCardName} numberOfLines={1}>
                           {outfit.name}
                         </Text>
-                        {outfit.occasion && (
-                          <Text style={styles.rCardOccasion} numberOfLines={1}>
-                            {outfit.occasion}
+                        <View style={styles.rCardDateRow}>
+                          <Ionicons name="calendar-outline" size={11} color="#9CA3AF" />
+                          <Text style={styles.rCardDateSmall}>
+                            {`${weekday}, ${dayNum} ${month}`}
                           </Text>
-                        )}
+                        </View>
                       </View>
                     </TouchableOpacity>
                   );
                 }
 
-                // Empty day — placeholder con imagen + invitar a registrar
+                // Empty day — placeholder compacto + invitar a registrar
                 return (
                   <TouchableOpacity
                     key={day.date}
@@ -783,28 +777,24 @@ function HomeScreen() {
                     onPress={() => router.push(`/calendar/log-today?date=${day.date}`)}
                     activeOpacity={0.95}
                   >
-                    {/* Date header */}
-                    <View style={styles.rCardDateBar}>
-                      <Ionicons name="calendar-outline" size={14} color="#9CA3AF" />
-                      <Text style={[styles.rCardDateText, { color: '#9CA3AF' }]}>
-                        {`${weekday}, ${dayNum} ${month}`}
-                      </Text>
-                    </View>
                     {/* Placeholder image */}
                     <View style={styles.rCardImageWrap}>
                       <View style={[styles.rCardPlaceholder, { backgroundColor: '#F9FAFB' }]}>
-                        <Ionicons name="image-outline" size={36} color="#D1D5DB" />
-                        <Text style={styles.rCardEmptyLabel}>
-                          {t('home.notLoggedForDay')}
-                        </Text>
+                        <Ionicons name="image-outline" size={28} color="#D1D5DB" />
                       </View>
                     </View>
-                    {/* CTA */}
+                    {/* CTA + date */}
                     <View style={styles.rCardInfo}>
                       <View style={styles.rCardEmptyButton}>
-                        <Ionicons name="add-circle-outline" size={16} color={COLORS.primary} />
+                        <Ionicons name="add-circle-outline" size={14} color={COLORS.primary} />
                         <Text style={styles.rCardEmptyButtonText}>
                           {t('home.logForDay')}
+                        </Text>
+                      </View>
+                      <View style={styles.rCardDateRow}>
+                        <Ionicons name="calendar-outline" size={11} color="#9CA3AF" />
+                        <Text style={[styles.rCardDateSmall, { color: '#9CA3AF' }]}>
+                          {`${weekday}, ${dayNum} ${month}`}
                         </Text>
                       </View>
                     </View>
@@ -1389,35 +1379,25 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  // Recently Used — Last 5 Days (card style)
+  // Recently Used — Grid 2 columnas (compacto)
   recentDayList: {
-    gap: 12,
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 10,
   },
   recentDayCard: {
+    width: '48%',
     backgroundColor: '#FFFFFF',
-    borderRadius: 14,
+    borderRadius: 12,
     overflow: 'hidden',
     shadowColor: '#000',
-    shadowOffset: { width: 0, height: 2 },
+    shadowOffset: { width: 0, height: 1 },
     shadowOpacity: 0.08,
-    shadowRadius: 6,
-    elevation: 3,
-  },
-  rCardDateBar: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 6,
-    paddingHorizontal: 14,
-    paddingTop: 12,
-    paddingBottom: 8,
-  },
-  rCardDateText: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#374151',
+    shadowRadius: 4,
+    elevation: 2,
   },
   rCardImageWrap: {
-    height: 160,
+    height: 120,
     backgroundColor: '#F3F4F6',
     position: 'relative',
   },
@@ -1427,15 +1407,15 @@ const styles = StyleSheet.create({
   },
   rCardBadge: {
     position: 'absolute',
-    top: 8,
-    right: 8,
+    top: 6,
+    right: 6,
     backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 12,
-    paddingHorizontal: 8,
-    paddingVertical: 3,
+    borderRadius: 10,
+    paddingHorizontal: 6,
+    paddingVertical: 2,
   },
   rCardBadgeText: {
-    fontSize: 12,
+    fontSize: 11,
     fontWeight: '700',
     color: '#FFFFFF',
   },
@@ -1444,38 +1424,38 @@ const styles = StyleSheet.create({
     backgroundColor: '#F3F4F6',
     alignItems: 'center',
     justifyContent: 'center',
-    gap: 8,
-  },
-  rCardEmptyLabel: {
-    fontSize: 13,
-    color: '#9CA3AF',
   },
   rCardInfo: {
-    paddingHorizontal: 14,
-    paddingVertical: 12,
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
   },
   rCardName: {
-    fontSize: 15,
+    fontSize: 13,
     fontWeight: '600',
     color: '#111827',
   },
-  rCardOccasion: {
-    fontSize: 12,
-    color: '#6B7280',
-    marginTop: 2,
+  rCardDateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  rCardDateSmall: {
+    fontSize: 11,
+    color: '#9CA3AF',
   },
   rCardEmptyButton: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 6,
+    gap: 4,
   },
   rCardEmptyButtonText: {
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '600',
     color: COLORS.primary,
   },
   rCardImageSkeleton: {
-    height: 160,
+    height: 120,
     backgroundColor: '#F3F4F6',
     marginHorizontal: 0,
   },
