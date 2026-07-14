@@ -62,6 +62,11 @@ function MarketplaceScreen() {
   const filteredGarments = useMemo(() => {
     let result = garments;
 
+    // "Todas" tab: excluir las prendas del usuario actual
+    if (activeTab === 'all' && user?.id) {
+      result = result.filter((g) => g.userId !== user.id);
+    }
+
     // Search by name
     if (debouncedSearchText.trim()) {
       const query = debouncedSearchText.trim().toLowerCase();
@@ -79,7 +84,7 @@ function MarketplaceScreen() {
     }
 
     return result;
-  }, [garments, debouncedSearchText, selectedCategory, selectedListingType]);
+  }, [garments, debouncedSearchText, selectedCategory, selectedListingType, activeTab, user?.id]);
 
   const hasActiveFilters = debouncedSearchText.trim() !== '' || selectedCategory !== null || selectedListingType !== null;
 
