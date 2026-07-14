@@ -92,6 +92,10 @@ export default function CreateOutfitScreen() {
       setOccasions(outfit.occasion ? outfit.occasion.split(/,\s*/) : ['casual']);
       setSeason(outfit.season || 'all_season');
       if (outfit.garments) {
+        const catCheck = validateGarmentSelection(outfit.garments);
+        if (!catCheck.valid) {
+          Alert.alert('Este outfit tiene categorías conflictivas', catCheck.message);
+        }
         setSelectedGarments(outfit.garments);
       }
       setIsLoadingEdit(false);
@@ -109,6 +113,10 @@ export default function CreateOutfitScreen() {
         setOccasions(loaded.occasion ? loaded.occasion.split(/,\s*/) : ['casual']);
         setSeason(loaded.season || 'all_season');
         if (loaded.garments) {
+          const catCheck = validateGarmentSelection(loaded.garments);
+          if (!catCheck.valid) {
+            Alert.alert('Este outfit tiene categorías conflictivas', catCheck.message);
+          }
           setSelectedGarments(loaded.garments);
         }
       }
@@ -198,6 +206,41 @@ export default function CreateOutfitScreen() {
     return { allowed: true };
   }, []);
 
+  /**
+   * Valida un set completo de prendas contra las reglas de categorías.
+   * Útil para caminos que no pasan por toggleGarment (random, mix, save).
+   */
+  const validateGarmentSelection = useCallback((
+    garments: Garment[],
+  ): { valid: boolean; message?: string } => {
+    const SINGLE_CATEGORIES = ['tops', 'bottoms', 'dresses', 'outerwear', 'shoes', 'bags'];
+    const DRESS_CONFLICT_CATEGORIES = ['tops', 'bottoms'];
+
+    // Check single-category duplicates
+    for (const cat of SINGLE_CATEGORIES) {
+      const items = garments.filter((g) => g.category === cat);
+      if (items.length > 1) {
+        return {
+          valid: false,
+          message: `Solo se permite una prenda de ${cat}. Ya tenés "${items[0].name}" y "${items[1].name}".`,
+        };
+      }
+    }
+
+    // Check dress vs tops/bottoms conflict
+    const hasDress = garments.some((g) => g.category === 'dresses');
+    const hasTopOrBottom = garments.some((g) => DRESS_CONFLICT_CATEGORIES.includes(g.category));
+
+    if (hasDress && hasTopOrBottom) {
+      return {
+        valid: false,
+        message: 'No podés combinar un vestido con tops o bottoms. Elegí una de las dos.',
+      };
+    }
+
+    return { valid: true };
+  }, []);
+
   const toggleGarment = (garment: Garment) => {
     if (selectedGarments.find((g) => g.id === garment.id)) {
       setSelectedGarments(selectedGarments.filter((g) => g.id !== garment.id));
@@ -259,11 +302,17 @@ export default function CreateOutfitScreen() {
       .map((id) => state.mixGarments.find((g) => g.id === id))
       .filter(Boolean) as Garment[];
 
+    const catCheck = validateGarmentSelection(accepted);
+    if (!catCheck.valid) {
+      Alert.alert('Combinación no válida', catCheck.message);
+      return;
+    }
+
     setSelectedGarments(accepted);
     setIsMixMode(false);
     setBaseGarments([]);
     clearMix();
-  }, [clearMix]);
+  }, [clearMix, validateGarmentSelection]);
 
   const handleRegenerateMix = useCallback(() => {
     const ids = baseGarments.map((g) => g.id);
@@ -321,11 +370,17 @@ export default function CreateOutfitScreen() {
 
         const key = [...result.outfit.map((g) => g.id)].sort().join(',');
         if (!skip.has(key)) {
-          // Merge pinned garments back + random result
-          setSelectedGarments([...pinnedList, ...result.outfit]);
-          setHasGenerated(true);
-          setGenerationError(null);
-          return;
+          const finalSelection = [...pinnedList, ...result.outfit];
+          const catCheck = validateGarmentSelection(finalSelection);
+          if (catCheck.valid) {
+            // Merge pinned garments back + random result
+            setSelectedGarments(finalSelection);
+            setHasGenerated(true);
+            setGenerationError(null);
+            return;
+          }
+          // If category conflict (e.g. pinned dress + random top), skip this seed
+          skip.add(key);
         }
         attempts++;
       }
@@ -334,7 +389,7 @@ export default function CreateOutfitScreen() {
         'Ya viste todas las combinaciones posibles. Agregá más prendas o cambiá de ocasión.',
       );
     },
-    [garments, occasions, weather, dismissedOutfits, pinnedGarmentIds],
+    [garments, occasions, weather, dismissedOutfits, pinnedGarmentIds, validateGarmentSelection],
   );
 
   const handleGenerateWithStyles = useCallback(() => {
@@ -426,6 +481,13 @@ export default function CreateOutfitScreen() {
 
   const handleSave = async () => {
     if (!validate() || !user) return;
+
+    // Safety net: validar reglas de categorías antes de guardar
+    const catCheck = validateGarmentSelection(selectedGarments);
+    if (!catCheck.valid) {
+      Alert.alert('Combinación no válida', catCheck.message);
+      return;
+    }
 
     setIsLoading(true);
     const data = {
