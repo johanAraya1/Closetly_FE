@@ -608,6 +608,7 @@ const i18n = new I18n({
       sameCategoryError: 'Can only pin one {{category}} per suggestion',
       allPinned: 'All items already pinned',
       noSlots: 'No slots to regenerate',
+      noRegenUser: "User outfits can't be regenerated",
     },
     biometric: {
       inviteTitle: '🔒 Log in with your fingerprint',
@@ -637,6 +638,12 @@ const i18n = new I18n({
       existingOutfitTitle: 'Outfit already logged',
       existingOutfitMessage: 'You already have "{{name}}" logged for {{date}}. Replace it?',
       existingOutfitAction: 'Replace',
+    },
+    smartSuggestions: {
+      sourceAI: 'AI',
+      sourceUser: 'Your outfit',
+      neverWorn: 'Never worn',
+      lastUsed: 'Last used: {{date}}',
     },
   },
   es: {
@@ -1237,6 +1244,7 @@ const i18n = new I18n({
       sameCategoryError: 'Solo podés fijar una {{category}} por sugerencia',
       allPinned: 'Ya fijaste todas las prendas',
       noSlots: 'No hay espacios para regenerar',
+      noRegenUser: 'Tu outfit no se regenera',
     },
     biometric: {
       inviteTitle: '🔒 Ingresá con tu huella',
@@ -1266,6 +1274,12 @@ const i18n = new I18n({
       existingOutfitTitle: 'Ya hay un outfit',
       existingOutfitMessage: 'Ya tenés "{{name}}" registrado para {{date}}. ¿Reemplazarlo?',
       existingOutfitAction: 'Reemplazar',
+    },
+    smartSuggestions: {
+      sourceAI: 'IA',
+      sourceUser: 'Tu outfit',
+      neverWorn: 'Nunca usado',
+      lastUsed: 'Último uso: {{date}}',
     },
   },
 });
