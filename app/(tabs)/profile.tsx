@@ -21,7 +21,7 @@ function ProfileScreen() {
   const router = useRouter();
   const { profile, user, logout, isAdmin, updateProfile, isLoading } = useAuth();
   const { total: garmentCount } = useGarments(true);
-  const { outfits } = useOutfits(true);
+  const { outfits, total } = useOutfits(true);
   const { collections } = useCollections();
   const { t } = useTranslation();
   const [username, setUsername] = useState('');
@@ -177,7 +177,7 @@ function ProfileScreen() {
               </View>
               <View style={styles.statItem}>
                 <Text style={styles.statNumber}>
-                  {outfits.length}
+                  {total ?? outfits.length}
                 </Text>
                 <Text style={styles.statLabel}>{t('profile.outfits')}</Text>
               </View>
