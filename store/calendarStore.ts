@@ -8,6 +8,7 @@ import type { CalendarLogEntry } from '@/types';
 import * as calendarService from '@/services/calendarService';
 import { usePlannerStore } from '@/store/plannerStore';
 import { getMondayOfWeek, parseLocalDate } from '@/utils/date';
+import { clearKBCache } from '@/lib/knowledgeBase';
 
 interface CalendarState {
   entries: CalendarLogEntry[];
@@ -66,6 +67,9 @@ export const useCalendarStore = create<CalendarState>((set, get) => ({
     const { selectedMonth, selectedYear } = get();
     await get().loadMonth(selectedMonth, selectedYear);
     set({ isSaving: false });
+
+    // Invalidate KB cache so next smart suggestions load recomputes patterns
+    clearKBCache();
 
     // Sync: refrescar planner si la fecha cae en la semana cargada
     const plannerState = usePlannerStore.getState();

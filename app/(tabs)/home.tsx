@@ -19,6 +19,7 @@ import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
+import { useSmartSuggestions } from '@/hooks/useSmartSuggestions';
 import { tokenService } from '@/services/tokenService';
 import { withScreenErrorBoundary } from '@/components';
 
@@ -32,7 +33,7 @@ function HomeScreen() {
   const { profile, user, logout } = useAuth();
   const { garments } = useGarments(true);
   const { outfits, isLoading, loadOutfits, createOutfit } = useOutfits(true, 3);
-  const { t } = useTranslation();
+  const { t, locale } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
   const spinAnim = useRef(new Animated.Value(0)).current;
 
@@ -43,25 +44,27 @@ function HomeScreen() {
   const [savedOutfitIds, setSavedOutfitIds] = useState<Record<string, string>>({});
 
   const {
-    suggestions,
     garments: suggestionGarments,
     weather,
-    isLoading: suggestionsLoading,
-    error: suggestionsError,
-    message: suggestionsMessage,
-    fetchSuggestions,
     lastUpdated,
     pinnedGarmentIds,
     isRegenerating,
     togglePin,
     clearPins,
     regenerateWithPinned,
+    message: suggestionsMessage,
   } = useSuggestionsStore();
 
-  // Fetch suggestions on mount
-  useEffect(() => {
-    fetchSuggestions();
-  }, []);
+  // Smart suggestions hook — orchestrates AI + user hybrid engine
+  const {
+    suggestions,
+    isLoading: smartSuggestionsLoading,
+    error: smartSuggestionsError,
+    refresh,
+  } = useSmartSuggestions();
+
+  const suggestionsLoading = smartSuggestionsLoading;
+  const suggestionsError = smartSuggestionsError;
 
   // Spinning animation for refresh icon
   useEffect(() => {
@@ -411,7 +414,7 @@ function HomeScreen() {
               {t('home.suggestionsToday')}
             </Text>
             <TouchableOpacity
-              onPress={() => fetchSuggestions()}
+              onPress={refresh}
               style={styles.refreshButton}
               disabled={suggestionsLoading}
               accessibilityLabel={t('home.refresh')}
@@ -463,7 +466,7 @@ function HomeScreen() {
                 {t('home.suggestionsError')}
               </Text>
               <TouchableOpacity
-                onPress={() => fetchSuggestions()}
+                onPress={refresh}
                 style={styles.retryButton}
               >
                 <Text style={styles.retryButtonText}>{t('home.refresh')}</Text>
@@ -563,12 +566,27 @@ function HomeScreen() {
                         </View>
                       )}
 
-                      {/* Name + occasion badge + saved indicator */}
+                      {/* Name + occasion badge + source badge + saved indicator */}
                       <View style={styles.suggestionInfo}>
                         <Text style={styles.suggestionName} numberOfLines={1}>
                           {suggestion.name}
                         </Text>
                         <View style={styles.badgeRow}>
+                          {/* Source badge */}
+                          <View
+                            style={[
+                              styles.sourceBadge,
+                              suggestion.source === 'user'
+                                ? styles.sourceBadgeUser
+                                : styles.sourceBadgeAI,
+                            ]}
+                          >
+                            <Text style={styles.sourceBadgeText} numberOfLines={1}>
+                              {suggestion.source === 'user'
+                                ? t('smartSuggestions.sourceUser')
+                                : t('smartSuggestions.sourceAI')}
+                            </Text>
+                          </View>
                           <View style={styles.occasionBadge}>
                             <Text style={styles.occasionText} numberOfLines={1}>
                               {suggestion.occasion}
@@ -579,6 +597,21 @@ function HomeScreen() {
                           )}
                         </View>
                       </View>
+                      {/* Last-used line for user suggestions */}
+                      {suggestion.source === 'user' && (
+                        <View style={styles.lastUsedRow}>
+                          <Text style={styles.lastUsedText}>
+                            {suggestion.lastUsed
+                              ? t('smartSuggestions.lastUsed', {
+                                  date: new Date(suggestion.lastUsed).toLocaleDateString(
+                                    locale === 'es' ? 'es-AR' : 'en-US',
+                                    { day: 'numeric', month: 'long', year: 'numeric' },
+                                  ),
+                                })
+                              : t('smartSuggestions.neverWorn')}
+                          </Text>
+                        </View>
+                      )}
                     </TouchableOpacity>
 
                     {/* Regenerate with pinned button */}
@@ -1062,6 +1095,29 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '500',
     color: COLORS.primary,
+  },
+  sourceBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  sourceBadgeAI: {
+    backgroundColor: '#7C3AED20',
+  },
+  sourceBadgeUser: {
+    backgroundColor: '#10B98120',
+  },
+  sourceBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  lastUsedRow: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  lastUsedText: {
+    fontSize: 11,
+    color: '#9CA3AF',
   },
   reasoningContainer: {
     paddingHorizontal: 12,
