@@ -2,8 +2,10 @@
  * Background Removal Service — Web
  * Client-side background removal usando Transformers.js cargado desde CDN.
  * 
- * Usamos un Blob URL para evitar que Metro intercepte el dynamic import().
- * El script dentro del blob hace import() nativo del browser a la CDN.
+ * Usamos el mismo approach que el demo oficial de Xenova:
+ * - AutoModel.from_pretrained() con model_type: "custom" (bypasea pipeline)
+ * - AutoProcessor.from_pretrained() con config explícita
+ * - Salida: tensor alpha matte → resize → aplicar como canal alfa
  * 
  * Sin costo de servidor, sin API keys, sin tarjetas de crédito.
  */
@@ -11,6 +13,8 @@
 import { Platform } from 'react-native';
 
 // Estado del modelo
+let model: any = null;
+let processor: any = null;
 let transformersModule: any = null;
 let modelLoaded = false;
 let loadPromise: Promise<void> | null = null;
@@ -56,8 +60,6 @@ export function getLoadError(): string | null {
  */
 function loadTransformersFromCDN(): Promise<any> {
   return new Promise((resolve, reject) => {
-    // Creamos un Blob con el código que importa la librería desde CDN
-    // y la expone en window.__transformers__
     const code = `
       import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/+esm')
         .then(mod => {
@@ -76,7 +78,6 @@ function loadTransformersFromCDN(): Promise<any> {
     script.type = 'module';
     script.src = blobUrl;
 
-    // Timeout de seguridad
     const timeout = setTimeout(() => {
       URL.revokeObjectURL(blobUrl);
       reject(new Error('Timeout loading transformers from CDN'));
@@ -99,6 +100,24 @@ function loadTransformersFromCDN(): Promise<any> {
 }
 
 /**
+ * Config del procesador de imagen para RMBG-1.4
+ */
+function getProcessorConfig() {
+  return {
+    do_normalize: true,
+    do_pad: false,
+    do_rescale: true,
+    do_resize: true,
+    image_mean: [0.5, 0.5, 0.5],
+    image_std: [1, 1, 1],
+    resample: 2,
+    rescale_factor: 0.00392156862745098,
+    size: { width: 1024, height: 1024 },
+    feature_extractor_type: 'ImageFeatureExtractor',
+  };
+}
+
+/**
  * Precarga el modelo de background removal en segundo plano.
  */
 export function preloadBackgroundRemovalModel(): void {
@@ -116,25 +135,30 @@ export function preloadBackgroundRemovalModel(): void {
 
       // Cargar la librería desde CDN via Blob URL (bypass de Metro)
       const transformers = await loadTransformersFromCDN();
-      onProgress?.(20);
+      transformersModule = transformers;
+      onProgress?.(15);
 
-      // Crear pipeline de background removal
-      // Usamos 'background-removal' en vez de 'image-segmentation' porque
-      // el pipeline genérico no soporta SegformerForSemanticSegmentation.
-      // Este pipeline específico fue añadido en Transformers.js 3.4+.
-      transformersModule = await transformers.pipeline(
-        'background-removal',
-        'briaai/RMBG-1.4',
-        {
-          dtype: 'fp32',
-          progress_callback: (progress: { loaded: number; total: number }) => {
-            if (progress.total > 0) {
-              const pct = Math.min(90, 20 + Math.round((progress.loaded / progress.total) * 70));
-              onProgress?.(pct);
-            }
-          },
+      // Cargar modelo con AutoModel (bypasea pipeline type checking)
+      // model_type: "custom" le dice a Transformers.js que no valide la arquitectura
+      model = await transformers.AutoModel.from_pretrained('briaai/RMBG-1.4', {
+        config: { model_type: 'custom' },
+        progress_callback: (progress: { loaded: number; total: number }) => {
+          if (progress.total > 0) {
+            const pct = Math.min(50, 15 + Math.round((progress.loaded / progress.total) * 35));
+            onProgress?.(pct);
+          }
         },
+      });
+      onProgress?.(50);
+
+      // Cargar procesador con configuración explícita
+      // (no usa preprocessor_config.json del modelo porque el modelo
+      // tiene config_type custom no estándar)
+      processor = await transformers.AutoProcessor.from_pretrained(
+        'briaai/RMBG-1.4',
+        { config: getProcessorConfig() },
       );
+      onProgress?.(60);
 
       modelLoaded = true;
       loadError = null;
@@ -174,39 +198,40 @@ function base64ToImage(base64: string, mimeType: string = 'image/jpeg'): Promise
 }
 
 /**
- * Aplica la máscara de segmentación a la imagen original y devuelve
+ * Aplica la máscara alpha a la imagen original y devuelve
  * la imagen procesada como base64 PNG (con canal alfa).
  */
 function applyMaskToImage(
   img: HTMLImageElement,
-  maskData: Uint8ClampedArray,
+  maskData: Uint8Array,
   maskWidth: number,
   maskHeight: number,
 ): string {
   const canvas = document.createElement('canvas');
-  const scaleX = img.width / maskWidth;
-  const scaleY = img.height / maskHeight;
-
   canvas.width = img.width;
   canvas.height = img.height;
   const ctx = canvas.getContext('2d')!;
 
+  // Dibujar imagen original
   ctx.drawImage(img, 0, 0);
 
+  // Obtener pixels
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const pixels = imageData.data;
+
+  // Aplicar máscara: usar maskData como canal alfa
+  const scaleX = img.width / maskWidth;
+  const scaleY = img.height / maskHeight;
 
   for (let y = 0; y < img.height; y++) {
     for (let x = 0; x < img.width; x++) {
       const maskX = Math.round(x / scaleX);
       const maskY = Math.round(y / scaleY);
-      const maskIndex = maskY * maskWidth + maskX;
       const pixelIndex = (y * img.width + x) * 4;
+      const maskIndex = maskY * maskWidth + maskX;
 
-      const maskValue = maskData[maskIndex];
-      if (maskValue < 128) {
-        pixels[pixelIndex + 3] = 0;
-      }
+      // maskData tiene valores 0-255 (0 = fondo, 255 = foreground)
+      pixels[pixelIndex + 3] = maskData[maskIndex];
     }
   }
 
@@ -233,23 +258,23 @@ export async function removeBackground(
   }
 
   try {
+    // Cargar imagen como RawImage
     const img = await base64ToImage(base64, mimeType);
-    const result = await transformersModule(img);
+    const rawImage = await transformersModule.RawImage.fromURL(
+      `data:${mimeType};base64,${base64}`,
+    );
 
-    // El pipeline 'background-removal' devuelve un RawImage con
-    // el fondo ya removido (canal alfa). Lo convertimos a base64.
-    const canvas = document.createElement('canvas');
-    canvas.width = result.width;
-    canvas.height = result.height;
-    const ctx = canvas.getContext('2d')!;
-    // Si el resultado es RawImage (de Transformers.js), tiene toCanvas()
-    if (typeof result.toCanvas === 'function') {
-      ctx.drawImage(result.toCanvas(), 0, 0);
-    } else {
-      // Fallback: dibujar directamente (caso HTMLImageElement/HTMLCanvasElement)
-      ctx.drawImage(result, 0, 0);
-    }
-    const processedBase64 = canvas.toDataURL('image/png').split(',')[1];
+    // Preprocesar y ejecutar modelo (mismo approach que Xenova demo)
+    const { pixel_values } = await processor(rawImage);
+    const { output } = await model({ input: pixel_values });
+
+    // output[0] es un tensor 0-1 → convertir a uint8 mask
+    const maskTensor = output[0].mul(255).to('uint8');
+    const maskImage = await transformersModule.RawImage.fromTensor(maskTensor);
+    const resizedMask = await maskImage.resize(img.width, img.height);
+
+    // Aplicar máscara como canal alfa
+    const processedBase64 = applyMaskToImage(img, resizedMask.data, img.width, img.height);
 
     console.log('[BackgroundRemoval] Background removed successfully');
     return { base64: processedBase64, bgRemoved: true };
