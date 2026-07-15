@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing, Platform, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -18,6 +18,7 @@ import { useGarments } from '@/hooks/useGarments';
 import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
+import { parseLocalDate } from '@/utils/date';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
 import { useSmartSuggestions } from '@/hooks/useSmartSuggestions';
 import { tokenService } from '@/services/tokenService';
@@ -33,7 +34,7 @@ function HomeScreen() {
   const router = useRouter();
   const { profile, user, logout } = useAuth();
   const { garments } = useGarments(true);
-  const { outfits, isLoading, loadOutfits, createOutfit } = useOutfits(true, 3);
+  const { outfits, isLoading, loadOutfits, loadOutfitById, createOutfit } = useOutfits(true);
   const { t, locale } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
   const spinAnim = useRef(new Animated.Value(0)).current;
@@ -106,24 +107,44 @@ function HomeScreen() {
     for (const day of recentDayEntries) {
       if (!day.entry) continue;
       if (result.length >= 3) break;
-      const outfit = { ...day.entry.outfit };
-      // Si el backend no incluyó garments[], los inyectamos desde el store local
-      if (!outfit.garments?.length) {
-        const rawOutfit = day.entry.outfit as any;
-        const garmentIds: string[] = rawOutfit.garmentIds || [];
-        if (garmentIds.length > 0) {
-          const localGarments = garmentIds
-            .map((id: string) => garments.find((g) => g.id === id))
-            .filter((g): g is Garment => !!g);
-          if (localGarments.length > 0) {
-            outfit.garments = localGarments;
-          }
+      const calendarOutfit = day.entry.outfit;
+
+      // 1ra prioridad: el store de outfits ya tiene garments cargados
+      const storeOutfit = outfits.find((o) => o.id === calendarOutfit.id);
+      if (storeOutfit?.garments?.length) {
+        result.push(storeOutfit);
+        continue;
+      }
+
+      // 2da: el outfit del calendario ya trajo garments[] (backen deployado)
+      if (calendarOutfit.garments?.length) {
+        result.push(calendarOutfit);
+        continue;
+      }
+
+      // 3ra: buscar garmentIds desde el store (que sí los tiene) y hacer lookup local
+      const rawOutfit = calendarOutfit as any;
+      const garmentIds: string[] = (storeOutfit as any)?.garmentIds || rawOutfit.garmentIds || [];
+      if (garmentIds.length > 0) {
+        const localGarments = garmentIds
+          .map((id: string) => garments.find((g) => g.id === id))
+          .filter((g): g is Garment => !!g);
+        if (localGarments.length > 0) {
+          result.push({ ...calendarOutfit, garments: localGarments });
+          continue;
         }
       }
-      result.push(outfit);
+
+      // 4ta: mostrar el outfit igual (OutfitCard mostrará "Sin prendas")
+      result.push(calendarOutfit);
     }
     return result;
-  }, [recentDayEntries, garments]);
+  }, [recentDayEntries, outfits, garments]);
+
+  const { width: screenWidth } = useWindowDimensions();
+  const recentCardWidth = screenWidth < 600
+    ? (screenWidth - 60) / 2
+    : (screenWidth - 80) / 3;
 
   // Refrescar al volver al home (después de loguear un outfit, etc.)
   useFocusEffect(
@@ -716,22 +737,67 @@ function HomeScreen() {
         )}
 
         {/* Recently Used — Last 5 Days from Calendar */}
-        {recentOutfits.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                {t('home.recentlyUsed')}
-              </Text>
-            </View>
-            {recentOutfits.map((outfit) => (
-              <OutfitCard
-                key={outfit.id}
-                outfit={outfit}
-                onPress={() => router.push(`/outfits/${outfit.id}`)}
-              />
-            ))}
+        <View style={styles.section}>
+          <View style={styles.sectionHeader}>
+            <Text style={styles.sectionTitle}>
+              {t('home.recentlyUsed')}
+            </Text>
           </View>
-        )}
+          <View style={styles.recentDayGrid}>
+            {recentDayEntries.map((day) => {
+              const dayDate = parseLocalDate(day.date);
+              const dateParts = dayDate.toLocaleDateString(
+                locale === 'es' ? 'es-AR' : 'en-US',
+                { weekday: 'short', day: 'numeric', month: 'short' },
+              ).split(' ');
+              const weekday = dateParts[0]?.replace(',', '') || '';
+              const dayNum = dateParts[1] || '';
+              const month = dateParts[2]?.replace('.', '') || '';
+
+              if (day.entry) {
+                const outfit = recentOutfits.find((o) => o.id === day.entry!.outfit.id);
+                if (outfit) {
+                  return (
+                    <View key={day.date} style={[styles.recentCardWrapper, { width: recentCardWidth }]}>
+                      <OutfitCard
+                        outfit={outfit}
+                        onPress={() => router.push(`/outfits/${outfit.id}`)}
+                      />
+                    </View>
+                  );
+                }
+              }
+
+              // Empty day — placeholder
+              return (
+                <TouchableOpacity
+                  key={day.date}
+                  style={[styles.recentEmptyCard, { width: recentCardWidth }]}
+                  onPress={() => router.push(`/calendar/log-today?date=${day.date}`)}
+                  activeOpacity={0.95}
+                >
+                  <View style={styles.recentEmptyImage}>
+                    <Ionicons name="image-outline" size={28} color="#D1D5DB" />
+                  </View>
+                  <View style={styles.recentEmptyInfo}>
+                    <View style={styles.recentEmptyCTA}>
+                      <Ionicons name="add-circle-outline" size={14} color={COLORS.primary} />
+                      <Text style={styles.recentEmptyCTAText}>
+                        {t('home.logForDay')}
+                      </Text>
+                    </View>
+                    <View style={styles.recentEmptyDate}>
+                      <Ionicons name="calendar-outline" size={11} color="#9CA3AF" />
+                      <Text style={styles.recentEmptyDateText}>
+                        {`${weekday}, ${dayNum} ${month}`}
+                      </Text>
+                    </View>
+                  </View>
+                </TouchableOpacity>
+              );
+            })}
+          </View>
+        </View>
       </ScrollView>
 
       {/* Suggestion Detail Modal */}
@@ -1305,6 +1371,57 @@ const styles = StyleSheet.create({
   biometricBannerDismissText: {
     color: '#6B7280',
     fontSize: 13,
+  },
+
+  // Recently Used — Grid
+  recentDayGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  recentCardWrapper: {
+    marginBottom: 16,
+  },
+  recentEmptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  recentEmptyImage: {
+    height: 120,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recentEmptyInfo: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
+  },
+  recentEmptyCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  recentEmptyCTAText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+  recentEmptyDate: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  recentEmptyDateText: {
+    fontSize: 11,
+    color: '#9CA3AF',
   },
 
 });
