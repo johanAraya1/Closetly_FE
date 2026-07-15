@@ -22,6 +22,7 @@ import { parseLocalDate } from '@/utils/date';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
 import { useSmartSuggestions } from '@/hooks/useSmartSuggestions';
 import { tokenService } from '@/services/tokenService';
+import { preloadBackgroundRemovalModel } from '@/services/backgroundRemoval';
 import { withScreenErrorBoundary } from '@/components';
 import { useRecentCalendarEntries } from '@/hooks/useRecentCalendarEntries';
 
@@ -181,6 +182,15 @@ function HomeScreen() {
         // ignore — no hay soporte biométrico
       }
     })();
+  }, []);
+
+  // Precarga el modelo de background removal en segundo plano (solo web)
+  useEffect(() => {
+    // Pequeño delay para no competir con la carga inicial de la página
+    const timer = setTimeout(() => {
+      preloadBackgroundRemovalModel();
+    }, 2000);
+    return () => clearTimeout(timer);
   }, []);
 
   const dismissBiometricBanner = useCallback(() => {
