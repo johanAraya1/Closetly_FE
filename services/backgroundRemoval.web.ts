@@ -72,10 +72,12 @@ export function preloadBackgroundRemovalModel(): void {
     try {
       onProgress?.(10);
 
-      // Cargar Transformers.js desde esm.sh CDN — esm.sh resuelve los bare
-      // imports (onnxruntime-web/webgpu, onnxruntime-common, etc.) server-side
-      // y sirve un bundle ESM que el browser puede importar directamente.
-      const transformers = await import('https://esm.sh/@huggingface/transformers@4.2.0');
+      // jsDelivr +esm sirve el paquete como ESM plano con todas las
+      // dependencias resueltas (incluyendo onnxruntime-web/webgpu).
+      // Metro NO procesa esta URL — el browser la importa directamente.
+      const transformers = await import(
+        'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/+esm'
+      );
 
       onProgress?.(20);
 
