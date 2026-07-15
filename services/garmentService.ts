@@ -9,7 +9,7 @@ import { fetchWithTimeout } from '@/utils/fetchUtils';
 import { apiCache } from '@/utils/apiCache';
 import { sanitizeName, sanitizeBrand, sanitizeColor, sanitizeNotes, isInputSafe } from '@/utils/sanitize';
 import { Platform } from 'react-native';
-import { removeBackground, ensureModelLoaded, isModelLoaded } from './backgroundRemoval';
+import { removeBackground, isModelLoaded } from './backgroundRemoval';
 import type { 
   Garment, 
   CreateGarmentDTO, 
