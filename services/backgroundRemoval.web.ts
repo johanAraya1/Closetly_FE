@@ -9,6 +9,7 @@
  */
 
 import { Platform } from 'react-native';
+import { pipeline as hfPipeline } from '@huggingface/transformers/dist/transformers.web.js';
 
 // Estado del modelo
 let pipelineInstance: any = null;
@@ -69,10 +70,8 @@ export function preloadBackgroundRemovalModel(): void {
 
   loadPromise = (async () => {
     try {
-      const { pipeline } = await import('@huggingface/transformers');
       onProgress?.(10);
 
-      const hfPipeline = pipeline;
       pipelineInstance = await hfPipeline('image-segmentation', 'briaai/RMBG-1.4', {
         quantized: true,
         progress_callback: (progress: { loaded: number; total: number }) => {
