@@ -101,6 +101,15 @@ function HomeScreen() {
   // Últimos 5 días desde el calendario (outfits usados recientemente)
   const { dayEntries: recentDayEntries, isLoading: recentDaysLoading, refresh: refreshRecentDays } = useRecentCalendarEntries(5);
 
+  // Mapa: garmentId → imageUrl (para mostrar imágenes aunque el backend no incluya garments[])
+  const garmentImageMap = useMemo(() => {
+    const map = new Map<string, string>();
+    garments.forEach((g) => {
+      if (g.imageUrl) map.set(g.id, g.imageUrl);
+    });
+    return map;
+  }, [garments]);
+
   // Refrescar al volver al home (después de loguear un outfit, etc.)
   useFocusEffect(
     useCallback(() => {
@@ -722,8 +731,16 @@ function HomeScreen() {
 
                 if (day.entry) {
                   const outfit = day.entry.outfit;
-                  const heroImageUrl = outfit.garments?.[0]?.imageUrl || outfit.imageUrl;
-                  const extraCount = (outfit.garments?.length || 1) - 1;
+                  // Intentar imageUrl del garment en este orden:
+                  // 1. garments[] del backend (cuando esté deployado)
+                  // 2. lookup local por garmentIds (funciona ahora)
+                  // 3. imageUrl del outfit
+                  const firstGarmentId = (outfit as any).garmentIds?.[0];
+                  const heroImageUrl = outfit.garments?.[0]?.imageUrl
+                    || (firstGarmentId ? garmentImageMap.get(firstGarmentId) : undefined)
+                    || outfit.imageUrl;
+                  const totalGarments = outfit.garments?.length || (outfit as any).garmentIds?.length || 0;
+                  const extraCount = Math.max(0, totalGarments - 1);
                   return (
                     <TouchableOpacity
                       key={day.date}
