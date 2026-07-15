@@ -18,16 +18,37 @@ export const chatService = {
 
   /**
    * Obtiene mensajes paginados de una conversación
+   *
+   * ATENCIÓN: apiClient.request unwraplea result.data, entonces si el backend
+   * devuelve { data: [...], hasMore, total }, apiClient devuelve solo el array
+   * interno. Este método maneja ambos formatos para no perder los mensajes.
    */
   async getMessages(
     conversationId: string,
     page: number = 1,
     limit: number = 20
   ): Promise<{ data: Message[]; total: number; hasMore: boolean }> {
-    const res = await apiClient.get<{ data: Message[]; total: number; hasMore: boolean }>(
+    const res = await apiClient.get<any>(
       `/chat/conversations/${conversationId}/messages?page=${page}&limit=${limit}`
     );
-    return res.data || { data: [], total: 0, hasMore: false };
+
+    if (res.error) {
+      return { data: [], total: 0, hasMore: false };
+    }
+
+    const payload = res.data;
+
+    // Caso 1: apiClient unwrappeó → payload es el array directamente
+    if (Array.isArray(payload)) {
+      return { data: payload as Message[], total: payload.length, hasMore: false };
+    }
+
+    // Caso 2: payload ya viene en el formato { data: [...], hasMore, total }
+    if (payload && Array.isArray((payload as any).data)) {
+      return payload as { data: Message[]; total: number; hasMore: boolean };
+    }
+
+    return { data: [], total: 0, hasMore: false };
   },
 
   /**
