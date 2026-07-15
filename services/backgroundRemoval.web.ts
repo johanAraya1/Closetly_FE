@@ -10,6 +10,7 @@
  */
 
 import { Platform } from 'react-native';
+import { pipeline as hfPipeline } from '@huggingface/transformers/dist/transformers.min.js';
 
 // Estado del modelo
 let pipelineInstance: any = null;
@@ -72,14 +73,9 @@ export function preloadBackgroundRemovalModel(): void {
     try {
       onProgress?.(10);
 
-      // Cargar Transformers.js desde esm.sh CDN — esm.sh resuelve los bare
-      // imports (onnxruntime-web/webgpu, onnxruntime-common, etc.) server-side
-      // y sirve un bundle ESM que el browser puede importar directamente.
-      const transformers = await import('https://esm.sh/@huggingface/transformers@4.2.0');
-
-      onProgress?.(20);
-
-      pipelineInstance = await transformers.pipeline(
+      // transformers.min.js es un bundle self-contained sin imports externos
+      // Compatible con Metro (no tiene bare imports como onnxruntime-web/webgpu)
+      pipelineInstance = await hfPipeline(
         'image-segmentation',
         'briaai/RMBG-1.4',
         {
