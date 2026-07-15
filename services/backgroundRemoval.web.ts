@@ -118,12 +118,15 @@ export function preloadBackgroundRemovalModel(): void {
       const transformers = await loadTransformersFromCDN();
       onProgress?.(20);
 
-      // Crear pipeline de segmentación
+      // Crear pipeline de background removal
+      // Usamos 'background-removal' en vez de 'image-segmentation' porque
+      // el pipeline genérico no soporta SegformerForSemanticSegmentation.
+      // Este pipeline específico fue añadido en Transformers.js 3.4+.
       transformersModule = await transformers.pipeline(
-        'image-segmentation',
+        'background-removal',
         'briaai/RMBG-1.4',
         {
-          quantized: true,
+          dtype: 'fp32',
           progress_callback: (progress: { loaded: number; total: number }) => {
             if (progress.total > 0) {
               const pct = Math.min(90, 20 + Math.round((progress.loaded / progress.total) * 70));
@@ -231,15 +234,22 @@ export async function removeBackground(
 
   try {
     const img = await base64ToImage(base64, mimeType);
-    const results = await transformersModule(img);
+    const result = await transformersModule(img);
 
-    const result = Array.isArray(results) ? results[0] : results;
-    if (!result || !result.mask) {
-      return { base64, bgRemoved: false, error: 'No mask returned' };
+    // El pipeline 'background-removal' devuelve un RawImage con
+    // el fondo ya removido (canal alfa). Lo convertimos a base64.
+    const canvas = document.createElement('canvas');
+    canvas.width = result.width;
+    canvas.height = result.height;
+    const ctx = canvas.getContext('2d')!;
+    // Si el resultado es RawImage (de Transformers.js), tiene toCanvas()
+    if (typeof result.toCanvas === 'function') {
+      ctx.drawImage(result.toCanvas(), 0, 0);
+    } else {
+      // Fallback: dibujar directamente (caso HTMLImageElement/HTMLCanvasElement)
+      ctx.drawImage(result, 0, 0);
     }
-
-    const mask = result.mask as { data: Uint8ClampedArray; width: number; height: number };
-    const processedBase64 = applyMaskToImage(img, mask.data, mask.width, mask.height);
+    const processedBase64 = canvas.toDataURL('image/png').split(',')[1];
 
     console.log('[BackgroundRemoval] Background removed successfully');
     return { base64: processedBase64, bgRemoved: true };
