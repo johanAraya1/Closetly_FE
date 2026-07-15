@@ -12,13 +12,12 @@ import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Button, OutfitCard, Loading, EmptyState, SkeletonCard } from '@/components';
 import { SuggestionDetailModal } from '@/components/SuggestionDetailModal';
-import type { Garment, Suggestion } from '@/types';
+import type { Outfit, Garment, Suggestion } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
-import { parseLocalDate } from '@/utils/date';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
 import { useSmartSuggestions } from '@/hooks/useSmartSuggestions';
 import { tokenService } from '@/services/tokenService';
@@ -101,14 +100,30 @@ function HomeScreen() {
   // Últimos 5 días desde el calendario (outfits usados recientemente)
   const { dayEntries: recentDayEntries, isLoading: recentDaysLoading, refresh: refreshRecentDays } = useRecentCalendarEntries(5);
 
-  // Mapa: garmentId → imageUrl (para mostrar imágenes aunque el backend no incluya garments[])
-  const garmentImageMap = useMemo(() => {
-    const map = new Map<string, string>();
-    garments.forEach((g) => {
-      if (g.imageUrl) map.set(g.id, g.imageUrl);
-    });
-    return map;
-  }, [garments]);
+  // Outfits usados recientemente, con garments inyectados desde el store local
+  const recentOutfits = useMemo(() => {
+    const result: Outfit[] = [];
+    for (const day of recentDayEntries) {
+      if (!day.entry) continue;
+      if (result.length >= 3) break;
+      const outfit = { ...day.entry.outfit };
+      // Si el backend no incluyó garments[], los inyectamos desde el store local
+      if (!outfit.garments?.length) {
+        const rawOutfit = day.entry.outfit as any;
+        const garmentIds: string[] = rawOutfit.garmentIds || [];
+        if (garmentIds.length > 0) {
+          const localGarments = garmentIds
+            .map((id: string) => garments.find((g) => g.id === id))
+            .filter((g): g is Garment => !!g);
+          if (localGarments.length > 0) {
+            outfit.garments = localGarments;
+          }
+        }
+      }
+      result.push(outfit);
+    }
+    return result;
+  }, [recentDayEntries, garments]);
 
   // Refrescar al volver al home (después de loguear un outfit, etc.)
   useFocusEffect(
@@ -701,126 +716,22 @@ function HomeScreen() {
         )}
 
         {/* Recently Used — Last 5 Days from Calendar */}
-        <View style={styles.section}>
-          <View style={styles.sectionHeader}>
-            <Text style={styles.sectionTitle}>
-              {t('home.recentlyUsed')}
-            </Text>
+        {recentOutfits.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                {t('home.recentlyUsed')}
+              </Text>
+            </View>
+            {recentOutfits.map((outfit) => (
+              <OutfitCard
+                key={outfit.id}
+                outfit={outfit}
+                onPress={() => router.push(`/outfits/${outfit.id}`)}
+              />
+            ))}
           </View>
-          {recentDaysLoading ? (
-            <View style={styles.recentDayList}>
-              {[1, 2, 3, 4, 5].map((i) => (
-                <View key={i} style={styles.recentDayCard}>
-                  <View style={[styles.skeletonLine, { height: 14, width: '30%', marginBottom: 8 }]} />
-                  <View style={styles.rCardImageSkeleton} />
-                  <View style={[styles.skeletonLine, { height: 14, width: '50%', marginTop: 8 }]} />
-                </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.recentDayList}>
-              {recentDayEntries.map((day) => {
-                const dayDate = parseLocalDate(day.date);
-                const dateParts = dayDate.toLocaleDateString(
-                  locale === 'es' ? 'es-AR' : 'en-US',
-                  { weekday: 'short', day: 'numeric', month: 'short' },
-                ).split(' ');
-                const weekday = dateParts[0]?.replace(',', '') || '';
-                const dayNum = dateParts[1] || '';
-                const month = dateParts[2]?.replace('.', '') || '';
-
-                if (day.entry) {
-                  const outfit = day.entry.outfit;
-                  // Intentar imageUrl del garment en este orden:
-                  // 1. garments[] del backend (cuando esté deployado)
-                  // 2. lookup local por garmentIds (funciona ahora)
-                  // 3. imageUrl del outfit
-                  const firstGarmentId = (outfit as any).garmentIds?.[0];
-                  const heroImageUrl = outfit.garments?.[0]?.imageUrl
-                    || (firstGarmentId ? garmentImageMap.get(firstGarmentId) : undefined)
-                    || outfit.imageUrl;
-                  const totalGarments = outfit.garments?.length || (outfit as any).garmentIds?.length || 0;
-                  const extraCount = Math.max(0, totalGarments - 1);
-                  return (
-                    <TouchableOpacity
-                      key={day.date}
-                      style={styles.recentDayCard}
-                      onPress={() => router.push(`/outfits/${outfit.id}`)}
-                      activeOpacity={0.95}
-                    >
-                      {/* Hero image */}
-                      <View style={styles.rCardImageWrap}>
-                        {heroImageUrl ? (
-                          <>
-                            <Image
-                              source={{ uri: heroImageUrl }}
-                              style={styles.rCardImage}
-                              contentFit="cover"
-                              cachePolicy="memory-disk"
-                            />
-                            {extraCount > 0 && (
-                              <View style={styles.rCardBadge}>
-                                <Text style={styles.rCardBadgeText}>+{extraCount}</Text>
-                              </View>
-                            )}
-                          </>
-                        ) : (
-                          <View style={styles.rCardPlaceholder}>
-                            <Ionicons name="shirt-outline" size={28} color="#D1D5DB" />
-                          </View>
-                        )}
-                      </View>
-                      {/* Outfit name + date */}
-                      <View style={styles.rCardInfo}>
-                        <Text style={styles.rCardName} numberOfLines={1}>
-                          {outfit.name}
-                        </Text>
-                        <View style={styles.rCardDateRow}>
-                          <Ionicons name="calendar-outline" size={11} color="#9CA3AF" />
-                          <Text style={styles.rCardDateSmall}>
-                            {`${weekday}, ${dayNum} ${month}`}
-                          </Text>
-                        </View>
-                      </View>
-                    </TouchableOpacity>
-                  );
-                }
-
-                // Empty day — placeholder compacto + invitar a registrar
-                return (
-                  <TouchableOpacity
-                    key={day.date}
-                    style={styles.recentDayCard}
-                    onPress={() => router.push(`/calendar/log-today?date=${day.date}`)}
-                    activeOpacity={0.95}
-                  >
-                    {/* Placeholder image */}
-                    <View style={styles.rCardImageWrap}>
-                      <View style={[styles.rCardPlaceholder, { backgroundColor: '#F9FAFB' }]}>
-                        <Ionicons name="image-outline" size={28} color="#D1D5DB" />
-                      </View>
-                    </View>
-                    {/* CTA + date */}
-                    <View style={styles.rCardInfo}>
-                      <View style={styles.rCardEmptyButton}>
-                        <Ionicons name="add-circle-outline" size={14} color={COLORS.primary} />
-                        <Text style={styles.rCardEmptyButtonText}>
-                          {t('home.logForDay')}
-                        </Text>
-                      </View>
-                      <View style={styles.rCardDateRow}>
-                        <Ionicons name="calendar-outline" size={11} color="#9CA3AF" />
-                        <Text style={[styles.rCardDateSmall, { color: '#9CA3AF' }]}>
-                          {`${weekday}, ${dayNum} ${month}`}
-                        </Text>
-                      </View>
-                    </View>
-                  </TouchableOpacity>
-                );
-              })}
-            </View>
-          )}
-        </View>
+        )}
       </ScrollView>
 
       {/* Suggestion Detail Modal */}
@@ -1396,86 +1307,6 @@ const styles = StyleSheet.create({
     fontSize: 13,
   },
 
-  // Recently Used — Grid 2 columnas (compacto)
-  recentDayList: {
-    flexDirection: 'row',
-    flexWrap: 'wrap',
-    gap: 10,
-  },
-  recentDayCard: {
-    width: '48%',
-    backgroundColor: '#FFFFFF',
-    borderRadius: 12,
-    overflow: 'hidden',
-    shadowColor: '#000',
-    shadowOffset: { width: 0, height: 1 },
-    shadowOpacity: 0.08,
-    shadowRadius: 4,
-    elevation: 2,
-  },
-  rCardImageWrap: {
-    height: 120,
-    backgroundColor: '#F3F4F6',
-    position: 'relative',
-  },
-  rCardImage: {
-    width: '100%',
-    height: '100%',
-  },
-  rCardBadge: {
-    position: 'absolute',
-    top: 6,
-    right: 6,
-    backgroundColor: 'rgba(0,0,0,0.55)',
-    borderRadius: 10,
-    paddingHorizontal: 6,
-    paddingVertical: 2,
-  },
-  rCardBadgeText: {
-    fontSize: 11,
-    fontWeight: '700',
-    color: '#FFFFFF',
-  },
-  rCardPlaceholder: {
-    flex: 1,
-    backgroundColor: '#F3F4F6',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  rCardInfo: {
-    paddingHorizontal: 10,
-    paddingVertical: 8,
-    gap: 4,
-  },
-  rCardName: {
-    fontSize: 13,
-    fontWeight: '600',
-    color: '#111827',
-  },
-  rCardDateRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  rCardDateSmall: {
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
-  rCardEmptyButton: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  rCardEmptyButtonText: {
-    fontSize: 12,
-    fontWeight: '600',
-    color: COLORS.primary,
-  },
-  rCardImageSkeleton: {
-    height: 120,
-    backgroundColor: '#F3F4F6',
-    marginHorizontal: 0,
-  },
 });
 
 export default withScreenErrorBoundary(HomeScreen);
