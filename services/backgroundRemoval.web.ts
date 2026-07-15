@@ -1,15 +1,15 @@
 /**
- * Background Removal Service
- * Client-side background removal using Transformers.js (ONNX, browser only).
+ * Background Removal Service — Web
+ * Client-side background removal usando Transformers.js cargado desde CDN.
  * 
- * Precauciones:
- * - Solo funciona en web (Platform.OS === 'web'), no en React Native nativo.
- * - Usa WebGPU/WebGL/WASM para correr el modelo en el navegador.
- * - Sin costo de servidor, sin API keys, sin tarjetas de crédito.
+ * Cargamos la librería desde esm.sh para evitar que Metro intente compilar
+ * @huggingface/transformers y sus dependencias (onnxruntime-web).
+ * esm.sh resuelve los bare imports server-side y sirve un bundle ESM listo.
+ * 
+ * Sin costo de servidor, sin API keys, sin tarjetas de crédito.
  */
 
 import { Platform } from 'react-native';
-import { pipeline as hfPipeline } from '@huggingface/transformers/dist/transformers.web.js';
 
 // Estado del modelo
 let pipelineInstance: any = null;
@@ -72,15 +72,26 @@ export function preloadBackgroundRemovalModel(): void {
     try {
       onProgress?.(10);
 
-      pipelineInstance = await hfPipeline('image-segmentation', 'briaai/RMBG-1.4', {
-        quantized: true,
-        progress_callback: (progress: { loaded: number; total: number }) => {
-          if (progress.total > 0) {
-            const pct = Math.min(90, 10 + Math.round((progress.loaded / progress.total) * 80));
-            onProgress?.(pct);
-          }
+      // Cargar Transformers.js desde esm.sh CDN — esm.sh resuelve los bare
+      // imports (onnxruntime-web/webgpu, onnxruntime-common, etc.) server-side
+      // y sirve un bundle ESM que el browser puede importar directamente.
+      const transformers = await import('https://esm.sh/@huggingface/transformers@4.2.0');
+
+      onProgress?.(20);
+
+      pipelineInstance = await transformers.pipeline(
+        'image-segmentation',
+        'briaai/RMBG-1.4',
+        {
+          quantized: true,
+          progress_callback: (progress: { loaded: number; total: number }) => {
+            if (progress.total > 0) {
+              const pct = Math.min(90, 20 + Math.round((progress.loaded / progress.total) * 70));
+              onProgress?.(pct);
+            }
+          },
         },
-      });
+      );
 
       modelLoaded = true;
       loadError = null;
@@ -99,7 +110,6 @@ export function preloadBackgroundRemovalModel(): void {
 
 /**
  * Fuerza la carga del modelo y espera a que termine.
- * Útil si necesitás asegurarte de que esté listo antes de procesar.
  */
 export async function ensureModelLoaded(): Promise<boolean> {
   if (modelLoaded) return true;
