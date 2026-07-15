@@ -2,9 +2,8 @@
  * Background Removal Service — Web
  * Client-side background removal usando Transformers.js cargado desde CDN.
  * 
- * Cargamos la librería desde esm.sh para evitar que Metro intente compilar
- * @huggingface/transformers y sus dependencias (onnxruntime-web).
- * esm.sh resuelve los bare imports server-side y sirve un bundle ESM listo.
+ * Usamos un Blob URL para evitar que Metro intercepte el dynamic import().
+ * El script dentro del blob hace import() nativo del browser a la CDN.
  * 
  * Sin costo de servidor, sin API keys, sin tarjetas de crédito.
  */
@@ -12,7 +11,7 @@
 import { Platform } from 'react-native';
 
 // Estado del modelo
-let pipelineInstance: any = null;
+let transformersModule: any = null;
 let modelLoaded = false;
 let loadPromise: Promise<void> | null = null;
 let loadError: string | null = null;
@@ -52,36 +51,75 @@ export function getLoadError(): string | null {
 }
 
 /**
+ * Carga el módulo @huggingface/transformers desde CDN usando un Blob URL
+ * para evitar que Metro intercepte el dynamic import().
+ */
+function loadTransformersFromCDN(): Promise<any> {
+  return new Promise((resolve, reject) => {
+    // Creamos un Blob con el código que importa la librería desde CDN
+    // y la expone en window.__transformers__
+    const code = `
+      import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/+esm')
+        .then(mod => {
+          window.__transformers__ = mod;
+          window.dispatchEvent(new CustomEvent('__transformers_loaded'));
+        })
+        .catch(err => {
+          window.dispatchEvent(new CustomEvent('__transformers_error', { detail: err.message }));
+        });
+    `;
+
+    const blob = new Blob([code], { type: 'text/javascript' });
+    const blobUrl = URL.createObjectURL(blob);
+
+    const script = document.createElement('script');
+    script.type = 'module';
+    script.src = blobUrl;
+
+    // Timeout de seguridad
+    const timeout = setTimeout(() => {
+      URL.revokeObjectURL(blobUrl);
+      reject(new Error('Timeout loading transformers from CDN'));
+    }, 30000);
+
+    window.addEventListener('__transformers_loaded', () => {
+      clearTimeout(timeout);
+      URL.revokeObjectURL(blobUrl);
+      resolve(window.__transformers__);
+    }, { once: true });
+
+    window.addEventListener('__transformers_error', ((e: CustomEvent) => {
+      clearTimeout(timeout);
+      URL.revokeObjectURL(blobUrl);
+      reject(new Error(e.detail));
+    }) as EventListener, { once: true });
+
+    document.head.appendChild(script);
+  });
+}
+
+/**
  * Precarga el modelo de background removal en segundo plano.
- * Llamar esto temprano (apenas el usuario entra al home) para que esté
- * listo cuando necesite crear una prenda.
  */
 export function preloadBackgroundRemovalModel(): void {
-  // Solo en web
   if (Platform.OS !== 'web') {
     console.log('[BackgroundRemoval] Skipping preload: not on web platform');
     return;
   }
-
-  // Ya cargado o cargando
   if (modelLoaded || loadPromise) return;
 
   console.log('[BackgroundRemoval] Starting model preload...');
 
   loadPromise = (async () => {
     try {
-      onProgress?.(10);
+      onProgress?.(5);
 
-      // jsDelivr +esm sirve el paquete como ESM plano con todas las
-      // dependencias resueltas (incluyendo onnxruntime-web/webgpu).
-      // Metro NO procesa esta URL — el browser la importa directamente.
-      const transformers = await import(
-        'https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/+esm'
-      );
-
+      // Cargar la librería desde CDN via Blob URL (bypass de Metro)
+      const transformers = await loadTransformersFromCDN();
       onProgress?.(20);
 
-      pipelineInstance = await transformers.pipeline(
+      // Crear pipeline de segmentación
+      transformersModule = await transformers.pipeline(
         'image-segmentation',
         'briaai/RMBG-1.4',
         {
@@ -102,7 +140,7 @@ export function preloadBackgroundRemovalModel(): void {
     } catch (error) {
       const msg = error instanceof Error ? error.message : String(error);
       loadError = msg;
-      loadPromise = null; // permitir reintentar
+      loadPromise = null;
       modelLoaded = false;
       onProgress?.(0);
       console.error('[BackgroundRemoval] Failed to load model:', msg);
@@ -116,9 +154,7 @@ export function preloadBackgroundRemovalModel(): void {
 export async function ensureModelLoaded(): Promise<boolean> {
   if (modelLoaded) return true;
   if (!loadPromise) preloadBackgroundRemovalModel();
-  if (loadPromise) {
-    await loadPromise;
-  }
+  if (loadPromise) await loadPromise;
   return modelLoaded;
 }
 
@@ -152,14 +188,11 @@ function applyMaskToImage(
   canvas.height = img.height;
   const ctx = canvas.getContext('2d')!;
 
-  // Dibujar imagen original
   ctx.drawImage(img, 0, 0);
 
-  // Obtener datos de píxeles
   const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
   const pixels = imageData.data;
 
-  // Aplicar máscara escalando al tamaño de la imagen original
   for (let y = 0; y < img.height; y++) {
     for (let x = 0; x < img.width; x++) {
       const maskX = Math.round(x / scaleX);
@@ -167,69 +200,52 @@ function applyMaskToImage(
       const maskIndex = maskY * maskWidth + maskX;
       const pixelIndex = (y * img.width + x) * 4;
 
-      // La máscara de RMBG-1.4 es binaria/normalizada 0-255
-      // Valores altos = foreground, bajos = background
       const maskValue = maskData[maskIndex];
       if (maskValue < 128) {
-        // Background: transparente
         pixels[pixelIndex + 3] = 0;
       }
     }
   }
 
   ctx.putImageData(imageData, 0, 0);
-
-  // Exportar como PNG (con transparencia) y extraer solo base64
   return canvas.toDataURL('image/png').split(',')[1];
 }
 
 /**
  * Elimina el fondo de una imagen base64.
- * 
- * @param base64 - Imagen en base64 (sin prefijo data:)
- * @param mimeType - Tipo MIME original (image/jpeg, image/png, etc.)
- * @returns Imagen procesada en base64, o la original si falla
  */
 export async function removeBackground(
   base64: string,
   mimeType: string = 'image/jpeg',
 ): Promise<{ base64: string; bgRemoved: boolean; error?: string }> {
-  // Solo en web
   if (Platform.OS !== 'web') {
-    return { base64, bgRemoved: false, error: 'Client-side background removal only works on web' };
+    return { base64, bgRemoved: false, error: 'Only works on web' };
   }
 
-  // Asegurar que el modelo esté cargado
   if (!modelLoaded) {
     const loaded = await ensureModelLoaded();
     if (!loaded) {
-      return { base64, bgRemoved: false, error: `Model not available: ${loadError || 'unknown error'}` };
+      return { base64, bgRemoved: false, error: `Model not available: ${loadError || 'unknown'}` };
     }
   }
 
   try {
-    // Cargar la imagen en el navegador
     const img = await base64ToImage(base64, mimeType);
+    const results = await transformersModule(img);
 
-    // Ejecutar segmentación
-    const results = await pipelineInstance(img);
-
-    // Buscar el resultado foreground (primer mask válido)
     const result = Array.isArray(results) ? results[0] : results;
     if (!result || !result.mask) {
-      return { base64, bgRemoved: false, error: 'No mask returned from model' };
+      return { base64, bgRemoved: false, error: 'No mask returned' };
     }
 
     const mask = result.mask as { data: Uint8ClampedArray; width: number; height: number };
-
-    // Aplicar máscara
     const processedBase64 = applyMaskToImage(img, mask.data, mask.width, mask.height);
 
     console.log('[BackgroundRemoval] Background removed successfully');
     return { base64: processedBase64, bgRemoved: true };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
-    console.error('[BackgroundRemoval] Error removing background:', msg);
+    console.error('[BackgroundRemoval] Error:', msg);
     return { base64, bgRemoved: false, error: msg };
   }
 }
