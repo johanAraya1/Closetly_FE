@@ -7,13 +7,49 @@
 import { apiClient } from '@/utils/apiClient';
 import type { Conversation, Message, CreateConversationDTO } from '@/types';
 
+/**
+ * Normaliza una conversación de API (snake_case) a camelCase.
+ * Misma lógica que normalizeGarment en garmentService.
+ */
+function normalizeConversation(raw: any): Conversation {
+  const otherRaw = raw.otherParticipant || raw.other_participant;
+  const otherParticipant = otherRaw
+    ? {
+        userId: otherRaw.userId || otherRaw.user_id || '',
+        username: otherRaw.username || otherRaw.display_name,
+        avatarUrl: otherRaw.avatarUrl || otherRaw.avatar_url,
+      }
+    : { userId: '', username: `user_unknown` };
+
+  const lastMsgRaw = raw.lastMessage || raw.last_message;
+  const lastMessage = lastMsgRaw
+    ? {
+        content: lastMsgRaw.content || '',
+        createdAt: lastMsgRaw.createdAt || lastMsgRaw.created_at || '',
+        senderId: lastMsgRaw.senderId || lastMsgRaw.sender_id || '',
+      }
+    : undefined;
+
+  return {
+    id: raw.id || '',
+    listingType: raw.listingType || raw.listing_type || '',
+    listingGarmentId: raw.listingGarmentId || raw.listing_garment_id || '',
+    listingTitle: raw.listingTitle || raw.listing_title || '',
+    otherParticipant,
+    lastMessage,
+    unreadCount: raw.unreadCount ?? raw.unread_count ?? 0,
+    createdAt: raw.createdAt || raw.created_at || '',
+    updatedAt: raw.updatedAt || raw.updated_at || '',
+  };
+}
+
 export const chatService = {
   /**
    * Obtiene todas las conversaciones del usuario autenticado
    */
   async getConversations(): Promise<Conversation[]> {
-    const res = await apiClient.get<Conversation[]>('/chat/conversations');
-    return res.data || [];
+    const res = await apiClient.get<any[]>('/chat/conversations');
+    return (res.data || []).map(normalizeConversation);
   },
 
   /**
@@ -55,9 +91,9 @@ export const chatService = {
    * Crea una nueva conversación con un vendedor
    */
   async createConversation(dto: CreateConversationDTO): Promise<Conversation> {
-    const res = await apiClient.post<Conversation>('/chat/conversations', dto);
+    const res = await apiClient.post<any>('/chat/conversations', dto);
     if (!res.data) throw new Error(res.error || 'No se pudo crear la conversación');
-    return res.data;
+    return normalizeConversation(res.data);
   },
 
   /**

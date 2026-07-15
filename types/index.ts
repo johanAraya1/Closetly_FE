@@ -100,6 +100,7 @@ export interface CreateGarmentDTO {
   imageUrl: string;
   imageUrls?: string[];
   imageBackUrl?: string; // URL/URI for the second image (back view)
+  imageBase64?: string;  // Pre-processed base64 (bg removal already applied)
   notes?: string;
   isPublic?: boolean;
   listingType?: ListingType;

@@ -50,7 +50,7 @@ function garmentsCacheKey(userId: string, limit?: number, offset?: number): stri
 /**
  * Convierte una URI de imagen a base64 string (web only).
  */
-async function uriToBase64(uri: string): Promise<string> {
+export async function uriToBase64(uri: string): Promise<string> {
   if (uri.startsWith('data:')) {
     const base64Match = uri.match(/^data:image\/\w+;base64,(.+)$/);
     if (base64Match) return base64Match[1];
@@ -190,25 +190,35 @@ export const createGarment = async (
     
     // On web, send JSON with base64 image to avoid Multer issues on Vercel serverless
     if (Platform.OS === 'web') {
-      const firstImage = garmentData.imageUrl || (garmentData as any).image_url || '';
-      if (firstImage) {
-        let base64 = await uriToBase64(firstImage);
+      let base64 = garmentData.imageBase64; // Pre-processed from early bg removal
 
-        // Background removal client-side (si el modelo ya está cargado)
-        if (isModelLoaded()) {
-          const result = await removeBackground(base64, 'image/jpeg');
-          if (result.bgRemoved) {
-            console.log('[GarmentService] Background removal applied client-side');
-            bodyFields._bgRemovedClient = true;
-            base64 = result.base64;
+      if (base64) {
+        // Ya viene pre-procesado desde create.tsx (bg removal ejecutado en paralelo)
+        console.log('[GarmentService] Using pre-processed image base64 from early bg removal');
+        bodyFields._bgRemovedClient = true;
+      } else {
+        const firstImage = garmentData.imageUrl || (garmentData as any).image_url || '';
+        if (firstImage) {
+          base64 = await uriToBase64(firstImage);
+
+          // Background removal client-side (si el modelo ya está cargado)
+          if (isModelLoaded()) {
+            const result = await removeBackground(base64, 'image/jpeg');
+            if (result.bgRemoved) {
+              console.log('[GarmentService] Background removal applied client-side');
+              bodyFields._bgRemovedClient = true;
+              base64 = result.base64;
+            } else {
+              console.warn('[GarmentService] Client-side bg removal failed, sending original:', result.error);
+            }
           } else {
-            console.warn('[GarmentService] Client-side bg removal failed, sending original:', result.error);
+            // Si no está cargado, intentamos cargarlo rápido sin esperar mucho
+            console.log('[GarmentService] Background removal model not ready, sending original image');
           }
-        } else {
-          // Si no está cargado, intentamos cargarlo rápido sin esperar mucho
-          console.log('[GarmentService] Background removal model not ready, sending original image');
         }
+      }
 
+      if (base64) {
         bodyFields.imageBase64 = base64;
       }
       if (garmentData.imageBackUrl) {

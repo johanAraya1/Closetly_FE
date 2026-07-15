@@ -3,8 +3,8 @@
  * Pantalla para crear una nueva prenda
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,7 +12,8 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, Modal, GarmentVisibilityForm, DuplicateWarningModal } from '@/components';
 import { ColorPicker } from '@/components/ColorPicker';
 import { normalizeColorString } from '@/utils/format';
-import { checkDuplicate } from '@/services/garmentService';
+import { checkDuplicate, uriToBase64 } from '@/services/garmentService';
+import { removeBackground } from '@/services/backgroundRemoval';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useImagePicker } from '@/hooks/useImagePicker';
@@ -65,6 +66,11 @@ export default function CreateGarmentScreen() {
   const [aiDetected, setAiDetected] = useState(false);
   const { showTip, dismissTip, tipVisible, tipTitle, tipMessage, tipType } = usePhotoTip();
 
+  // Parallel background removal state
+  const [bgProcessedBase64, setBgProcessedBase64] = useState<string | null>(null);
+  const [isBgRemoving, setIsBgRemoving] = useState(false);
+  const bgProcessingUri = useRef<string | null>(null);
+
   // Duplicate detection state
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateGarment, setDuplicateGarment] = useState<Garment | null>(null);
@@ -107,9 +113,11 @@ export default function CreateGarmentScreen() {
   }, [id]);
 
   // Analizar imagen automáticamente cuando cambia imageUri
+  // y arrancar background removal en paralelo
   useEffect(() => {
     if (imageUri && imageUri !== lastAnalyzedUri && !isAnalyzing && !isEditMode) {
       handleImageAnalysis();
+      startBackgroundRemoval(imageUri);
     }
   }, [imageUri]);
 
@@ -153,6 +161,42 @@ export default function CreateGarmentScreen() {
       }
     }
   };
+
+  // Background removal en paralelo con el análisis de IA
+  const startBackgroundRemoval = useCallback(async (uri: string) => {
+    if (Platform.OS !== 'web') return;
+
+    // Marcar esta URI como la que estamos procesando
+    bgProcessingUri.current = uri;
+    setIsBgRemoving(true);
+    setBgProcessedBase64(null);
+
+    try {
+      // Convertir URI a base64
+      let base64 = await uriToBase64(uri);
+      if (bgProcessingUri.current !== uri) return; // Stale, cancelar
+
+      // Ejecutar background removal
+      const result = await removeBackground(base64, 'image/jpeg');
+      if (bgProcessingUri.current !== uri) return; // Stale, cancelar
+
+      if (result.bgRemoved) {
+        console.log('[Create] Background removal completed in parallel');
+        setBgProcessedBase64(result.base64);
+      } else {
+        console.warn('[Create] Early bg removal failed:', result.error);
+        // No es crítico — el service lo reintentará al guardar o usará la original
+      }
+    } catch (error) {
+      if (bgProcessingUri.current === uri) {
+        console.warn('[Create] Early bg removal error:', error);
+      }
+    } finally {
+      if (bgProcessingUri.current === uri) {
+        setIsBgRemoving(false);
+      }
+    }
+  }, []);
 
   const validate = useCallback(() => {
     const newErrors: { 
@@ -272,6 +316,9 @@ export default function CreateGarmentScreen() {
         resetImage();
         setLastAnalyzedUri(null);
         setAiDetected(false);
+        setBgProcessedBase64(null);
+        setIsBgRemoving(false);
+        bgProcessingUri.current = null;
       } else {
         setExtraImageUris(prev => prev.filter((_, i) => i !== index - 1));
       }
@@ -325,6 +372,7 @@ export default function CreateGarmentScreen() {
             style: selectedStyles.length > 0 ? selectedStyles : undefined,
             imageUrl: imageUrl || '',
             imageBackUrl: firstExtra,
+            imageBase64: bgProcessedBase64 || undefined, // Pasar si ya se procesó en paralelo
             notes: notes.trim() || undefined,
             isPublic,
             ...(isPublic && listingType ? { listingType } : {}),
@@ -723,6 +771,9 @@ export default function CreateGarmentScreen() {
               setExtraEditImageUris([]);
               setLastAnalyzedUri(null);
               setAiDetected(false);
+              setBgProcessedBase64(null);
+              setIsBgRemoving(false);
+              bgProcessingUri.current = null;
               resetImage();
               setIsFormEnabled(false);
               setErrors({});

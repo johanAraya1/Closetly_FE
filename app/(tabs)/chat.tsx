@@ -57,9 +57,12 @@ function ChatListScreen() {
   const renderItem = useCallback(
     ({ item }: { item: Conversation }) => {
       const hasUnread = (item.unreadCount || 0) > 0;
+      const participant = item.otherParticipant;
       const username =
-        item.otherParticipant.username ||
-        `user_${item.otherParticipant.userId.slice(0, 6)}`;
+        participant?.username ||
+        (participant?.userId
+          ? `user_${participant.userId.slice(0, 6)}`
+          : 'Usuario');
       const lastMessagePreview = item.lastMessage?.content
         ? item.lastMessage.content.length > 60
           ? item.lastMessage.content.slice(0, 60) + '...'
