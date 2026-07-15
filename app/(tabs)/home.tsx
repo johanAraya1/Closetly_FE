@@ -99,7 +99,7 @@ function HomeScreen() {
   const allStepsDone = useMemo(() => checklistSteps.every((s) => s.done), [checklistSteps]);
 
   // Últimos 5 días desde el calendario (outfits usados recientemente)
-  const { dayEntries: recentDayEntries, isLoading: recentDaysLoading, refresh: refreshRecentDays } = useRecentCalendarEntries(5);
+  const { dayEntries: recentDayEntries, isLoading: recentDaysLoading, refresh: refreshRecentDays } = useRecentCalendarEntries(6);
 
   // Outfits usados recientemente, con garments inyectados desde el store local
   const recentOutfits = useMemo(() => {
@@ -754,11 +754,18 @@ function HomeScreen() {
               const dayNum = dateParts[1] || '';
               const month = dateParts[2]?.replace('.', '') || '';
 
+              // Date label compartido
+              const dateLabel = `${weekday}, ${dayNum} ${month}`;
+
               if (day.entry) {
                 const outfit = recentOutfits.find((o) => o.id === day.entry!.outfit.id);
                 if (outfit) {
                   return (
                     <View key={day.date} style={[styles.recentCardWrapper, { width: recentCardWidth }]}>
+                      <View style={styles.recentDateLabel}>
+                        <Ionicons name="calendar-outline" size={12} color="#6B7280" />
+                        <Text style={styles.recentDateText}>{dateLabel}</Text>
+                      </View>
                       <OutfitCard
                         outfit={outfit}
                         onPress={() => router.push(`/outfits/${outfit.id}`)}
@@ -770,30 +777,29 @@ function HomeScreen() {
 
               // Empty day — placeholder
               return (
-                <TouchableOpacity
-                  key={day.date}
-                  style={[styles.recentEmptyCard, { width: recentCardWidth }]}
-                  onPress={() => router.push(`/calendar/log-today?date=${day.date}`)}
-                  activeOpacity={0.95}
-                >
-                  <View style={styles.recentEmptyImage}>
-                    <Ionicons name="image-outline" size={28} color="#D1D5DB" />
+                <View key={day.date} style={[styles.recentCardWrapper, { width: recentCardWidth }]}>
+                  <View style={styles.recentDateLabel}>
+                    <Ionicons name="calendar-outline" size={12} color="#6B7280" />
+                    <Text style={styles.recentDateText}>{dateLabel}</Text>
                   </View>
-                  <View style={styles.recentEmptyInfo}>
-                    <View style={styles.recentEmptyCTA}>
-                      <Ionicons name="add-circle-outline" size={14} color={COLORS.primary} />
-                      <Text style={styles.recentEmptyCTAText}>
-                        {t('home.logForDay')}
-                      </Text>
+                  <TouchableOpacity
+                    style={styles.recentEmptyCard}
+                    onPress={() => router.push(`/calendar/log-today?date=${day.date}`)}
+                    activeOpacity={0.95}
+                  >
+                    <View style={styles.recentEmptyImage}>
+                      <Ionicons name="image-outline" size={28} color="#D1D5DB" />
                     </View>
-                    <View style={styles.recentEmptyDate}>
-                      <Ionicons name="calendar-outline" size={11} color="#9CA3AF" />
-                      <Text style={styles.recentEmptyDateText}>
-                        {`${weekday}, ${dayNum} ${month}`}
-                      </Text>
+                    <View style={styles.recentEmptyInfo}>
+                      <View style={styles.recentEmptyCTA}>
+                        <Ionicons name="add-circle-outline" size={14} color={COLORS.primary} />
+                        <Text style={styles.recentEmptyCTAText}>
+                          {t('home.logForDay')}
+                        </Text>
+                      </View>
                     </View>
-                  </View>
-                </TouchableOpacity>
+                  </TouchableOpacity>
+                </View>
               );
             })}
           </View>
@@ -1382,6 +1388,19 @@ const styles = StyleSheet.create({
   recentCardWrapper: {
     marginBottom: 16,
   },
+  recentDateLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+    paddingLeft: 2,
+  },
+  recentDateText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    textTransform: 'capitalize',
+  },
   recentEmptyCard: {
     backgroundColor: '#FFFFFF',
     borderRadius: 12,
@@ -1414,15 +1433,7 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     color: COLORS.primary,
   },
-  recentEmptyDate: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
-  },
-  recentEmptyDateText: {
-    fontSize: 11,
-    color: '#9CA3AF',
-  },
+
 
 });
 
