@@ -38,13 +38,14 @@ const MOCK_DUPLICATE_RESPONSE_LOW_CONFIDENCE = {
 
 test.describe('Duplicate Detection', () => {
   test.beforeEach(async ({ page }) => {
-    await injectSession(page);
-    await page.goto('/garments/create');
-    await page.waitForLoadState('networkidle');
-
+    // ⚠️ addInitScript BEFORE any navigation — it runs on every page load
     await page.addInitScript(() => {
       (window as any).__E2E_TEST__ = true;
     });
+
+    await injectSession(page);
+    await page.goto('/garments/create');
+    await page.waitForLoadState('networkidle');
 
     // Mock AI analysis to enable the form without auto-filling
     await mockAIAnalysisApi(page);
