@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Switch } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Switch, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -16,6 +16,8 @@ import { useOutfits } from '@/hooks/useOutfits';
 import { useCollections } from '@/hooks/useCollections';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
+import { pickImageFromGallery, takePhoto } from '@/utils/imageUtils';
+import * as profileService from '@/services/profileService';
 
 function ProfileScreen() {
   const router = useRouter();
@@ -35,6 +37,7 @@ function ProfileScreen() {
   const originalFullName = useRef('');
   const originalBio = useRef('');
   const originalIsPublic = useRef(false);
+  const [isUploadingAvatar, setIsUploadingAvatar] = useState(false);
 
   const displayName = useMemo(() => {
     const name =
@@ -104,6 +107,48 @@ function ProfileScreen() {
     });
   };
 
+  const handlePickAvatar = async () => {
+    if (!user) return;
+
+    Alert.alert(
+      t('profile.changePhoto'),
+      '',
+      [
+        { text: t('common.cancel'), style: 'cancel' },
+        { text: t('common.takePhoto'), onPress: async () => {
+          const uri = await takePhoto({ crop: false });
+          if (uri) await uploadAvatar(uri);
+        }},
+        { text: t('common.chooseFromGallery'), onPress: async () => {
+          const uri = await pickImageFromGallery({ crop: false });
+          if (uri) await uploadAvatar(uri);
+        }},
+      ]
+    );
+  };
+
+  const uploadAvatar = async (uri: string) => {
+    if (!user) return;
+    setIsUploadingAvatar(true);
+    try {
+      const { data: url, error } = await profileService.uploadAvatar(user.id, uri);
+      if (url) {
+        const success = await updateProfile({ avatar_url: url });
+        if (success) {
+          setFeedback({ type: 'success', message: t('profile.photoUpdated') });
+        } else {
+          setFeedback({ type: 'error', message: t('profile.photoError') });
+        }
+      } else if (error) {
+        setFeedback({ type: 'error', message: error });
+      }
+    } catch {
+      setFeedback({ type: 'error', message: t('profile.photoError') });
+    } finally {
+      setIsUploadingAvatar(false);
+    }
+  };
+
   return (
     <SafeAreaView style={styles.container}>
       {feedback && (
@@ -125,18 +170,38 @@ function ProfileScreen() {
         {/* Header */}
         <View style={styles.header}>
           <View style={styles.avatarContainer}>
-            {profile?.avatar_url ? (
-              <Image
-                source={{ uri: profile.avatar_url }}
-                style={styles.avatar}
-                contentFit="cover"
-                cachePolicy="memory-disk"
-              />
-            ) : (
-              <View style={styles.avatarPlaceholder}>
-                <Ionicons name="shirt-outline" size={44} color="#FFFFFF" />
-              </View>
-            )}
+            <TouchableOpacity onPress={handlePickAvatar} disabled={isUploadingAvatar}>
+              {profile?.avatar_url ? (
+                <View>
+                  <Image
+                    source={{ uri: profile.avatar_url }}
+                    style={styles.avatar}
+                    contentFit="cover"
+                    cachePolicy="memory-disk"
+                  />
+                  <View style={styles.avatarOverlay}>
+                    {isUploadingAvatar ? (
+                      <ActivityIndicator color="#FFFFFF" size="small" />
+                    ) : (
+                      <Ionicons name="camera" size={22} color="#FFFFFF" />
+                    )}
+                  </View>
+                </View>
+              ) : (
+                <View style={styles.avatarPlaceholder}>
+                  {isUploadingAvatar ? (
+                    <ActivityIndicator color="#FFFFFF" size="small" />
+                  ) : (
+                    <>
+                      <Ionicons name="shirt-outline" size={44} color="#FFFFFF" />
+                      <View style={styles.avatarOverlay}>
+                        <Ionicons name="camera" size={22} color="#FFFFFF" />
+                      </View>
+                    </>
+                  )}
+                </View>
+              )}
+            </TouchableOpacity>
           </View>
           <Text style={styles.username}>
             {displayName}
@@ -334,6 +399,19 @@ const styles = StyleSheet.create({
     backgroundColor: '#62D9C7',
     alignItems: 'center',
     justifyContent: 'center',
+  },
+  avatarOverlay: {
+    position: 'absolute',
+    bottom: 0,
+    right: 0,
+    backgroundColor: 'rgba(0,0,0,0.5)',
+    width: 32,
+    height: 32,
+    borderRadius: 16,
+    alignItems: 'center',
+    justifyContent: 'center',
+    borderWidth: 2,
+    borderColor: '#FFFFFF',
   },
   avatar: {
     width: 96,

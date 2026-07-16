@@ -539,6 +539,9 @@ const i18n = new I18n({
       about: 'About',
       privacy: 'Privacy Policy',
       terms: 'Terms of Service',
+      changePhoto: 'Change Photo',
+      photoUpdated: 'Photo updated successfully',
+      photoError: 'Could not update photo',
     },
     settings: {
       title: 'Settings',
@@ -1168,6 +1171,9 @@ const i18n = new I18n({
       about: 'Acerca de',
       privacy: 'Política de Privacidad',
       terms: 'Términos de Servicio',
+      changePhoto: 'Cambiar foto',
+      photoUpdated: 'Foto actualizada correctamente',
+      photoError: 'No se pudo actualizar la foto',
     },
     settings: {
       title: 'Configuración',
