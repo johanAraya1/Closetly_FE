@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform, Animated, Easing } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -71,6 +71,49 @@ export default function CreateGarmentScreen() {
   const [bgProcessedBase64, setBgProcessedBase64] = useState<string | null>(null);
   const [isBgRemoving, setIsBgRemoving] = useState(false);
   const bgProcessingUri = useRef<string | null>(null);
+
+  // Animation for bg removal overlay
+  const scanAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isBgRemoving || isEditMode) return;
+
+    const scanLoop = Animated.loop(
+      Animated.timing(scanAnim, {
+        toValue: 1,
+        duration: 2500,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.ease,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.2,
+          duration: 800,
+          easing: Easing.ease,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    scanLoop.start();
+    pulseLoop.start();
+
+    return () => {
+      scanLoop.stop();
+      pulseLoop.stop();
+      scanAnim.setValue(0);
+      pulseAnim.setValue(0.2);
+    };
+  }, [isBgRemoving, isEditMode]);
 
   // Duplicate detection state
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
@@ -528,6 +571,42 @@ export default function CreateGarmentScreen() {
                   >
                     <Ionicons name="close-circle" size={22} color="#EF4444" />
                   </TouchableOpacity>
+
+                  {/* Background removal animation overlay */}
+                  {isBgRemoving && !isEditMode && (
+                    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                      {/* Dim overlay */}
+                      <View style={styles.bgOverlayDim} />
+                      {/* Scan line */}
+                      <Animated.View
+                        style={[
+                          styles.bgScanLine,
+                          {
+                            transform: [
+                              {
+                                translateY: scanAnim.interpolate({
+                                  inputRange: [0, 1],
+                                  outputRange: [-30, 286],
+                                }),
+                              },
+                            ],
+                          },
+                        ]}
+                      />
+                      {/* Center content */}
+                      <Animated.View
+                        style={[
+                          styles.bgOverlayCenter,
+                          { opacity: pulseAnim },
+                        ]}
+                      >
+                        <Ionicons name="sparkles" size={28} color="#FFFFFF" />
+                        <Text style={styles.bgOverlayText}>
+                          {t('garments.create.bgRemoving')}
+                        </Text>
+                      </Animated.View>
+                    </View>
+                  )}
                 </View>
                 {/* Side panel: extra thumbs + add button */}
                 <View style={styles.imageSidePanel}>
@@ -752,7 +831,6 @@ export default function CreateGarmentScreen() {
                 />
                 {isBgRemoving && !isEditMode && (
                   <View style={styles.bgRemovingHint}>
-                    <ActivityIndicator size="small" color={COLORS.primary} />
                     <Text style={styles.bgRemovingText}>{t('garments.create.bgRemoving')}</Text>
                   </View>
                 )}
@@ -1106,6 +1184,37 @@ const styles = StyleSheet.create({
     fontSize: 13,
     color: COLORS.primary,
     fontWeight: '500',
+  },
+  bgOverlayDim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 12,
+  },
+  bgScanLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(98, 217, 199, 0.8)',
+    shadowColor: '#62D9C7',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  bgOverlayCenter: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bgOverlayText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
   },
   infoMessage: {
     flexDirection: 'row',
