@@ -38,6 +38,11 @@ const MOCK_DUPLICATE_RESPONSE_LOW_CONFIDENCE = {
 
 test.describe('Duplicate Detection', () => {
   test.beforeEach(async ({ page }) => {
+    // ⚠️ addInitScript BEFORE any navigation — it runs on every page load
+    await page.addInitScript(() => {
+      (window as any).__E2E_TEST__ = true;
+    });
+
     await injectSession(page);
     await page.goto('/garments/create');
     await page.waitForLoadState('networkidle');
@@ -112,6 +117,8 @@ test.describe('Duplicate Detection', () => {
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
     // Click the "Azul" swatch in the ColorPicker
     await page.getByText('Azul').first().click();
+    // Select a style chip
+    await page.getByText('Casual').first().click();
 
     // Submit the form
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
@@ -159,6 +166,8 @@ test.describe('Duplicate Detection', () => {
     await page.getByPlaceholder(/Blue Denim|Chaqueta/i).fill('My Test Garment');
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
     await page.getByText('Azul').first().click();
+    // Select a style chip
+    await page.getByText('Casual').first().click();
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
 
     // Wait for modal to appear
@@ -222,6 +231,8 @@ test.describe('Duplicate Detection', () => {
     await page.getByPlaceholder(/Blue Denim|Chaqueta/i).fill('My Test Garment');
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
     await page.getByText('Azul').first().click();
+    // Select a style chip
+    await page.getByText('Casual').first().click();
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
 
     // Wait for modal to appear
@@ -283,6 +294,8 @@ test.describe('Duplicate Detection', () => {
     await page.getByPlaceholder(/Blue Denim|Chaqueta/i).fill('My Test Garment');
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
     await page.getByText('Azul').first().click();
+    // Select a style chip
+    await page.getByText('Casual').first().click();
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
 
     // Should go directly to success (no duplicate modal)
@@ -316,6 +329,8 @@ test.describe('Duplicate Detection', () => {
     await page.getByPlaceholder(/Blue Denim|Chaqueta/i).fill('My Test Garment');
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
     await page.getByText('Azul').first().click();
+    // Select a style chip
+    await page.getByText('Casual').first().click();
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
 
     // Modal should appear

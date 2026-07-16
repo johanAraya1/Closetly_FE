@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -12,7 +12,7 @@ import { Ionicons } from '@expo/vector-icons';
 import { Button, Input, Modal, GarmentVisibilityForm, DuplicateWarningModal } from '@/components';
 import { ColorPicker } from '@/components/ColorPicker';
 import { normalizeColorString } from '@/utils/format';
-import { checkDuplicate, uriToBase64 } from '@/services/garmentService';
+import { checkDuplicate } from '@/services/garmentService';
 import { removeBackground } from '@/services/backgroundRemoval';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
@@ -23,6 +23,7 @@ import { usePhotoTip } from '@/hooks/usePhotoTip';
 import { useAuthStore } from '@/store/authStore';
 import { GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES, COLORS } from '@/lib/constants';
 import { pickImageFromGallery, takePhoto } from '@/utils/imageUtils';
+import * as ImageManipulator from 'expo-image-manipulator';
 import type { Garment, GarmentCategory, GarmentSeason, GarmentStyle, ListingType } from '@/types';
 
 export default function CreateGarmentScreen() {
@@ -165,6 +166,7 @@ export default function CreateGarmentScreen() {
   // Background removal en paralelo con el análisis de IA
   const startBackgroundRemoval = useCallback(async (uri: string) => {
     if (Platform.OS !== 'web') return;
+    if (typeof window !== 'undefined' && (window as any).__E2E_TEST__) return; // Skip in E2E tests
 
     // Marcar esta URI como la que estamos procesando
     bgProcessingUri.current = uri;
@@ -172,9 +174,18 @@ export default function CreateGarmentScreen() {
     setBgProcessedBase64(null);
 
     try {
-      // Convertir URI a base64
-      let base64 = await uriToBase64(uri);
+      // Redimensionar a 1024px antes del bg removal:
+      // - Reduce el tiempo de uriToBase64 (descarga blob más chico)
+      // - El modelo RMBG-1.4 ya procesa internamente a 1024x1024
+      // - Reduce tiempo de inferencia del modelo
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1024 } }],
+        { base64: true, compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+      );
       if (bgProcessingUri.current !== uri) return; // Stale, cancelar
+
+      let base64 = manipResult.base64!;
 
       // Ejecutar background removal
       const result = await removeBackground(base64, 'image/jpeg');
@@ -277,9 +288,10 @@ export default function CreateGarmentScreen() {
     const hasBrand = noBrand || brand.trim().length > 0;
     const hasColor = color.trim().length > 0;
     const hasSeason = seasons.length > 0;
+    const hasStyles = selectedStyles.length > 0;
     
-    return hasImage && hasName && hasBrand && hasColor && hasSeason;
-  }, [imageUri, editImageUri, name, noBrand, brand, color, seasons]);
+    return hasImage && hasName && hasBrand && hasColor && hasSeason && hasStyles;
+  }, [imageUri, editImageUri, name, noBrand, brand, color, seasons, selectedStyles]);
 
   const activeFirstImageUri = imageUri || editImageUri;
   const activeExtraUris = !isEditMode ? extraImageUris : extraEditImageUris;
@@ -735,9 +747,15 @@ export default function CreateGarmentScreen() {
                   title={isEditMode ? t('garments.create.saveChanges') : t('garments.create.addToCloset')}
                   onPress={handleCreate}
                   loading={isLoading || isUploading}
-                  disabled={!isFormComplete || isLoading || isUploading}
+                  disabled={!isFormComplete || isLoading || isUploading || (isBgRemoving && !isEditMode)}
                   fullWidth
                 />
+                {isBgRemoving && !isEditMode && (
+                  <View style={styles.bgRemovingHint}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <Text style={styles.bgRemovingText}>{t('garments.create.bgRemoving')}</Text>
+                  </View>
+                )}
               </View>
             </>
           )}
@@ -1076,6 +1094,18 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: 8,
+  },
+  bgRemovingHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  bgRemovingText: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '500',
   },
   infoMessage: {
     flexDirection: 'row',
