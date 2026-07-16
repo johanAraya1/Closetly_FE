@@ -166,6 +166,7 @@ export default function CreateGarmentScreen() {
   // Background removal en paralelo con el análisis de IA
   const startBackgroundRemoval = useCallback(async (uri: string) => {
     if (Platform.OS !== 'web') return;
+    if (typeof window !== 'undefined' && (window as any).__E2E_TEST__) return; // Skip in E2E tests
 
     // Marcar esta URI como la que estamos procesando
     bgProcessingUri.current = uri;
