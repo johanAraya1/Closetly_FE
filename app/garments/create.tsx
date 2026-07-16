@@ -4,7 +4,7 @@
  */
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform } from 'react-native';
+import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform, ActivityIndicator } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -277,9 +277,10 @@ export default function CreateGarmentScreen() {
     const hasBrand = noBrand || brand.trim().length > 0;
     const hasColor = color.trim().length > 0;
     const hasSeason = seasons.length > 0;
+    const hasStyles = selectedStyles.length > 0;
     
-    return hasImage && hasName && hasBrand && hasColor && hasSeason;
-  }, [imageUri, editImageUri, name, noBrand, brand, color, seasons]);
+    return hasImage && hasName && hasBrand && hasColor && hasSeason && hasStyles;
+  }, [imageUri, editImageUri, name, noBrand, brand, color, seasons, selectedStyles]);
 
   const activeFirstImageUri = imageUri || editImageUri;
   const activeExtraUris = !isEditMode ? extraImageUris : extraEditImageUris;
@@ -735,9 +736,15 @@ export default function CreateGarmentScreen() {
                   title={isEditMode ? t('garments.create.saveChanges') : t('garments.create.addToCloset')}
                   onPress={handleCreate}
                   loading={isLoading || isUploading}
-                  disabled={!isFormComplete || isLoading || isUploading}
+                  disabled={!isFormComplete || isLoading || isUploading || (isBgRemoving && !isEditMode)}
                   fullWidth
                 />
+                {isBgRemoving && !isEditMode && (
+                  <View style={styles.bgRemovingHint}>
+                    <ActivityIndicator size="small" color={COLORS.primary} />
+                    <Text style={styles.bgRemovingText}>{t('garments.create.bgRemoving')}</Text>
+                  </View>
+                )}
               </View>
             </>
           )}
@@ -1076,6 +1083,18 @@ const styles = StyleSheet.create({
   },
   buttonContainer: {
     marginTop: 8,
+  },
+  bgRemovingHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  bgRemovingText: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '500',
   },
   infoMessage: {
     flexDirection: 'row',
