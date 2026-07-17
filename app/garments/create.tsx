@@ -456,7 +456,7 @@ export default function CreateGarmentScreen() {
       setErrorMessage(`${t('garments.create.errorGeneric')}: ${errorMsg}`);
       setShowErrorModal(true);
     }
-  }, [isEditMode, id, name, category, noBrand, brand, color, seasons, selectedStyles, notes, imageUri, editImageUri, token, createGarment, updateGarment, activeExtraUris, router, t, isPublic, listingType]);
+  }, [isEditMode, id, name, category, noBrand, brand, color, seasons, selectedStyles, notes, imageUri, editImageUri, token, createGarment, updateGarment, activeExtraUris, router, t, isPublic, listingType, bgProcessedBase64]);
 
   const handleCreate = useCallback(async () => {
     if (!user) {
