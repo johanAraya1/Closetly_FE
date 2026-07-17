@@ -71,6 +71,7 @@ export default function CreateGarmentScreen() {
 
   // Parallel background removal state
   const [bgProcessedBase64, setBgProcessedBase64] = useState<string | null>(null);
+  const bgProcessedRef = useRef<string | null>(null); // ref para evitar stale closure en doCreate
   const [isBgRemoving, setIsBgRemoving] = useState(false);
   const bgProcessingUri = useRef<string | null>(null);
 
@@ -217,6 +218,7 @@ export default function CreateGarmentScreen() {
     bgProcessingUri.current = uri;
     setIsBgRemoving(true);
     setBgProcessedBase64(null);
+    bgProcessedRef.current = null;
 
     try {
       // Redimensionar a 1024px antes del bg removal:
@@ -239,6 +241,7 @@ export default function CreateGarmentScreen() {
       if (result.bgRemoved) {
         console.log('[Create] Background removal completed in parallel');
         setBgProcessedBase64(result.base64);
+        bgProcessedRef.current = result.base64;
       } else {
         console.warn('[Create] Early bg removal failed:', result.error);
         // No es crítico — el service lo reintentará al guardar o usará la original
@@ -379,6 +382,7 @@ export default function CreateGarmentScreen() {
         setLastAnalyzedUri(null);
         setAiDetected(false);
         setBgProcessedBase64(null);
+        bgProcessedRef.current = null;
         setIsBgRemoving(false);
         bgProcessingUri.current = null;
       } else {
@@ -434,7 +438,7 @@ export default function CreateGarmentScreen() {
             style: selectedStyles.length > 0 ? selectedStyles : undefined,
             imageUrl: imageUrl || '',
             imageBackUrl: firstExtra,
-            imageBase64: bgProcessedBase64 || undefined, // Pasar si ya se procesó en paralelo
+            imageBase64: bgProcessedRef.current || undefined, // Pasar si ya se procesó en paralelo
             notes: notes.trim() || undefined,
             isPublic,
             ...(isPublic && listingType ? { listingType } : {}),
@@ -456,7 +460,7 @@ export default function CreateGarmentScreen() {
       setErrorMessage(`${t('garments.create.errorGeneric')}: ${errorMsg}`);
       setShowErrorModal(true);
     }
-  }, [isEditMode, id, name, category, noBrand, brand, color, seasons, selectedStyles, notes, imageUri, editImageUri, token, createGarment, updateGarment, activeExtraUris, router, t, isPublic, listingType, bgProcessedBase64]);
+  }, [isEditMode, id, name, category, noBrand, brand, color, seasons, selectedStyles, notes, imageUri, editImageUri, token, createGarment, updateGarment, activeExtraUris, router, t, isPublic, listingType]);
 
   const handleCreate = useCallback(async () => {
     if (!user) {
@@ -896,6 +900,7 @@ export default function CreateGarmentScreen() {
               setLastAnalyzedUri(null);
               setAiDetected(false);
               setBgProcessedBase64(null);
+              bgProcessedRef.current = null;
               setIsBgRemoving(false);
               bgProcessingUri.current = null;
               resetImage();
