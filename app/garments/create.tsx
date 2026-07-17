@@ -5,6 +5,8 @@
 
 import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
 import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform, Animated, Easing } from 'react-native';
+
+const isWeb = Platform.OS === 'web';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -592,32 +594,45 @@ export default function CreateGarmentScreen() {
                   {isBgRemoving && !isEditMode && (
                     <View style={StyleSheet.absoluteFill} pointerEvents="none">
                       <View style={styles.bgOverlayDim} />
-                      <Animated.View
-                        style={[
-                          styles.bgScanLine,
-                          {
-                            transform: [
-                              {
-                                translateY: scanAnim.interpolate({
-                                  inputRange: [0, 1],
-                                  outputRange: [-30, 286],
-                                }),
-                              },
-                            ],
-                          },
-                        ]}
-                      />
-                      <Animated.View
-                        style={[
-                          styles.bgOverlayCenter,
-                          { opacity: pulseAnim },
-                        ]}
-                      >
-                        <Ionicons name="sparkles" size={28} color="#FFFFFF" />
-                        <Text style={styles.bgOverlayText}>
-                          {t('garments.create.bgRemoving')}
-                        </Text>
-                      </Animated.View>
+                      {isWeb ? (
+                        <View style={[styles.bgScanLine, styles.bgScanLineWeb]} />
+                      ) : (
+                        <Animated.View
+                          style={[
+                            styles.bgScanLine,
+                            {
+                              transform: [
+                                {
+                                  translateY: scanAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [-30, 286],
+                                  }),
+                                },
+                              ],
+                            },
+                          ]}
+                        />
+                      )}
+                      {isWeb ? (
+                        <View style={[styles.bgOverlayCenter, styles.bgPulseWeb]}>
+                          <Ionicons name="sparkles" size={28} color="#FFFFFF" />
+                          <Text style={styles.bgOverlayText}>
+                            {t('garments.create.bgRemoving')}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Animated.View
+                          style={[
+                            styles.bgOverlayCenter,
+                            { opacity: pulseAnim },
+                          ]}
+                        >
+                          <Ionicons name="sparkles" size={28} color="#FFFFFF" />
+                          <Text style={styles.bgOverlayText}>
+                            {t('garments.create.bgRemoving')}
+                          </Text>
+                        </Animated.View>
+                      )}
                     </View>
                   )}
                 </View>
@@ -1300,4 +1315,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
   },
+  ...(isWeb && {
+    bgScanLineWeb: {
+      animationName: {
+        '0%': { transform: [{ translateY: -30 }] },
+        '100%': { transform: [{ translateY: 286 }] },
+      },
+      animationDuration: '2.5s',
+      animationIterationCount: 'infinite',
+      animationTimingFunction: 'linear',
+    } as any,
+    bgPulseWeb: {
+      animationName: {
+        '0%': { opacity: 0.2 },
+        '50%': { opacity: 1 },
+        '100%': { opacity: 0.2 },
+      },
+      animationDuration: '1.6s',
+      animationIterationCount: 'infinite',
+      animationTimingFunction: 'ease-in-out',
+    } as any,
+  }),
 });
