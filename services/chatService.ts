@@ -19,7 +19,16 @@ function normalizeConversation(raw: any): Conversation {
         username: otherRaw.username || otherRaw.display_name,
         avatarUrl: otherRaw.avatarUrl || otherRaw.avatar_url,
       }
-    : { userId: '', username: `user_unknown` };
+    : {
+        // Fallback: buscar campos planos de "other user" en el raw
+        userId: raw.otherUserId || raw.other_user_id || raw.sellerId || raw.seller_id || raw.buyerId || raw.buyer_id || '',
+        username: raw.otherUsername || raw.other_username || raw.otherDisplayName || raw.other_display_name || raw.otherUser || raw.other_user || undefined,
+        avatarUrl: raw.otherAvatarUrl || raw.other_avatar_url || raw.otherAvatar || raw.other_avatar,
+      };
+  // Si después de todo no hay username ni userId, mostrar genérico
+  if (!otherParticipant.username && !otherParticipant.userId) {
+    otherParticipant.username = 'Usuario';
+  }
 
   const lastMsgRaw = raw.lastMessage || raw.last_message;
   const lastMessage = lastMsgRaw

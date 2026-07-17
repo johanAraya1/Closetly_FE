@@ -4,7 +4,7 @@
  */
 
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Switch, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, Alert, StyleSheet, Switch, ActivityIndicator, Platform } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -109,6 +109,14 @@ function ProfileScreen() {
 
   const handlePickAvatar = async () => {
     if (!user) return;
+
+    // En web, Alert.alert de RN no soporta botones custom — solo muestra un alert()
+    // del browser con OK. Por eso directamente abrimos el selector de galería.
+    if (Platform.OS === 'web') {
+      const uri = await pickImageFromGallery({ crop: false });
+      if (uri) await uploadAvatar(uri);
+      return;
+    }
 
     Alert.alert(
       t('profile.changePhoto'),

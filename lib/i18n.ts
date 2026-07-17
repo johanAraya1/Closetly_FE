@@ -49,6 +49,8 @@ const i18n = new I18n({
       retry: 'Retry',
       saving: 'Saving...',
       next: 'Next',
+      takePhoto: 'Camera',
+      chooseFromGallery: 'Gallery',
     },
     auth: {
       login: 'Log In',
@@ -510,6 +512,7 @@ const i18n = new I18n({
       save: 'Save',
       typing: 'Typing...',
       sendError: 'Failed to send message',
+      unknownUser: 'Usuario',
     },
     profile: {
       title: 'Profile',
@@ -683,6 +686,8 @@ const i18n = new I18n({
       retry: 'Reintentar',
       saving: 'Guardando...',
       next: 'Siguiente',
+      takePhoto: 'Cámara',
+      chooseFromGallery: 'Galería',
     },
     auth: {
       login: 'Iniciar Sesión',
@@ -1143,6 +1148,7 @@ const i18n = new I18n({
       save: 'Guardar',
       typing: 'Escribiendo...',
       sendError: 'No se pudo enviar el mensaje',
+      unknownUser: 'Usuario',
     },
     profile: {
       title: 'Perfil',
