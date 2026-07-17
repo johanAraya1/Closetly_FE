@@ -23,32 +23,51 @@ function normalizeConversation(raw: any): Conversation {
     username = otherRaw.username || otherRaw.display_name;
     avatarUrl = otherRaw.avatarUrl || otherRaw.avatar_url;
   } else {
-    // Fallback: buscar campos planos
-    userId = raw.otherUserId || raw.other_user_id || raw.sellerId || raw.seller_id || raw.buyerId || raw.buyer_id || raw.otherUser?.id || raw.other_user?.id || '';
-    username = raw.otherUsername || raw.other_username || raw.otherDisplayName || raw.other_display_name || raw.otherUser?.name || raw.otherUser?.username || raw.other_user?.name || raw.other_user?.username || raw.otherUser?.displayName || raw.user?.username || undefined;
-    avatarUrl = raw.otherAvatarUrl || raw.other_avatar_url || raw.otherAvatar || raw.other_avatar || raw.otherUser?.avatarUrl || raw.otherUser?.avatar_url || raw.other_user?.avatar_url || undefined;
-  }
-
-  // Último recurso: si el listing tiene userId y no tenemos otro, usarlo
-  if (!userId) {
-    userId = raw.listingUserId || raw.listing_user_id || raw.garmentUserId || raw.garment_user_id || '';
+    // Fallback: buscar campos planos (camelCase y snake_case)
+    userId = raw.otherParticipantId || raw.other_participant_id
+          || raw.otherUserId || raw.other_user_id
+          || raw.sellerId || raw.seller_id
+          || raw.buyerId || raw.buyer_id
+          || raw.otherUser?.id || raw.other_user?.id
+          || '';
+    username = raw.otherParticipantName || raw.other_participant_name
+            || raw.otherUsername || raw.other_username
+            || raw.otherDisplayName || raw.other_display_name
+            || raw.otherUser?.name || raw.otherUser?.username
+            || raw.other_user?.name || raw.other_user?.username
+            || raw.otherUser?.displayName
+            || undefined;
+    avatarUrl = raw.otherParticipantAvatar || raw.other_participant_avatar
+             || raw.otherAvatarUrl || raw.other_avatar_url
+             || raw.otherAvatar || raw.other_avatar
+             || raw.otherUser?.avatarUrl || raw.otherUser?.avatar_url
+             || raw.other_user?.avatar_url
+             || undefined;
   }
 
   const otherParticipant = { userId, username, avatarUrl };
 
-  // Si no hay username ni userId, mostrar genérico
-  if (!otherParticipant.username && !otherParticipant.userId) {
+  // Si no hay userId, mostrar genérico
+  if (!otherParticipant.userId && !otherParticipant.username) {
     otherParticipant.username = 'Usuario';
   }
 
+  // Normalizar lastMessage: puede ser objeto o string plano
+  let lastMessage: Conversation['lastMessage'];
   const lastMsgRaw = raw.lastMessage || raw.last_message;
-  const lastMessage = lastMsgRaw
-    ? {
-        content: lastMsgRaw.content || '',
-        createdAt: lastMsgRaw.createdAt || lastMsgRaw.created_at || '',
-        senderId: lastMsgRaw.senderId || lastMsgRaw.sender_id || '',
-      }
-    : undefined;
+  if (typeof lastMsgRaw === 'string') {
+    lastMessage = {
+      content: lastMsgRaw,
+      createdAt: raw.lastMessageAt || raw.last_message_at || '',
+      senderId: '',
+    };
+  } else if (lastMsgRaw) {
+    lastMessage = {
+      content: lastMsgRaw.content || '',
+      createdAt: lastMsgRaw.createdAt || lastMsgRaw.created_at || raw.lastMessageAt || raw.last_message_at || '',
+      senderId: lastMsgRaw.senderId || lastMsgRaw.sender_id || '',
+    };
+  }
 
   return {
     id: raw.id || '',
@@ -69,9 +88,7 @@ export const chatService = {
    */
     async getConversations(): Promise<Conversation[]> {
     const res = await apiClient.get<any[]>('/chat/conversations');
-    const raw = res.data || [];
-    if (raw.length > 0) console.log('[ChatService] Raw conversation:', JSON.stringify(raw[0], null, 2));
-    return raw.map(normalizeConversation);
+    return (res.data || []).map(normalizeConversation);
   },
 
   /**
