@@ -1,27 +1,140 @@
 /**
  * Background Removal Service — Web
- * Client-side background removal usando Transformers.js cargado desde CDN.
+ * Client-side background removal usando Transformers.js en un Web Worker.
  * 
- * Usamos el mismo approach que el demo oficial de Xenova:
- * - AutoModel.from_pretrained() con model_type: "custom" (bypasea pipeline)
- * - AutoProcessor.from_pretrained() con config explícita
- * - Salida: tensor alpha matte → resize → aplicar como canal alfa
- * 
- * Sin costo de servidor, sin API keys, sin tarjetas de crédito.
+ * La inferencia corre en un worker para NO bloquear el main thread.
+ * El main thread se encarga de operaciones DOM (cargar imagen, aplicar
+ * máscara al canvas) que son rápidas (~5ms).
  */
 
 import { Platform } from 'react-native';
 
-// Estado del modelo
-let model: any = null;
-let processor: any = null;
-let transformersModule: any = null;
-let modelLoaded = false;
-let loadPromise: Promise<void> | null = null;
-let loadError: string | null = null;
+// ─── Worker Script ───────────────────────────────────────────────────────────
+
+const WORKER_SCRIPT = `
+  let transformers = null;
+  let model = null;
+  let processor = null;
+  let modelLoaded = false;
+  let modelLoading = false;
+
+  const processorConfig = {
+    do_normalize: true,
+    do_pad: false,
+    do_rescale: true,
+    do_resize: true,
+    image_mean: [0.5, 0.5, 0.5],
+    image_std: [1, 1, 1],
+    resample: 2,
+    rescale_factor: 0.00392156862745098,
+    size: { width: 1024, height: 1024 },
+    feature_extractor_type: 'ImageFeatureExtractor',
+  };
+
+  async function loadModel() {
+    if (modelLoaded || modelLoading) return;
+    modelLoading = true;
+
+    try {
+      self.postMessage({ type: 'progress', progress: 5 });
+
+      transformers = await import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/+esm');
+      self.postMessage({ type: 'progress', progress: 15 });
+
+      model = await transformers.AutoModel.from_pretrained('briaai/RMBG-1.4', {
+        config: { model_type: 'custom' },
+        progress_callback: function(p) {
+          if (p.total > 0) {
+            var pct = Math.min(50, 15 + Math.round((p.loaded / p.total) * 35));
+            self.postMessage({ type: 'progress', progress: pct });
+          }
+        },
+      });
+      self.postMessage({ type: 'progress', progress: 50 });
+
+      processor = await transformers.AutoProcessor.from_pretrained(
+        'briaai/RMBG-1.4',
+        { config: processorConfig },
+      );
+      self.postMessage({ type: 'progress', progress: 60 });
+
+      modelLoaded = true;
+      self.postMessage({ type: 'progress', progress: 100 });
+      self.postMessage({ type: 'ready' });
+    } catch (err) {
+      modelLoading = false;
+      modelLoaded = false;
+      self.postMessage({ type: 'loading_error', message: (err && err.message) || String(err) });
+    }
+  }
+
+  self.addEventListener('message', async function(e) {
+    var msg = e.data;
+    var type = msg.type;
+    var id = msg.id;
+
+    if (type === 'preload') {
+      loadModel();
+      return;
+    }
+
+    if (type === 'removeBackground') {
+      try {
+        if (!modelLoaded) await loadModel();
+        if (!modelLoaded) {
+          self.postMessage({ type: 'error', id: id, message: 'Model not available' });
+          return;
+        }
+
+        // Create RawImage from raw RGB pixel data
+        var rawImage = new transformers.RawImage(
+          new Uint8Array(msg.pixels),
+          msg.width,
+          msg.height,
+          msg.channels || 3
+        );
+
+        // Run inference
+        var processed = await processor(rawImage);
+        var pixelValues = processed.pixel_values;
+        var outputs = await model({ input: pixelValues });
+        var output = outputs.output;
+
+        // Get mask tensor (0-1 float) → uint8 (0-255)
+        var maskTensor = output[0].mul(255).to('uint8');
+        var maskDims = maskTensor.dims; // [1, H, W] usually
+
+        // maskDims shape depends on model output; typically [1, 1024, 1024]
+        var maskH = maskDims[1];
+        var maskW = maskDims[2];
+        var maskData = maskTensor.data.buffer;
+
+        self.postMessage(
+          { type: 'result', id: id, maskData: maskData, maskWidth: maskW, maskHeight: maskH },
+          [maskData]
+        );
+      } catch (err) {
+        self.postMessage({ type: 'error', id: id, message: (err && err.message) || String(err) });
+      }
+    }
+  });
+
+  // Start preloading immediately
+  loadModel();
+`;
+
+// ─── Main Thread ─────────────────────────────────────────────────────────────
 
 type ProgressCallback = (progress: number) => void;
+
+let worker: Worker | null = null;
+let workerReady = false;
+let workerLoading = false;
+let loadError: string | null = null;
 let onProgress: ProgressCallback | null = null;
+let requestIdCounter = 0;
+const pendingRequests = new Map<number, { resolve: (value: any) => void; reject: (reason: any) => void }>();
+let pendingReady: ReturnType<typeof createDeferred> | null = null;
 
 /**
  * Suscribirse al progreso de carga del modelo (0-100)
@@ -37,14 +150,14 @@ export function onModelProgress(callback: ProgressCallback): () => void {
  * Verificar si el modelo ya está cargado
  */
 export function isModelLoaded(): boolean {
-  return modelLoaded;
+  return workerReady;
 }
 
 /**
  * Verificar si el modelo está cargando actualmente
  */
 export function isModelLoading(): boolean {
-  return loadPromise !== null && !modelLoaded;
+  return workerLoading;
 }
 
 /**
@@ -54,135 +167,133 @@ export function getLoadError(): string | null {
   return loadError;
 }
 
-/**
- * Carga el módulo @huggingface/transformers desde CDN usando un Blob URL
- * para evitar que Metro intercepte el dynamic import().
- */
-function loadTransformersFromCDN(): Promise<any> {
-  return new Promise((resolve, reject) => {
-    const code = `
-      import('https://cdn.jsdelivr.net/npm/@huggingface/transformers@4.2.0/+esm')
-        .then(mod => {
-          window.__transformers__ = mod;
-          window.dispatchEvent(new CustomEvent('__transformers_loaded'));
-        })
-        .catch(err => {
-          window.dispatchEvent(new CustomEvent('__transformers_error', { detail: err.message }));
-        });
-    `;
-
-    const blob = new Blob([code], { type: 'text/javascript' });
-    const blobUrl = URL.createObjectURL(blob);
-
-    const script = document.createElement('script');
-    script.type = 'module';
-    script.src = blobUrl;
-
-    const timeout = setTimeout(() => {
-      URL.revokeObjectURL(blobUrl);
-      reject(new Error('Timeout loading transformers from CDN'));
-    }, 30000);
-
-    window.addEventListener('__transformers_loaded', () => {
-      clearTimeout(timeout);
-      URL.revokeObjectURL(blobUrl);
-      resolve(window.__transformers__);
-    }, { once: true });
-
-    window.addEventListener('__transformers_error', ((e: CustomEvent) => {
-      clearTimeout(timeout);
-      URL.revokeObjectURL(blobUrl);
-      reject(new Error(e.detail));
-    }) as EventListener, { once: true });
-
-    document.head.appendChild(script);
-  });
+function getWorkerUrl(): string {
+  const blob = new Blob([WORKER_SCRIPT], { type: 'application/javascript' });
+  return URL.createObjectURL(blob);
 }
 
-/**
- * Config del procesador de imagen para RMBG-1.4
- */
-function getProcessorConfig() {
-  return {
-    do_normalize: true,
-    do_pad: false,
-    do_rescale: true,
-    do_resize: true,
-    image_mean: [0.5, 0.5, 0.5],
-    image_std: [1, 1, 1],
-    resample: 2,
-    rescale_factor: 0.00392156862745098,
-    size: { width: 1024, height: 1024 },
-    feature_extractor_type: 'ImageFeatureExtractor',
+function createWorker(): Worker {
+  const url = getWorkerUrl();
+  const w = new Worker(url);
+
+  w.onmessage = (e: MessageEvent) => {
+    handleWorkerMessage(w, e.data);
   };
+
+  w.onerror = (e: ErrorEvent) => {
+    console.error('[BackgroundRemoval] Worker error:', e.message);
+  };
+
+  return w;
+}
+
+function handleWorkerMessage(_worker: Worker, msg: any) {
+  const { type, id, ...data } = msg;
+
+  switch (type) {
+    case 'ready':
+      workerReady = true;
+      workerLoading = false;
+      loadError = null;
+      pendingReady?.resolve();
+      pendingReady = null;
+      break;
+
+    case 'progress':
+      onProgress?.(data.progress);
+      break;
+
+    case 'loading_error':
+      workerReady = false;
+      workerLoading = false;
+      loadError = data.message || 'Unknown loading error';
+      pendingReady?.reject(new Error(loadError!));
+      pendingReady = null;
+      // Reject all pending requests
+      for (const [, pending] of pendingRequests) {
+        pending.reject(new Error(loadError!));
+      }
+      pendingRequests.clear();
+      break;
+
+    case 'result': {
+      const pending = pendingRequests.get(id);
+      if (pending) {
+        pending.resolve({ maskData: data.maskData, maskWidth: data.maskWidth, maskHeight: data.maskHeight });
+        pendingRequests.delete(id);
+      }
+      break;
+    }
+
+    case 'error': {
+      const pending = pendingRequests.get(id);
+      if (pending) {
+        pending.reject(new Error(data.message || 'Worker error'));
+        pendingRequests.delete(id);
+      }
+      break;
+    }
+  }
+}
+
+function ensureWorker(): Worker {
+  if (!worker) {
+    workerLoading = true;
+    worker = createWorker();
+  }
+  return worker;
+}
+
+function postToWorker(message: any): Promise<any> {
+  return new Promise((resolve, reject) => {
+    const id = requestIdCounter++;
+    pendingRequests.set(id, { resolve, reject });
+    const w = ensureWorker();
+    try {
+      w.postMessage({ ...message, id });
+    } catch (err) {
+      pendingRequests.delete(id);
+      reject(err);
+    }
+  });
 }
 
 /**
  * Precarga el modelo de background removal en segundo plano.
  */
 export function preloadBackgroundRemovalModel(): void {
-  if (Platform.OS !== 'web') {
-    console.log('[BackgroundRemoval] Skipping preload: not on web platform');
-    return;
-  }
-  if (modelLoaded || loadPromise) return;
-
-  console.log('[BackgroundRemoval] Starting model preload...');
-
-  loadPromise = (async () => {
-    try {
-      onProgress?.(5);
-
-      // Cargar la librería desde CDN via Blob URL (bypass de Metro)
-      const transformers = await loadTransformersFromCDN();
-      transformersModule = transformers;
-      onProgress?.(15);
-
-      // Cargar modelo con AutoModel (bypasea pipeline type checking)
-      // model_type: "custom" le dice a Transformers.js que no valide la arquitectura
-      model = await transformers.AutoModel.from_pretrained('briaai/RMBG-1.4', {
-        config: { model_type: 'custom' },
-        progress_callback: (progress: { loaded: number; total: number }) => {
-          if (progress.total > 0) {
-            const pct = Math.min(50, 15 + Math.round((progress.loaded / progress.total) * 35));
-            onProgress?.(pct);
-          }
-        },
-      });
-      onProgress?.(50);
-
-      // Cargar procesador con configuración explícita
-      // (no usa preprocessor_config.json del modelo porque el modelo
-      // tiene config_type custom no estándar)
-      processor = await transformers.AutoProcessor.from_pretrained(
-        'briaai/RMBG-1.4',
-        { config: getProcessorConfig() },
-      );
-      onProgress?.(60);
-
-      modelLoaded = true;
-      loadError = null;
-      onProgress?.(100);
-      console.log('[BackgroundRemoval] Model loaded successfully');
-    } catch (error) {
-      const msg = error instanceof Error ? error.message : String(error);
-      loadError = msg;
-      loadPromise = null;
-      modelLoaded = false;
-      onProgress?.(0);
-      console.error('[BackgroundRemoval] Failed to load model:', msg);
-    }
-  })();
+  if (Platform.OS !== 'web') return;
+  if (workerReady || workerLoading) return;
+  ensureWorker();
 }
 
 /**
  * Fuerza la carga del modelo y espera a que termine.
+ * No necesita round-trip al worker — usa una promise local
+ * que se resuelve cuando el worker manda 'ready'.
  */
 export async function ensureModelLoaded(): Promise<boolean> {
-  if (modelLoaded) return true;
-  if (!loadPromise) preloadBackgroundRemovalModel();
-  if (loadPromise) await loadPromise;
-  return modelLoaded;
+  if (workerReady) return true;
+  if (!workerLoading) preloadBackgroundRemovalModel();
+  if (workerLoading) {
+    if (!pendingReady) {
+      pendingReady = createDeferred();
+    }
+    try {
+      await pendingReady.promise;
+    } catch {
+      return false;
+    }
+  }
+  return workerReady;
+}
+
+/** Promise externa simple */
+function createDeferred<T = void>(): { promise: Promise<T>; resolve: (value: T) => void; reject: (reason: any) => void } {
+  let resolve!: (value: T) => void;
+  let reject!: (reason: any) => void;
+  const promise = new Promise<T>((res, rej) => { resolve = res; reject = rej; });
+  return { promise, resolve, reject };
 }
 
 /**
@@ -241,6 +352,7 @@ function applyMaskToImage(
 
 /**
  * Elimina el fondo de una imagen base64.
+ * La inferencia corre en un Web Worker para no bloquear el main thread.
  */
 export async function removeBackground(
   base64: string,
@@ -250,31 +362,42 @@ export async function removeBackground(
     return { base64, bgRemoved: false, error: 'Only works on web' };
   }
 
-  if (!modelLoaded) {
-    const loaded = await ensureModelLoaded();
-    if (!loaded) {
-      return { base64, bgRemoved: false, error: `Model not available: ${loadError || 'unknown'}` };
-    }
-  }
-
   try {
-    // Cargar imagen como RawImage
+    // 1. Cargar imagen en el main thread (DOM API necesario)
     const img = await base64ToImage(base64, mimeType);
-    const rawImage = await transformersModule.RawImage.fromURL(
-      `data:${mimeType};base64,${base64}`,
-    );
 
-    // Preprocesar y ejecutar modelo (mismo approach que Xenova demo)
-    const { pixel_values } = await processor(rawImage);
-    const { output } = await model({ input: pixel_values });
+    // 2. Extraer pixels RGB desde canvas (rápido, ~5ms)
+    const canvas = document.createElement('canvas');
+    canvas.width = img.width;
+    canvas.height = img.height;
+    const ctx = canvas.getContext('2d')!;
+    ctx.drawImage(img, 0, 0);
+    const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height);
+    const rgba = imageData.data;
 
-    // output[0] es un tensor 0-1 → convertir a uint8 mask
-    const maskTensor = output[0].mul(255).to('uint8');
-    const maskImage = await transformersModule.RawImage.fromTensor(maskTensor);
-    const resizedMask = await maskImage.resize(img.width, img.height);
+    // Convertir RGBA → RGB (el procesador espera 3 canales)
+    const pixelCount = img.width * img.height;
+    const pixels = new Uint8Array(pixelCount * 3);
+    for (let i = 0; i < pixelCount; i++) {
+      const s = i * 4;
+      const d = i * 3;
+      pixels[d] = rgba[s];
+      pixels[d + 1] = rgba[s + 1];
+      pixels[d + 2] = rgba[s + 2];
+    }
 
-    // Aplicar máscara como canal alfa
-    const processedBase64 = applyMaskToImage(img, resizedMask.data, img.width, img.height);
+    // 3. Enviar pixels al worker (la inferencia corre en background)
+    const result = await postToWorker({
+      type: 'removeBackground',
+      pixels: pixels.buffer,
+      width: img.width,
+      height: img.height,
+      channels: 3,
+    });
+
+    // 4. Aplicar máscara en el main thread (rápido, ~5ms)
+    const mask = new Uint8Array(result.maskData);
+    const processedBase64 = applyMaskToImage(img, mask, result.maskWidth, result.maskHeight);
 
     console.log('[BackgroundRemoval] Background removed successfully');
     return { base64: processedBase64, bgRemoved: true };
