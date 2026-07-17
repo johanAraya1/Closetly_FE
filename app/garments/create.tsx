@@ -854,7 +854,7 @@ export default function CreateGarmentScreen() {
                   title={isEditMode ? t('garments.create.saveChanges') : t('garments.create.addToCloset')}
                   onPress={handleCreate}
                   loading={isLoading || isUploading}
-                  disabled={!isFormComplete || isLoading || isUploading || (isBgRemoving && !isEditMode)}
+                  disabled={!isFormComplete || isLoading || isUploading}
                   fullWidth
                 />
                 {isBgRemoving && !isEditMode && (
