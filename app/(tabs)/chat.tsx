@@ -62,7 +62,7 @@ function ChatListScreen() {
         participant?.username ||
         (participant?.userId
           ? `user_${participant.userId.slice(0, 6)}`
-          : 'Usuario');
+          : t('chat.unknownUser'));
       const lastMessagePreview = item.lastMessage?.content
         ? item.lastMessage.content.length > 60
           ? item.lastMessage.content.slice(0, 60) + '...'
