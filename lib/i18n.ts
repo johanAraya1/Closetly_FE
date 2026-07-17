@@ -49,6 +49,8 @@ const i18n = new I18n({
       retry: 'Retry',
       saving: 'Saving...',
       next: 'Next',
+      takePhoto: 'Camera',
+      chooseFromGallery: 'Gallery',
     },
     auth: {
       login: 'Log In',
@@ -683,6 +685,8 @@ const i18n = new I18n({
       retry: 'Reintentar',
       saving: 'Guardando...',
       next: 'Siguiente',
+      takePhoto: 'Cámara',
+      chooseFromGallery: 'Galería',
     },
     auth: {
       login: 'Iniciar Sesión',
