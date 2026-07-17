@@ -4,7 +4,7 @@
  * Screen → Store → Service → API → Realtime
  */
 
-import React, { useCallback, useEffect, useRef, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import {
   View,
   Text,
@@ -59,7 +59,13 @@ function ChatRoomScreen() {
     setTyping,
   } = useChatStore();
 
-  const conversationMessages = conversationId ? messages[conversationId] || [] : [];
+  const conversationMessages = useMemo(() => {
+    const msgs = conversationId ? messages[conversationId] || [] : [];
+    // Forzar orden cronológico: más viejo → más nuevo (WhatsApp style)
+    return [...msgs].sort(
+      (a, b) => new Date(a.createdAt).getTime() - new Date(b.createdAt).getTime()
+    );
+  }, [messages, conversationId]);
 
   // Buscar la conversación actual para obtener el listingTitle
   const currentConversation = useChatStore((s) =>
@@ -618,6 +624,7 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
+    flexShrink: 1,
   },
   messageBubbleOwn: {
     backgroundColor: COLORS.primary,
@@ -638,6 +645,7 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 15,
     lineHeight: 20,
+    flexShrink: 1,
   },
   messageTextOwn: {
     color: '#FFFFFF',
