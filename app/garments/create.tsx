@@ -340,6 +340,11 @@ export default function CreateGarmentScreen() {
   const activeExtraUris = !isEditMode ? extraImageUris : extraEditImageUris;
   const allImages = activeFirstImageUri ? [activeFirstImageUri, ...activeExtraUris] : [...activeExtraUris];
 
+  // Cuando el bg removal termina, mostrar la imagen procesada en preview
+  const processedImageUri = bgProcessedBase64
+    ? `data:image/png;base64,${bgProcessedBase64}`
+    : null;
+
   const handlePickImage = useCallback((isCamera: boolean) => {
     setAiDetected(false);
     showTip(() => isCamera ? capturePhoto(true) : pickImage(true));
@@ -558,9 +563,12 @@ export default function CreateGarmentScreen() {
             {allImages.length > 0 ? (
               <View style={styles.imagePreviewContainer}>
                 {/* Main image (first one) */}
-                <View style={styles.mainImageWrapper}>
+                <View style={[
+                  styles.mainImageWrapper,
+                  processedImageUri && styles.mainImageWrapperProcessed,
+                ]}>
                   <Image
-                    source={{ uri: allImages[0] }}
+                    source={{ uri: processedImageUri || allImages[0] }}
                     style={styles.mainImage}
                     contentFit="contain"
                     cachePolicy="memory-disk"
@@ -572,12 +580,18 @@ export default function CreateGarmentScreen() {
                     <Ionicons name="close-circle" size={22} color="#EF4444" />
                   </TouchableOpacity>
 
+                  {/* Badge cuando el bg removal se completó */}
+                  {processedImageUri && !isBgRemoving && (
+                    <View style={styles.bgRemovedBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                      <Text style={styles.bgRemovedBadgeText}>Bg removed</Text>
+                    </View>
+                  )}
+
                   {/* Background removal animation overlay */}
                   {isBgRemoving && !isEditMode && (
                     <View style={StyleSheet.absoluteFill} pointerEvents="none">
-                      {/* Dim overlay */}
                       <View style={styles.bgOverlayDim} />
-                      {/* Scan line */}
                       <Animated.View
                         style={[
                           styles.bgScanLine,
@@ -593,7 +607,6 @@ export default function CreateGarmentScreen() {
                           },
                         ]}
                       />
-                      {/* Center content */}
                       <Animated.View
                         style={[
                           styles.bgOverlayCenter,
@@ -1215,6 +1228,34 @@ const styles = StyleSheet.create({
     textShadowColor: 'rgba(0,0,0,0.5)',
     textShadowOffset: { width: 0, height: 1 },
     textShadowRadius: 4,
+  },
+  mainImageWrapperProcessed: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 2,
+    borderColor: '#62D9C7',
+    borderStyle: 'dashed',
+  },
+  bgRemovedBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  bgRemovedBadgeText: {
+    fontSize: 11,
+    color: '#374151',
+    fontWeight: '600',
   },
   infoMessage: {
     flexDirection: 'row',
