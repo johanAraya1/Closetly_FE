@@ -9,7 +9,7 @@ import { fetchWithTimeout } from '@/utils/fetchUtils';
 import { apiCache } from '@/utils/apiCache';
 import { sanitizeName, sanitizeBrand, sanitizeColor, sanitizeNotes, isInputSafe } from '@/utils/sanitize';
 import { Platform } from 'react-native';
-import { removeBackground, isModelLoaded } from './backgroundRemoval';
+// import { isModelLoaded } from './backgroundRemoval';
 import type { 
   Garment, 
   CreateGarmentDTO, 
@@ -200,21 +200,6 @@ export const createGarment = async (
         const firstImage = garmentData.imageUrl || (garmentData as any).image_url || '';
         if (firstImage) {
           base64 = await uriToBase64(firstImage);
-
-          // Background removal client-side (si el modelo ya está cargado)
-          if (isModelLoaded()) {
-            const result = await removeBackground(base64, 'image/jpeg');
-            if (result.bgRemoved) {
-              console.log('[GarmentService] Background removal applied client-side');
-              bodyFields._bgRemovedClient = true;
-              base64 = result.base64;
-            } else {
-              console.warn('[GarmentService] Client-side bg removal failed, sending original:', result.error);
-            }
-          } else {
-            // Si no está cargado, intentamos cargarlo rápido sin esperar mucho
-            console.log('[GarmentService] Background removal model not ready, sending original image');
-          }
         }
       }
 
