@@ -48,7 +48,8 @@ function garmentsCacheKey(userId: string, limit?: number, offset?: number): stri
 }
 
 /**
- * Convierte una URI de imagen a base64 string (web only).
+ * Convierte una URI de imagen a base64 string.
+ * Funciona en web y React Native (usa XMLHttpRequest como fallback para file:// URIs).
  */
 export async function uriToBase64(uri: string): Promise<string> {
   if (uri.startsWith('data:')) {
@@ -56,18 +57,42 @@ export async function uriToBase64(uri: string): Promise<string> {
     if (base64Match) return base64Match[1];
     return uri;
   }
-  const blobResp = await fetch(uri);
-  const blob = await blobResp.blob();
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      const base64Match = result.match(/^data:image\/\w+;base64,(.+)$/);
-      resolve(base64Match ? base64Match[1] : result);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+
+  // Intentar con fetch + FileReader (funciona en web, puede fallar en RN con file://)
+  try {
+    const blobResp = await fetch(uri);
+    const blob = await blobResp.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const base64Match = result.match(/^data:image\/\w+;base64,(.+)$/);
+        resolve(base64Match ? base64Match[1] : result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    // Fallback: XMLHttpRequest (más compatible con React Native file:// URIs)
+    // @ts-ignore - XMLHttpRequest está disponible en RN
+    const xhr = new XMLHttpRequest();
+    xhr.responseType = 'blob';
+    return await new Promise<string>((resolve, reject) => {
+      xhr.onload = () => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          const base64Match = result.match(/^data:image\/\w+;base64,(.+)$/);
+          resolve(base64Match ? base64Match[1] : result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(xhr.response);
+      };
+      xhr.onerror = reject;
+      xhr.open('GET', uri);
+      xhr.send();
+    });
+  }
 }
 
 export const invalidateGarmentsCache = (userId?: string): void => {
@@ -244,76 +269,81 @@ export const createGarment = async (
       return { data: garment };
     }
     
-    // On mobile, use FormData (React Native handles native file URIs)
-    const formData = new FormData();
-    formData.append('name', sanitizedName);
-    formData.append('category', garmentData.category);
-    formData.append('season', garmentData.season as string);
+    // On mobile, send JSON with base64 image (same as web) to avoid FormData/Multer issues on serverless
+    const bodyFieldsMobile: Record<string, any> = {
+      name: sanitizedName,
+      category: garmentData.category,
+      season: garmentData.season,
+    };
     
-    if (sanitizedColor) formData.append('color', sanitizedColor);
-    if (sanitizedBrand) formData.append('brand', sanitizedBrand);
-    if (garmentData.style && garmentData.style.length > 0) {
-      formData.append('style', JSON.stringify(garmentData.style));
+    if (sanitizedColor) bodyFieldsMobile.color = sanitizedColor;
+    if (sanitizedBrand) bodyFieldsMobile.brand = sanitizedBrand;
+    if (garmentData.style && garmentData.style.length > 0) bodyFieldsMobile.style = garmentData.style;
+    if (garmentData.size) bodyFieldsMobile.size = garmentData.size;
+    if (sanitizedNotes) bodyFieldsMobile.notes = sanitizedNotes;
+    // Mandar ambos formatos por si el backend espera camelCase o snake_case
+    bodyFieldsMobile.isPublic = garmentData.isPublic ?? false;
+    bodyFieldsMobile.is_public = garmentData.isPublic ?? false;
+    if (garmentData.isPublic && garmentData.listingType) {
+      bodyFieldsMobile.listingType = garmentData.listingType;
+      bodyFieldsMobile.listing_type = garmentData.listingType;
     }
-    if (garmentData.size) formData.append('size', garmentData.size);
-    if (sanitizedNotes) formData.append('notes', sanitizedNotes);
     
-    // Append images on mobile
+    // Convertir imagen a base64
     const mobileFirstImage = garmentData.imageUrl || (garmentData as any).image_url || '';
     if (mobileFirstImage) {
-      formData.append('image', {
-        uri: mobileFirstImage,
-        type: 'image/jpeg',
-        name: 'garment.jpg',
-      } as any);
+      try {
+        if (garmentData.imageBase64) {
+          bodyFieldsMobile.imageBase64 = garmentData.imageBase64;
+        } else {
+          bodyFieldsMobile.imageBase64 = await uriToBase64(mobileFirstImage);
+        }
+      } catch (e) {
+        console.warn('[GarmentService] Failed to convert image to base64 on mobile, sending without:', e);
+        // Fallback: enviar JSON igual pero sin base64
+      }
     }
     if (garmentData.imageBackUrl) {
-      formData.append('fileBack', {
-        uri: garmentData.imageBackUrl,
-        type: 'image/jpeg',
-        name: 'garment-back.jpg',
-      } as any);
+      try {
+        bodyFieldsMobile.imageBase64Back = await uriToBase64(garmentData.imageBackUrl);
+      } catch (e) {
+        console.warn('[GarmentService] Failed to convert back image to base64:', e);
+      }
     }
     
-    // Mandar ambos formatos por si el backend espera camelCase o snake_case
-    formData.append('isPublic', String(garmentData.isPublic ?? false));
-    formData.append('is_public', String(garmentData.isPublic ?? false));
-    if (garmentData.isPublic && garmentData.listingType) {
-      formData.append('listingType', garmentData.listingType);
-      formData.append('listing_type', garmentData.listingType);
-    }
-    
-    const headers: Record<string, string> = {};
+    const mobileHeaders: Record<string, string> = {
+      'Content-Type': 'application/json',
+    };
     if (token) {
-      headers['Authorization'] = `Bearer ${token}`;
+      mobileHeaders['Authorization'] = `Bearer ${token}`;
     }
     
-    const response = await fetchWithTimeout(`${API_URL}/garments`, {
+    const mobileResponse = await fetchWithTimeout(`${API_URL}/garments`, {
       method: 'POST',
-      headers,
-      body: formData,
+      headers: mobileHeaders,
+      body: JSON.stringify(bodyFieldsMobile),
       timeout: 30000,
     });
-
-    if (!response.ok) {
+    
+    if (!mobileResponse.ok) {
       let errorText = '';
-      try { errorText = await response.text(); } catch {}
+      try { errorText = await mobileResponse.text(); } catch {}
       let detail = '';
       try {
         const errJson = JSON.parse(errorText);
         detail = errJson.message || errJson.error || '';
       } catch {}
-      return { error: `Error al crear prenda (${response.status}): ${detail || errorText}` };
+      return { error: `Error al crear prenda (${mobileResponse.status}): ${detail || errorText}` };
     }
-
-    const result = await response.json();
     
-    const garment = normalizeGarment(result.data || result);
-
+    const mobileResult = await mobileResponse.json();
+    
+    const garmentMobile = normalizeGarment(mobileResult.data || mobileResult);
+    
     invalidateGarmentsCache(userId);
-    if (garment?.id) apiCache.invalidate(`garment:${garment.id}`);
+    if (garmentMobile?.id) apiCache.invalidate(`garment:${garmentMobile.id}`);
     
-    return { data: garment };
+    return { data: garmentMobile };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Error desconocido' };
   }
