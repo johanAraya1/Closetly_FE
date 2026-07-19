@@ -269,84 +269,76 @@ export const createGarment = async (
       return { data: garment };
     }
     
-    // On mobile, send JSON with base64 image (same as web) to avoid FormData/Multer issues on serverless
-    const bodyFieldsMobile: Record<string, any> = {
-      name: sanitizedName,
-      category: garmentData.category,
-      season: garmentData.season,
-    };
+    // On mobile, use FormData (React Native handles native file URIs).
+    // El backend usa Multer para archivos y hace bg removal al recibir la imagen como file.
+    const formData = new FormData();
+    formData.append('name', sanitizedName);
+    formData.append('category', garmentData.category);
+    formData.append('season', garmentData.season as string);
     
-    if (sanitizedColor) bodyFieldsMobile.color = sanitizedColor;
-    if (sanitizedBrand) bodyFieldsMobile.brand = sanitizedBrand;
-    if (garmentData.style && garmentData.style.length > 0) bodyFieldsMobile.style = garmentData.style;
-    if (garmentData.size) bodyFieldsMobile.size = garmentData.size;
-    if (sanitizedNotes) bodyFieldsMobile.notes = sanitizedNotes;
-    // Mandar ambos formatos por si el backend espera camelCase o snake_case
-    bodyFieldsMobile.isPublic = garmentData.isPublic ?? false;
-    bodyFieldsMobile.is_public = garmentData.isPublic ?? false;
-    if (garmentData.isPublic && garmentData.listingType) {
-      bodyFieldsMobile.listingType = garmentData.listingType;
-      bodyFieldsMobile.listing_type = garmentData.listingType;
+    if (sanitizedColor) formData.append('color', sanitizedColor);
+    if (sanitizedBrand) formData.append('brand', sanitizedBrand);
+    if (garmentData.style && garmentData.style.length > 0) {
+      formData.append('style', JSON.stringify(garmentData.style));
     }
+    if (garmentData.size) formData.append('size', garmentData.size);
+    if (sanitizedNotes) formData.append('notes', sanitizedNotes);
     
-    // Convertir imagen a base64
+    // Append images on mobile
     const mobileFirstImage = garmentData.imageUrl || (garmentData as any).image_url || '';
     if (mobileFirstImage) {
-      try {
-        if (garmentData.imageBase64) {
-          bodyFieldsMobile.imageBase64 = garmentData.imageBase64;
-        } else {
-          bodyFieldsMobile.imageBase64 = await uriToBase64(mobileFirstImage);
-        }
-      } catch (e) {
-        console.warn('[GarmentService] Failed to convert image to base64 on mobile, sending without:', e);
-        // Fallback: enviar JSON igual pero sin base64
-      }
+      formData.append('image', {
+        uri: mobileFirstImage,
+        type: 'image/jpeg',
+        name: 'garment.jpg',
+      } as any);
     }
     if (garmentData.imageBackUrl) {
-      try {
-        bodyFieldsMobile.imageBase64Back = await uriToBase64(garmentData.imageBackUrl);
-      } catch (e) {
-        console.warn('[GarmentService] Failed to convert back image to base64:', e);
-      }
+      formData.append('fileBack', {
+        uri: garmentData.imageBackUrl,
+        type: 'image/jpeg',
+        name: 'garment-back.jpg',
+      } as any);
     }
     
-    const mobileHeaders: Record<string, string> = {
-      'Content-Type': 'application/json',
-    };
+    // Mandar ambos formatos por si el backend espera camelCase o snake_case
+    formData.append('isPublic', String(garmentData.isPublic ?? false));
+    formData.append('is_public', String(garmentData.isPublic ?? false));
+    if (garmentData.isPublic && garmentData.listingType) {
+      formData.append('listingType', garmentData.listingType);
+      formData.append('listing_type', garmentData.listingType);
+    }
+    
+    const headers: Record<string, string> = {};
     if (token) {
-      mobileHeaders['Authorization'] = `Bearer ${token}`;
+      headers['Authorization'] = `Bearer ${token}`;
     }
     
-    const mobileResponse = await fetchWithTimeout(`${API_URL}/garments`, {
+    const response = await fetchWithTimeout(`${API_URL}/garments`, {
       method: 'POST',
-      headers: mobileHeaders,
-      body: JSON.stringify(bodyFieldsMobile),
+      headers,
+      body: formData,
       timeout: 30000,
     });
     
-    if (!mobileResponse.ok) {
+    if (!response.ok) {
       let errorText = '';
-      try { errorText = await mobileResponse.text(); } catch {}
+      try { errorText = await response.text(); } catch {}
       let detail = '';
       try {
         const errJson = JSON.parse(errorText);
         detail = errJson.message || errJson.error || '';
       } catch {}
-      return { error: `Error al crear prenda (${mobileResponse.status}): ${detail || errorText}` };
+      return { error: `Error al crear prenda (${response.status}): ${detail || errorText}` };
     }
     
-    const mobileResult = await mobileResponse.json();
-    
-    const garmentMobile = normalizeGarment(mobileResult.data || mobileResult);
-    
-    // Debug: ver qué devolvió el backend
-    console.log('[GarmentService] Mobile create response - has imageBase64:', !!bodyFieldsMobile.imageBase64, 'image_url:', garmentMobile?.image_url?.slice(0, 40), '_bgRemovedClient received:', !!(garmentMobile as any)?._bgRemovedClient);
+    const result = await response.json();
+    const garment = normalizeGarment(result.data || result);
     
     invalidateGarmentsCache(userId);
-    if (garmentMobile?.id) apiCache.invalidate(`garment:${garmentMobile.id}`);
+    if (garment?.id) apiCache.invalidate(`garment:${garment.id}`);
     
-    return { data: garmentMobile };
+    return { data: garment };
   } catch (error) {
     return { error: error instanceof Error ? error.message : 'Error desconocido' };
   }
