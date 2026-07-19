@@ -18,9 +18,9 @@ import * as FileSystem from 'expo-file-system';
 
 // ─── Constants ───────────────────────────────────────────────────────────────
 
-/** 1×1 white PNG en base64 */
+/** 1×1 white PNG en base64 (RGB, 255/255/255) */
 const WHITE_1X1_BASE64 =
-  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8/5+hHgAHggJ/PchI7wAAAABJRU5ErkJggg==';
+  'iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAIAAACQd1PeAAAADElEQVR4nGP4//8/AAX+Av4N70a4AAAAAElFTkSuQmCC';
 
 /** Límite de resolución para procesamiento */
 const MAX_SIZE = 1024;
