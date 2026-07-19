@@ -220,12 +220,6 @@ export default function CreateGarmentScreen() {
     bgProcessedRef.current = null;
 
     try {
-      Alert.alert('[DEBUG]', `startBackgroundRemoval: OS=${Platform.OS}, uri=${uri.slice(0, 30)}...`);
-
-      // Redimensionar a 1024px antes del bg removal:
-      // - Reduce el tiempo de uriToBase64 (descarga blob más chico)
-      // - El modelo RMBG-1.4 ya procesa internamente a 1024x1024
-      // - Reduce tiempo de inferencia del modelo
       const manipResult = await ImageManipulator.manipulateAsync(
         uri,
         [{ resize: { width: 1024 } }],
@@ -234,7 +228,7 @@ export default function CreateGarmentScreen() {
       if (bgProcessingUri.current !== uri) return; // Stale, cancelar
 
       let base64 = manipResult.base64!;
-      Alert.alert('[DEBUG]', `ImageManipulator OK, base64 length: ${base64.length}`);
+      Alert.alert('[DEBUG]', `OS=${Platform.OS}\nuri=${uri.slice(0, 40)}...\nbase64 length=${base64.length}\nbgRemoved=false (mobile: lo hace el BE)`);
 
       if (Platform.OS === 'web') {
         // Web: ejecutar bg removal con Transformers.js via Web Worker
@@ -255,7 +249,6 @@ export default function CreateGarmentScreen() {
         // Mobile: no hay bg removal client-side, pero guardamos el base64
         // para que el service lo mande como JSON al backend (sin FormData)
         bgProcessedRef.current = base64;
-        Alert.alert('[DEBUG]', `Mobile: base64 stored in ref (length: ${base64.length})`);
       }
     } catch (error) {
       if (bgProcessingUri.current === uri) {
