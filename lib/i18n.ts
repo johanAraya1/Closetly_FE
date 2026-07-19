@@ -51,6 +51,8 @@ const i18n = new I18n({
       next: 'Next',
       takePhoto: 'Camera',
       chooseFromGallery: 'Gallery',
+      remindLater: 'Remind later',
+      remindLaterBiometric: 'Remind me later',
     },
     auth: {
       login: 'Log In',
@@ -688,6 +690,8 @@ const i18n = new I18n({
       next: 'Siguiente',
       takePhoto: 'Cámara',
       chooseFromGallery: 'Galería',
+      remindLater: 'Después',
+      remindLaterBiometric: 'Recordármelo después',
     },
     auth: {
       login: 'Iniciar Sesión',
