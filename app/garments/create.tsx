@@ -220,6 +220,8 @@ export default function CreateGarmentScreen() {
     bgProcessedRef.current = null;
 
     try {
+      Alert.alert('[DEBUG]', `startBackgroundRemoval: OS=${Platform.OS}, uri=${uri.slice(0, 30)}...`);
+
       // Redimensionar a 1024px antes del bg removal:
       // - Reduce el tiempo de uriToBase64 (descarga blob más chico)
       // - El modelo RMBG-1.4 ya procesa internamente a 1024x1024
@@ -232,6 +234,7 @@ export default function CreateGarmentScreen() {
       if (bgProcessingUri.current !== uri) return; // Stale, cancelar
 
       let base64 = manipResult.base64!;
+      Alert.alert('[DEBUG]', `ImageManipulator OK, base64 length: ${base64.length}`);
 
       if (Platform.OS === 'web') {
         // Web: ejecutar bg removal con Transformers.js via Web Worker
@@ -242,18 +245,22 @@ export default function CreateGarmentScreen() {
           console.log('[Create] Background removal completed in parallel');
           setBgProcessedBase64(result.base64);
           bgProcessedRef.current = result.base64;
+          Alert.alert('[DEBUG]', 'Web bg removal OK, stored in ref');
         } else {
           console.warn('[Create] Early bg removal failed:', result.error);
+          Alert.alert('[DEBUG]', `Web bg removal FAILED: ${result.error}`);
           // No es crítico — el service lo reintentará al guardar o usará la original
         }
       } else {
         // Mobile: no hay bg removal client-side, pero guardamos el base64
         // para que el service lo mande como JSON al backend (sin FormData)
         bgProcessedRef.current = base64;
+        Alert.alert('[DEBUG]', `Mobile: base64 stored in ref (length: ${base64.length})`);
       }
     } catch (error) {
       if (bgProcessingUri.current === uri) {
         console.warn('[Create] Early bg removal error:', error);
+        Alert.alert('[DEBUG]', `ERROR in startBackgroundRemoval: ${error}`);
       }
     } finally {
       if (bgProcessingUri.current === uri) {
@@ -434,6 +441,8 @@ export default function CreateGarmentScreen() {
       } else {
         // Crear nueva prenda
         const firstExtra = activeExtraUris.length > 0 ? activeExtraUris[0] : undefined;
+        const hasBase64 = !!bgProcessedRef.current;
+        Alert.alert('[DEBUG]', `doCreate: imageUrl="${(imageUrl || '').slice(0, 30)}..." hasBase64=${hasBase64} len=${bgProcessedRef.current?.length || 0}`);
         const garment = await createGarment(user.id, {
           name: name.trim(),
           category,
@@ -452,6 +461,7 @@ export default function CreateGarmentScreen() {
         setIsLoading(false);
 
         if (garment) {
+          Alert.alert('[DEBUG]', `createGarment OK! image_url="${(garment.image_url || '').slice(0, 40)}"`);
           setShowSuccessModal(true);
         } else {
           setErrorMessage(t('garments.create.errorCreateFailed'));
