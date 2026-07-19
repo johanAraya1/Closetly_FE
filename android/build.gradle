@@ -9,6 +9,9 @@ buildscript {
         kotlinVersion = findProperty('android.kotlinVersion') ?: '1.8.10'
 
         ndkVersion = "25.1.8937393"
+
+        ImageSelfieSegmentation_compileSdkVersion = 34
+        ImageSelfieSegmentation_targetSdkVersion = 34
     }
     repositories {
         google()
