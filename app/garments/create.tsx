@@ -211,7 +211,6 @@ export default function CreateGarmentScreen() {
 
   // Background removal en paralelo con el análisis de IA
   const startBackgroundRemoval = useCallback(async (uri: string) => {
-    if (Platform.OS !== 'web') return;
     if (typeof window !== 'undefined' && (window as any).__E2E_TEST__) return; // Skip in E2E tests
 
     // Marcar esta URI como la que estamos procesando
@@ -234,17 +233,23 @@ export default function CreateGarmentScreen() {
 
       let base64 = manipResult.base64!;
 
-      // Ejecutar background removal
-      const result = await removeBackground(base64, 'image/jpeg');
-      if (bgProcessingUri.current !== uri) return; // Stale, cancelar
+      if (Platform.OS === 'web') {
+        // Web: ejecutar bg removal con Transformers.js via Web Worker
+        const result = await removeBackground(base64, 'image/jpeg');
+        if (bgProcessingUri.current !== uri) return; // Stale, cancelar
 
-      if (result.bgRemoved) {
-        console.log('[Create] Background removal completed in parallel');
-        setBgProcessedBase64(result.base64);
-        bgProcessedRef.current = result.base64;
+        if (result.bgRemoved) {
+          console.log('[Create] Background removal completed in parallel');
+          setBgProcessedBase64(result.base64);
+          bgProcessedRef.current = result.base64;
+        } else {
+          console.warn('[Create] Early bg removal failed:', result.error);
+          // No es crítico — el service lo reintentará al guardar o usará la original
+        }
       } else {
-        console.warn('[Create] Early bg removal failed:', result.error);
-        // No es crítico — el service lo reintentará al guardar o usará la original
+        // Mobile: no hay bg removal client-side, pero guardamos el base64
+        // para que el service lo mande como JSON al backend (sin FormData)
+        bgProcessedRef.current = base64;
       }
     } catch (error) {
       if (bgProcessingUri.current === uri) {
