@@ -228,7 +228,7 @@ export default function CreateGarmentScreen() {
       if (bgProcessingUri.current !== uri) return; // Stale, cancelar
 
       let base64 = manipResult.base64!;
-      Alert.alert('[DEBUG]', `OS=${Platform.OS}\nuri=${uri.slice(0, 40)}...\nbase64 length=${base64.length}\nbgRemoved=false (mobile: lo hace el BE)`);
+      Alert.alert('[DEBUG]', `OS=${Platform.OS}\nbase64 length=${base64.length}\nEjecutando bg removal...`);
 
       if (Platform.OS === 'web') {
         // Web: ejecutar bg removal con Transformers.js via Web Worker
@@ -239,16 +239,24 @@ export default function CreateGarmentScreen() {
           console.log('[Create] Background removal completed in parallel');
           setBgProcessedBase64(result.base64);
           bgProcessedRef.current = result.base64;
-          Alert.alert('[DEBUG]', 'Web bg removal OK, stored in ref');
         } else {
           console.warn('[Create] Early bg removal failed:', result.error);
-          Alert.alert('[DEBUG]', `Web bg removal FAILED: ${result.error}`);
           // No es crítico — el service lo reintentará al guardar o usará la original
         }
       } else {
-        // Mobile: no hay bg removal client-side, pero guardamos el base64
-        // para que el service lo mande como JSON al backend (sin FormData)
-        bgProcessedRef.current = base64;
+        // Mobile: bg removal con MLKit nativo (exp-background-remover)
+        console.log('[Create] Running native bg removal on mobile...');
+        const result = await removeBackground(base64, 'image/jpeg');
+        if (bgProcessingUri.current !== uri) return; // Stale, cancelar
+
+        if (result.bgRemoved) {
+          console.log('[Create] Native bg removal completed');
+          setBgProcessedBase64(result.base64);
+          bgProcessedRef.current = result.base64;
+        } else {
+          console.warn('[Create] Native bg removal failed:', result.error);
+          bgProcessedRef.current = base64;
+        }
       }
     } catch (error) {
       if (bgProcessingUri.current === uri) {
@@ -434,8 +442,6 @@ export default function CreateGarmentScreen() {
       } else {
         // Crear nueva prenda
         const firstExtra = activeExtraUris.length > 0 ? activeExtraUris[0] : undefined;
-        const hasBase64 = !!bgProcessedRef.current;
-        Alert.alert('[DEBUG]', `doCreate: imageUrl="${(imageUrl || '').slice(0, 30)}..." hasBase64=${hasBase64} len=${bgProcessedRef.current?.length || 0}`);
         const garment = await createGarment(user.id, {
           name: name.trim(),
           category,

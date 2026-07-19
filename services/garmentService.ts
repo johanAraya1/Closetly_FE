@@ -269,8 +269,42 @@ export const createGarment = async (
       return { data: garment };
     }
     
-    // On mobile, use FormData (React Native handles native file URIs).
-    // El backend usa Multer para archivos y hace bg removal al recibir la imagen como file.
+    // On mobile:
+    // - Si imageBase64 viene (bg removal ya procesado) → mandar JSON directo
+    // - Si no → mandar FormData (el backend lo procesará)
+    if (garmentData.imageBase64) {
+      // El bg removal ya se hizo del lado del cliente (MLKit), mandar JSON
+      bodyFields.imageBase64 = garmentData.imageBase64;
+      bodyFields._bgRemovedClient = true;
+      
+      const mobileHeaders: Record<string, string> = {
+        'Content-Type': 'application/json',
+      };
+      if (token) mobileHeaders['Authorization'] = `Bearer ${token}`;
+      
+      const resp = await fetchWithTimeout(`${API_URL}/garments`, {
+        method: 'POST',
+        headers: mobileHeaders,
+        body: JSON.stringify(bodyFields),
+        timeout: 30000,
+      });
+      
+      if (!resp.ok) {
+        let errorText = '';
+        try { errorText = await resp.text(); } catch {}
+        let detail = '';
+        try { const e = JSON.parse(errorText); detail = e.message || e.error || ''; } catch {}
+        return { error: `Error al crear prenda (${resp.status}): ${detail || errorText}` };
+      }
+      
+      const result = await resp.json();
+      const garment = normalizeGarment(result.data || result);
+      invalidateGarmentsCache(userId);
+      if (garment?.id) apiCache.invalidate(`garment:${garment.id}`);
+      return { data: garment };
+    }
+    
+    // Sin imageBase64: mandar FormData con file URI (backup)
     const formData = new FormData();
     formData.append('name', sanitizedName);
     formData.append('category', garmentData.category);
