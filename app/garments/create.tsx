@@ -210,7 +210,10 @@ export default function CreateGarmentScreen() {
   };
 
   // Background removal en paralelo con el análisis de IA
+  // En web se usa RMBG-1.4 (Transformers.js), en mobile el backend lo hace con Sharp.
   const startBackgroundRemoval = useCallback(async (uri: string) => {
+    // Solo corre en web — mobile depende del backend para bg removal
+    if (Platform.OS !== 'web') return;
     if (typeof window !== 'undefined' && (window as any).__E2E_TEST__) return; // Skip in E2E tests
 
     // Marcar esta URI como la que estamos procesando

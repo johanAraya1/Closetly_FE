@@ -284,26 +284,11 @@ export const createGarment = async (
     if (garmentData.size) formData.append('size', garmentData.size);
     if (sanitizedNotes) formData.append('notes', sanitizedNotes);
     
-    // Si hay imageBase64 (bg removal procesado on-device), escribir a temp file y usarlo
-    let mobileImageUri = garmentData.imageUrl || (garmentData as any).image_url || '';
-    if (garmentData.imageBase64) {
-      try {
-        const { cacheDirectory, writeAsStringAsync, EncodingType } = await import('expo-file-system');
-        const tmpUri = `${cacheDirectory ?? ''}garment_processed_${Date.now()}.jpg`;
-        await writeAsStringAsync(tmpUri, garmentData.imageBase64, {
-          encoding: EncodingType.Base64,
-        });
-        mobileImageUri = tmpUri;
-        console.log('[GarmentService] Using on-device bg-removed image');
-        // Avisar al backend que no aplique su propio bg removal
-        formData.append('_bgRemovedClient', 'true');
-      } catch (e) {
-        console.warn('[GarmentService] Failed to write processed image, using original:', e);
-      }
-    }
-    if (mobileImageUri) {
+    // Append images on mobile (backend handles bg removal via Sharp)
+    const mobileFirstImage = garmentData.imageUrl || (garmentData as any).image_url || '';
+    if (mobileFirstImage) {
       formData.append('image', {
-        uri: mobileImageUri,
+        uri: mobileFirstImage,
         type: 'image/jpeg',
         name: 'garment.jpg',
       } as any);
