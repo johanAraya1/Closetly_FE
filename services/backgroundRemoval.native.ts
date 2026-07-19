@@ -109,9 +109,9 @@ export async function removeBackground(
       throw new Error('MLKit returned empty result');
     }
 
-    // 4. Leer el resultado como base64
+    // 4. Leer el resultado como base64 (mantener file:// prefix para expo-file-system)
     const resultBase64 = await FileSystem.readAsStringAsync(
-      resultUri.replace('file://', ''),
+      resultUri,
       { encoding: FileSystem.EncodingType.Base64 },
     );
 
