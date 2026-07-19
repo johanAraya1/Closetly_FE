@@ -8,8 +8,9 @@
  */
 
 import { create } from 'zustand';
-import type { Garment } from '@/types';
+import type { Garment, PublicProfileResult } from '@/types';
 import * as marketplaceService from '@/services/marketplaceService';
+import { apiClient } from '@/utils/apiClient';
 
 const DEFAULT_PAGE_LIMIT = 20;
 
@@ -21,10 +22,12 @@ interface MarketplaceState {
   page: number;
   total: number;
   error: string | null;
+  profilesByUserId: Record<string, PublicProfileResult>;
 
   // Actions
   loadPublicGarments: () => Promise<void>;
   loadMorePublicGarments: () => Promise<void>;
+  loadProfilesForCurrentGarments: () => Promise<void>;
   clearError: () => void;
   resetStore: () => void;
 }
@@ -37,6 +40,7 @@ const initialState = {
   page: 0,
   total: 0,
   error: null,
+  profilesByUserId: {},
 };
 
 export const useMarketplaceStore = create<MarketplaceState>((set, get) => {
@@ -100,6 +104,51 @@ export const useMarketplaceStore = create<MarketplaceState>((set, get) => {
           total: result.total ?? state.total,
           hasMore: result.hasMore ?? false,
           page: state.page + 1,
+        }));
+      }
+    },
+
+    /**
+     * Carga los perfiles públicos de los vendedores cuyas prendas están
+     * actualmente en el store. Omite userIds ya cargados (caché).
+     */
+    loadProfilesForCurrentGarments: async () => {
+      const { garments, profilesByUserId } = get();
+
+      // Extraer userIds únicos que aún no tenemos perfil
+      const missingIds = [
+        ...new Set(garments.map((g) => g.userId).filter(Boolean)),
+      ].filter((id) => !profilesByUserId[id]);
+
+      if (missingIds.length === 0) return;
+
+      // Fetch en paralelo (máx 3 a la vez para no saturar)
+      const BATCH_SIZE = 3;
+      const newProfiles: Record<string, PublicProfileResult> = {};
+
+      for (let i = 0; i < missingIds.length; i += BATCH_SIZE) {
+        const batch = missingIds.slice(i, i + BATCH_SIZE);
+        const results = await Promise.allSettled(
+          batch.map((userId) =>
+            apiClient.get<PublicProfileResult>(
+              `/users/public/${userId}`,
+              { requiresAuth: false },
+            ),
+          ),
+        );
+
+        for (let j = 0; j < batch.length; j++) {
+          const result = results[j];
+          if (result.status === 'fulfilled' && result.value.data) {
+            const profile = result.value.data;
+            newProfiles[batch[j]] = profile;
+          }
+        }
+      }
+
+      if (Object.keys(newProfiles).length > 0) {
+        set((state) => ({
+          profilesByUserId: { ...state.profilesByUserId, ...newProfiles },
         }));
       }
     },

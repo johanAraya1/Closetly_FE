@@ -26,10 +26,11 @@ export async function analyzeGarmentImage(
   imageUri: string
 ): Promise<{ data?: GarmentAnalysis; error?: string }> {
   try {
-    // Usar expo-image-manipulator para obtener base64 (funciona en React Native)
+    // Usar expo-image-manipulator para redimensionar a 1024px y obtener base64
+    // Redimensionar antes reduce el payload de red 10x y acelera el análisis de IA
     const manipResult = await ImageManipulator.manipulateAsync(
       imageUri,
-      [],
+      [{ resize: { width: 1024 } }],
       { base64: true, compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
     );
 

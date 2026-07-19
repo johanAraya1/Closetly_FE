@@ -12,8 +12,9 @@ import {
   ScrollView,
   RefreshControl,
   ActivityIndicator,
+  Alert,
 } from 'react-native';
-import { useRouter } from 'expo-router';
+import { useRouter, useLocalSearchParams } from 'expo-router';
 import { getLocalDateString } from '@/utils/date';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
@@ -23,6 +24,7 @@ import { useTranslation } from '@/hooks/useTranslation';
 import i18n from '@/lib/i18n';
 import { COLORS, FONT_SIZES } from '@/lib/constants';
 import { EmptyState, Loading, withScreenErrorBoundary } from '@/components';
+import { useCalendarStore } from '@/store/calendarStore';
 import type { CalendarLogEntry } from '@/types';
 
 // Map common color names to hex values for calendar markers
@@ -67,6 +69,7 @@ function getOutfitColor(entry: CalendarLogEntry): string {
 
 export default function CalendarScreen() {
   const router = useRouter();
+  const { logOutfitId } = useLocalSearchParams<{ logOutfitId?: string }>();
   const { t } = useTranslation();
   const {
     entries,
@@ -80,6 +83,7 @@ export default function CalendarScreen() {
   } = useCalendar();
 
   const [refreshing, setRefreshing] = React.useState(false);
+  const [loggingDay, setLoggingDay] = React.useState<string | null>(null);
 
   // Build entry map for quick lookup + color map
   const entryByDate = useMemo(() => {
@@ -133,9 +137,60 @@ export default function CalendarScreen() {
     });
   }, [selectedMonth, selectedYear]);
 
-  // Day press — navigate to outfit detail if logged, or log-today if empty
+  // Day press — log outfit if logOutfitId present, else navigate
   const handleDayPress = useCallback(
     (day: { dateString: string }) => {
+      // Si venimos desde un outfit para registrar, logueamos directo
+      if (logOutfitId) {
+        const entry = entryByDate[day.dateString];
+        if (entry) {
+          // Día ocupado — preguntar si reemplazar
+          Alert.alert(
+            t('calendar.existingOutfitTitle'),
+            t('calendar.existingOutfitMessage', {
+              name: entry.outfit.name,
+              date: day.dateString,
+            }),
+            [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('calendar.existingOutfitAction'),
+                onPress: async () => {
+                  setLoggingDay(day.dateString);
+                  try {
+                    await useCalendarStore.getState().logOutfit(logOutfitId, day.dateString);
+                    Alert.alert(t('common.success'), t('calendar.loggedSuccess', { date: day.dateString }));
+                    router.back();
+                  } catch (err) {
+                    const msg = (err as any)?.message || t('calendar.errorLog');
+                    Alert.alert(t('common.error'), msg);
+                  } finally {
+                    setLoggingDay(null);
+                  }
+                },
+              },
+            ],
+          );
+        } else {
+          // Día vacío — loguear directo
+          (async () => {
+            setLoggingDay(day.dateString);
+            try {
+              await useCalendarStore.getState().logOutfit(logOutfitId, day.dateString);
+              Alert.alert(t('common.success'), t('calendar.loggedSuccess', { date: day.dateString }));
+              router.back();
+            } catch (err) {
+              const msg = (err as any)?.message || t('calendar.errorLog');
+              Alert.alert(t('common.error'), msg);
+            } finally {
+              setLoggingDay(null);
+            }
+          })();
+        }
+        return;
+      }
+
+      // Comportamiento normal
       const entry = entryByDate[day.dateString];
       if (entry) {
         router.push(`/outfits/${entry.outfit.id}`);
@@ -143,7 +198,7 @@ export default function CalendarScreen() {
         router.push(`/calendar/log-today?date=${day.dateString}`);
       }
     },
-    [entryByDate, router],
+    [entryByDate, router, logOutfitId, t],
   );
 
   // Pull-to-refresh
@@ -243,7 +298,22 @@ export default function CalendarScreen() {
           />
         }
       >
-        {/* ===== Month navigation ===== */}
+        {/* ===== Selection mode banner (logOutfitId) ===== */}
+      {logOutfitId && (
+        <View style={styles.selectionBanner}>
+          <View style={styles.selectionBannerContent}>
+            <Ionicons name="calendar-outline" size={18} color={COLORS.primary} />
+            <Text style={styles.selectionBannerText}>
+              {t('calendar.selectDateForLog')}
+            </Text>
+          </View>
+          {loggingDay && (
+            <ActivityIndicator size="small" color={COLORS.primary} />
+          )}
+        </View>
+      )}
+
+      {/* ===== Month navigation ===== */}
         <View style={styles.monthNav}>
           <TouchableOpacity
             onPress={() => navigateMonth(-1)}
@@ -502,5 +572,31 @@ const styles = StyleSheet.create({
   legendText: {
     fontSize: FONT_SIZES.xs,
     color: COLORS.gray[500],
+  },
+
+  // Selection mode banner (log from outfit detail)
+  selectionBanner: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    marginHorizontal: 16,
+    marginTop: 8,
+    marginBottom: 4,
+    paddingVertical: 10,
+    paddingHorizontal: 14,
+    backgroundColor: '#EFF6FF',
+    borderRadius: 10,
+    borderWidth: 1,
+    borderColor: '#BFDBFE',
+  },
+  selectionBannerContent: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  selectionBannerText: {
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '500',
+    color: COLORS.primary,
   },
 });

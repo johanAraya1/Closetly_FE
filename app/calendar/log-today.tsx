@@ -46,6 +46,7 @@ export default function LogTodayScreen() {
   const [isLogging, setIsLogging] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [seasonFilter, setSeasonFilter] = useState('all');
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
   const numColumns = useMemo(() => (screenWidth > 600 ? 3 : 2), [screenWidth]);
 
@@ -92,100 +93,97 @@ export default function LogTodayScreen() {
     if (!selectedOutfitId) return;
     setIsLogging(true);
     clearError();
-
-    // Asegurar que las entries del mes correcto están cargadas
-    const targetDateObj = new Date(targetDate + 'T00:00:00');
-    const targetMonth = targetDateObj.getMonth() + 1;
-    const targetYear = targetDateObj.getFullYear();
-    const state = useCalendarStore.getState();
-    if (state.selectedMonth !== targetMonth || state.selectedYear !== targetYear || state.entries.length === 0) {
-      await loadMonth(targetMonth, targetYear);
-    }
-
-    // 1. Check if date already has an outfit logged
-    const freshEntries = useCalendarStore.getState().entries;
-    const existingEntry = freshEntries.find((e) => e.date === targetDate);
-    if (existingEntry) {
-      const replace = await new Promise<boolean>((resolve) => {
-        Alert.alert(
-          t('calendar.existingOutfitTitle'),
-          t('calendar.existingOutfitMessage', {
-            name: existingEntry.outfit.name,
-            date: formattedDate,
-          }),
-          [
-            { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
-            { text: t('calendar.existingOutfitAction'), onPress: () => resolve(true) },
-          ],
-        );
-      });
-      if (!replace) {
-        setIsLogging(false);
-        return;
+    try {
+      // Asegurar que las entries del mes correcto están cargadas
+      const targetDateObj = new Date(targetDate + 'T00:00:00');
+      const targetMonth = targetDateObj.getMonth() + 1;
+      const targetYear = targetDateObj.getFullYear();
+      const state = useCalendarStore.getState();
+      if (state.selectedMonth !== targetMonth || state.selectedYear !== targetYear || state.entries.length === 0) {
+        await loadMonth(targetMonth, targetYear);
       }
-    }
 
-    // 2. Warn if same outfit was logged on nearby dates (optional — user can still proceed)
-    const targetMs = new Date(targetDate + 'T00:00:00').getTime();
-    const sameOutfitEntries = freshEntries.filter(
-      (e) => e.outfit.id === selectedOutfitId,
-    );
-    const nearbyEntries = sameOutfitEntries.filter((e) => {
-      const entryMs = new Date(e.date + 'T00:00:00').getTime();
-      const diffDays = Math.abs((targetMs - entryMs) / 86400000);
-      return diffDays <= 3 && diffDays > 0;
-    });
-
-    if (nearbyEntries.length > 0) {
-      const datesStr = nearbyEntries
-        .map((e) => {
-          const d = new Date(e.date + 'T00:00:00');
-          return d.toLocaleDateString('en-US', {
-            weekday: 'short',
-            month: 'short',
-            day: 'numeric',
-          });
-        })
-        .join(', ');
-
-      const proceed = await new Promise<boolean>((resolve) => {
-        Alert.alert(
-          t('calendar.repeatTitle'),
-          t('calendar.repeatMessage', {
-            dates: datesStr,
-            date: formattedDate,
-          }),
-          [
-            { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
-            { text: t('planner.useAgain'), onPress: () => resolve(true) },
-          ],
-        );
-      });
-      if (!proceed) {
-        setIsLogging(false);
-        return;
+      // 1. Check if date already has an outfit logged
+      const freshEntries = useCalendarStore.getState().entries;
+      const existingEntry = freshEntries.find((e) => e.date === targetDate);
+      if (existingEntry) {
+        const replace = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            t('calendar.existingOutfitTitle'),
+            t('calendar.existingOutfitMessage', {
+              name: existingEntry.outfit.name,
+              date: formattedDate,
+            }),
+            [
+              { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+              { text: t('calendar.existingOutfitAction'), onPress: () => resolve(true) },
+            ],
+          );
+        });
+        if (!replace) {
+          return;
+        }
       }
-    }
 
-    // 3. Log it
-    const success = await logOutfit(selectedOutfitId, targetDate);
-    if (success) {
-      Alert.alert(
-        t('common.success'),
-        t('calendar.loggedSuccess', { date: formattedDate }),
-        [
-          {
-            text: t('common.ok'),
-            onPress: () => router.replace(`/calendar?date=${targetDate}`),
-          },
-        ],
+      // 2. Warn if same outfit was logged on nearby dates (optional — user can still proceed)
+      const targetMs = new Date(targetDate + 'T00:00:00').getTime();
+      const sameOutfitEntries = freshEntries.filter(
+        (e) => e.outfit.id === selectedOutfitId,
       );
-    } else {
-      const freshError = useCalendarStore.getState().error || t('common.error');
-      Alert.alert(t('common.error'), freshError);
-    }
+      const nearbyEntries = sameOutfitEntries.filter((e) => {
+        const entryMs = new Date(e.date + 'T00:00:00').getTime();
+        const diffDays = Math.abs((targetMs - entryMs) / 86400000);
+        return diffDays <= 3 && diffDays > 0;
+      });
 
-    setIsLogging(false);
+      if (nearbyEntries.length > 0) {
+        const datesStr = nearbyEntries
+          .map((e) => {
+            const d = new Date(e.date + 'T00:00:00');
+            return d.toLocaleDateString('en-US', {
+              weekday: 'short',
+              month: 'short',
+              day: 'numeric',
+            });
+          })
+          .join(', ');
+
+        const proceed = await new Promise<boolean>((resolve) => {
+          Alert.alert(
+            t('calendar.repeatTitle'),
+            t('calendar.repeatMessage', {
+              dates: datesStr,
+              date: formattedDate,
+            }),
+            [
+              { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
+              { text: t('planner.useAgain'), onPress: () => resolve(true) },
+            ],
+          );
+        });
+        if (!proceed) {
+          return;
+        }
+      }
+
+      // 3. Log it
+      const success = await logOutfit(selectedOutfitId, targetDate);
+      if (success) {
+        // Mostrar toast visual y redirigir automáticamente
+        setSuccessMessage(t('calendar.loggedSuccess', { date: formattedDate }));
+        setTimeout(() => {
+          router.replace(`/calendar?date=${targetDate}`);
+        }, 1500);
+      } else {
+        const freshError = useCalendarStore.getState().error || t('common.error');
+        Alert.alert(t('common.error'), freshError);
+      }
+    } catch (err) {
+      console.error('[LogToday] Error in handleLog:', err);
+      Alert.alert(t('common.error'), t('common.error'));
+    } finally {
+      setIsLogging(false);
+    }
   }, [selectedOutfitId, targetDate, logOutfit, loadMonth, t, router, clearError, formattedDate]);
 
   // Render outfit item
@@ -348,6 +346,14 @@ export default function LogTodayScreen() {
 
   return (
     <SafeAreaView style={styles.container}>
+      {/* ===== Success Toast ===== */}
+      {successMessage && (
+        <View style={styles.successToast}>
+          <Ionicons name="checkmark-circle" size={20} color="#FFFFFF" />
+          <Text style={styles.successToastText}>{successMessage}</Text>
+        </View>
+      )}
+
       {/* ===== Header ===== */}
       <View style={styles.header}>
         <TouchableOpacity
@@ -664,5 +670,22 @@ const styles = StyleSheet.create({
     fontSize: FONT_SIZES.md,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  successToast: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    backgroundColor: '#10B981',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    marginHorizontal: 16,
+    marginTop: 8,
+    borderRadius: 10,
+  },
+  successToastText: {
+    color: '#FFFFFF',
+    fontSize: FONT_SIZES.sm,
+    fontWeight: '600',
+    flex: 1,
   },
 });

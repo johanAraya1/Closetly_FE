@@ -3,8 +3,10 @@
  * Pantalla para crear una nueva prenda
  */
 
-import React, { useState, useEffect, useMemo, useCallback } from 'react';
-import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet } from 'react-native';
+import React, { useState, useEffect, useMemo, useCallback, useRef } from 'react';
+import { View, Text, ScrollView, Alert, TouchableOpacity, StyleSheet, Platform, Animated, Easing } from 'react-native';
+
+const isWeb = Platform.OS === 'web';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -13,6 +15,7 @@ import { Button, Input, Modal, GarmentVisibilityForm, DuplicateWarningModal } fr
 import { ColorPicker } from '@/components/ColorPicker';
 import { normalizeColorString } from '@/utils/format';
 import { checkDuplicate } from '@/services/garmentService';
+import { removeBackground } from '@/services/backgroundRemoval';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useImagePicker } from '@/hooks/useImagePicker';
@@ -22,6 +25,7 @@ import { usePhotoTip } from '@/hooks/usePhotoTip';
 import { useAuthStore } from '@/store/authStore';
 import { GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES, COLORS } from '@/lib/constants';
 import { pickImageFromGallery, takePhoto } from '@/utils/imageUtils';
+import * as ImageManipulator from 'expo-image-manipulator';
 import type { Garment, GarmentCategory, GarmentSeason, GarmentStyle, ListingType } from '@/types';
 
 export default function CreateGarmentScreen() {
@@ -65,6 +69,55 @@ export default function CreateGarmentScreen() {
   const [aiDetected, setAiDetected] = useState(false);
   const { showTip, dismissTip, tipVisible, tipTitle, tipMessage, tipType } = usePhotoTip();
 
+  // Parallel background removal state
+  const [bgProcessedBase64, setBgProcessedBase64] = useState<string | null>(null);
+  const bgProcessedRef = useRef<string | null>(null); // ref para evitar stale closure en doCreate
+  const [isBgRemoving, setIsBgRemoving] = useState(false);
+  const bgProcessingUri = useRef<string | null>(null);
+
+  // Animation for bg removal overlay
+  const scanAnim = useRef(new Animated.Value(0)).current;
+  const pulseAnim = useRef(new Animated.Value(0)).current;
+
+  useEffect(() => {
+    if (!isBgRemoving || isEditMode) return;
+
+    const scanLoop = Animated.loop(
+      Animated.timing(scanAnim, {
+        toValue: 1,
+        duration: 2500,
+        easing: Easing.linear,
+        useNativeDriver: true,
+      }),
+    );
+    const pulseLoop = Animated.loop(
+      Animated.sequence([
+        Animated.timing(pulseAnim, {
+          toValue: 1,
+          duration: 800,
+          easing: Easing.ease,
+          useNativeDriver: true,
+        }),
+        Animated.timing(pulseAnim, {
+          toValue: 0.2,
+          duration: 800,
+          easing: Easing.ease,
+          useNativeDriver: true,
+        }),
+      ]),
+    );
+
+    scanLoop.start();
+    pulseLoop.start();
+
+    return () => {
+      scanLoop.stop();
+      pulseLoop.stop();
+      scanAnim.setValue(0);
+      pulseAnim.setValue(0.2);
+    };
+  }, [isBgRemoving, isEditMode]);
+
   // Duplicate detection state
   const [showDuplicateModal, setShowDuplicateModal] = useState(false);
   const [duplicateGarment, setDuplicateGarment] = useState<Garment | null>(null);
@@ -107,9 +160,11 @@ export default function CreateGarmentScreen() {
   }, [id]);
 
   // Analizar imagen automáticamente cuando cambia imageUri
+  // y arrancar background removal en paralelo
   useEffect(() => {
     if (imageUri && imageUri !== lastAnalyzedUri && !isAnalyzing && !isEditMode) {
       handleImageAnalysis();
+      startBackgroundRemoval(imageUri);
     }
   }, [imageUri]);
 
@@ -153,6 +208,51 @@ export default function CreateGarmentScreen() {
       }
     }
   };
+
+  // Background removal en paralelo con el análisis de IA
+  const startBackgroundRemoval = useCallback(async (uri: string) => {
+    if (typeof window !== 'undefined' && (window as any).__E2E_TEST__) return; // Skip in E2E tests
+
+    // Marcar esta URI como la que estamos procesando
+    bgProcessingUri.current = uri;
+    setIsBgRemoving(true);
+    setBgProcessedBase64(null);
+    bgProcessedRef.current = null;
+
+    try {
+      const manipResult = await ImageManipulator.manipulateAsync(
+        uri,
+        [{ resize: { width: 1024 } }],
+        { base64: true, compress: 0.8, format: ImageManipulator.SaveFormat.JPEG }
+      );
+      if (bgProcessingUri.current !== uri) return; // Stale, cancelar
+
+      let base64 = manipResult.base64!;
+
+      // Ejecutar bg removal client-side: web usa Transformers.js via Web Worker,
+      // native (Android) usa MLKit Selfie Segmentation on-device, sin costos.
+      const result = await removeBackground(base64, 'image/jpeg');
+      if (bgProcessingUri.current !== uri) return; // Stale, cancelar
+
+      if (result.bgRemoved) {
+        console.log('[Create] Background removal completed');
+        setBgProcessedBase64(result.base64);
+        bgProcessedRef.current = result.base64;
+      } else {
+        console.warn('[Create] Early bg removal failed:', result.error);
+        // No es crítico — el service lo reintentará al guardar o usará la original
+        bgProcessedRef.current = base64;
+      }
+    } catch (error) {
+      if (bgProcessingUri.current === uri) {
+        console.warn('[Create] Early bg removal error:', error);
+      }
+    } finally {
+      if (bgProcessingUri.current === uri) {
+        setIsBgRemoving(false);
+      }
+    }
+  }, []);
 
   const validate = useCallback(() => {
     const newErrors: { 
@@ -233,13 +333,19 @@ export default function CreateGarmentScreen() {
     const hasBrand = noBrand || brand.trim().length > 0;
     const hasColor = color.trim().length > 0;
     const hasSeason = seasons.length > 0;
+    const hasStyles = selectedStyles.length > 0;
     
-    return hasImage && hasName && hasBrand && hasColor && hasSeason;
-  }, [imageUri, editImageUri, name, noBrand, brand, color, seasons]);
+    return hasImage && hasName && hasBrand && hasColor && hasSeason && hasStyles;
+  }, [imageUri, editImageUri, name, noBrand, brand, color, seasons, selectedStyles]);
 
   const activeFirstImageUri = imageUri || editImageUri;
   const activeExtraUris = !isEditMode ? extraImageUris : extraEditImageUris;
   const allImages = activeFirstImageUri ? [activeFirstImageUri, ...activeExtraUris] : [...activeExtraUris];
+
+  // Cuando el bg removal termina, mostrar la imagen procesada en preview
+  const processedImageUri = bgProcessedBase64
+    ? `data:image/png;base64,${bgProcessedBase64}`
+    : null;
 
   const handlePickImage = useCallback((isCamera: boolean) => {
     setAiDetected(false);
@@ -272,6 +378,10 @@ export default function CreateGarmentScreen() {
         resetImage();
         setLastAnalyzedUri(null);
         setAiDetected(false);
+        setBgProcessedBase64(null);
+        bgProcessedRef.current = null;
+        setIsBgRemoving(false);
+        bgProcessingUri.current = null;
       } else {
         setExtraImageUris(prev => prev.filter((_, i) => i !== index - 1));
       }
@@ -325,6 +435,7 @@ export default function CreateGarmentScreen() {
             style: selectedStyles.length > 0 ? selectedStyles : undefined,
             imageUrl: imageUrl || '',
             imageBackUrl: firstExtra,
+            imageBase64: bgProcessedRef.current || undefined, // Pasar si ya se procesó en paralelo
             notes: notes.trim() || undefined,
             isPublic,
             ...(isPublic && listingType ? { listingType } : {}),
@@ -346,7 +457,7 @@ export default function CreateGarmentScreen() {
       setErrorMessage(`${t('garments.create.errorGeneric')}: ${errorMsg}`);
       setShowErrorModal(true);
     }
-  }, [isEditMode, id, name, category, noBrand, brand, color, seasons, selectedStyles, notes, imageUri, editImageUri, token, createGarment, updateGarment, activeExtraUris, router, t]);
+  }, [isEditMode, id, name, category, noBrand, brand, color, seasons, selectedStyles, notes, imageUri, editImageUri, token, createGarment, updateGarment, activeExtraUris, router, t, isPublic, listingType]);
 
   const handleCreate = useCallback(async () => {
     if (!user) {
@@ -455,9 +566,12 @@ export default function CreateGarmentScreen() {
             {allImages.length > 0 ? (
               <View style={styles.imagePreviewContainer}>
                 {/* Main image (first one) */}
-                <View style={styles.mainImageWrapper}>
+                <View style={[
+                  styles.mainImageWrapper,
+                  processedImageUri && styles.mainImageWrapperProcessed,
+                ]}>
                   <Image
-                    source={{ uri: allImages[0] }}
+                    source={{ uri: processedImageUri || allImages[0] }}
                     style={styles.mainImage}
                     contentFit="contain"
                     cachePolicy="memory-disk"
@@ -468,6 +582,60 @@ export default function CreateGarmentScreen() {
                   >
                     <Ionicons name="close-circle" size={22} color="#EF4444" />
                   </TouchableOpacity>
+
+                  {/* Badge cuando el bg removal se completó */}
+                  {processedImageUri && !isBgRemoving && (
+                    <View style={styles.bgRemovedBadge}>
+                      <Ionicons name="checkmark-circle" size={14} color="#10B981" />
+                      <Text style={styles.bgRemovedBadgeText}>Bg removed</Text>
+                    </View>
+                  )}
+
+                  {/* Background removal animation overlay */}
+                  {isBgRemoving && !isEditMode && (
+                    <View style={StyleSheet.absoluteFill} pointerEvents="none">
+                      <View style={styles.bgOverlayDim} />
+                      {isWeb ? (
+                        <View style={[styles.bgScanLine, styles.bgScanLineWeb]} />
+                      ) : (
+                        <Animated.View
+                          style={[
+                            styles.bgScanLine,
+                            {
+                              transform: [
+                                {
+                                  translateY: scanAnim.interpolate({
+                                    inputRange: [0, 1],
+                                    outputRange: [-30, 286],
+                                  }),
+                                },
+                              ],
+                            },
+                          ]}
+                        />
+                      )}
+                      {isWeb ? (
+                        <View style={[styles.bgOverlayCenter, styles.bgPulseWeb]}>
+                          <Ionicons name="sparkles" size={28} color="#FFFFFF" />
+                          <Text style={styles.bgOverlayText}>
+                            {t('garments.create.bgRemoving')}
+                          </Text>
+                        </View>
+                      ) : (
+                        <Animated.View
+                          style={[
+                            styles.bgOverlayCenter,
+                            { opacity: pulseAnim },
+                          ]}
+                        >
+                          <Ionicons name="sparkles" size={28} color="#FFFFFF" />
+                          <Text style={styles.bgOverlayText}>
+                            {t('garments.create.bgRemoving')}
+                          </Text>
+                        </Animated.View>
+                      )}
+                    </View>
+                  )}
                 </View>
                 {/* Side panel: extra thumbs + add button */}
                 <View style={styles.imageSidePanel}>
@@ -690,6 +858,11 @@ export default function CreateGarmentScreen() {
                   disabled={!isFormComplete || isLoading || isUploading}
                   fullWidth
                 />
+                {isBgRemoving && !isEditMode && (
+                  <View style={styles.bgRemovingHint}>
+                    <Text style={styles.bgRemovingText}>{t('garments.create.bgRemoving')}</Text>
+                  </View>
+                )}
               </View>
             </>
           )}
@@ -723,6 +896,10 @@ export default function CreateGarmentScreen() {
               setExtraEditImageUris([]);
               setLastAnalyzedUri(null);
               setAiDetected(false);
+              setBgProcessedBase64(null);
+              bgProcessedRef.current = null;
+              setIsBgRemoving(false);
+              bgProcessingUri.current = null;
               resetImage();
               setIsFormEnabled(false);
               setErrors({});
@@ -1026,6 +1203,77 @@ const styles = StyleSheet.create({
   buttonContainer: {
     marginTop: 8,
   },
+  bgRemovingHint: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    marginTop: 12,
+  },
+  bgRemovingText: {
+    fontSize: 13,
+    color: COLORS.primary,
+    fontWeight: '500',
+  },
+  bgOverlayDim: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0,0,0,0.45)',
+    borderRadius: 12,
+  },
+  bgScanLine: {
+    position: 'absolute',
+    left: 0,
+    right: 0,
+    height: 3,
+    backgroundColor: 'rgba(98, 217, 199, 0.8)',
+    shadowColor: '#62D9C7',
+    shadowOffset: { width: 0, height: 0 },
+    shadowOpacity: 0.8,
+    shadowRadius: 8,
+    elevation: 8,
+  },
+  bgOverlayCenter: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    gap: 8,
+  },
+  bgOverlayText: {
+    fontSize: 14,
+    color: '#FFFFFF',
+    fontWeight: '600',
+    textShadowColor: 'rgba(0,0,0,0.5)',
+    textShadowOffset: { width: 0, height: 1 },
+    textShadowRadius: 4,
+  },
+  mainImageWrapperProcessed: {
+    backgroundColor: '#ECFDF5',
+    borderWidth: 2,
+    borderColor: '#62D9C7',
+    borderStyle: 'dashed',
+  },
+  bgRemovedBadge: {
+    position: 'absolute',
+    bottom: 6,
+    left: 6,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: 'rgba(255,255,255,0.9)',
+    paddingHorizontal: 8,
+    paddingVertical: 3,
+    borderRadius: 6,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.15,
+    shadowRadius: 2,
+    elevation: 3,
+  },
+  bgRemovedBadgeText: {
+    fontSize: 11,
+    color: '#374151',
+    fontWeight: '600',
+  },
   infoMessage: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -1069,4 +1317,25 @@ const styles = StyleSheet.create({
     fontSize: 14,
     color: '#374151',
   },
+  ...(isWeb && {
+    bgScanLineWeb: {
+      animationName: {
+        '0%': { transform: [{ translateY: -30 }] },
+        '100%': { transform: [{ translateY: 286 }] },
+      },
+      animationDuration: '2.5s',
+      animationIterationCount: 'infinite',
+      animationTimingFunction: 'linear',
+    } as any,
+    bgPulseWeb: {
+      animationName: {
+        '0%': { opacity: 0.2 },
+        '50%': { opacity: 1 },
+        '100%': { opacity: 0.2 },
+      },
+      animationDuration: '1.6s',
+      animationIterationCount: 'infinite',
+      animationTimingFunction: 'ease-in-out',
+    } as any,
+  }),
 });

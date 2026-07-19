@@ -100,6 +100,7 @@ export interface CreateGarmentDTO {
   imageUrl: string;
   imageUrls?: string[];
   imageBackUrl?: string; // URL/URI for the second image (back view)
+  imageBase64?: string;  // Pre-processed base64 (bg removal already applied)
   notes?: string;
   isPublic?: boolean;
   listingType?: ListingType;
@@ -307,6 +308,8 @@ export interface Suggestion {
   description: string;
   garmentIds: string[];
   reasoning: string;
+  source: 'ai' | 'user';
+  lastUsed?: string;
 }
 
 export interface WeatherData {

@@ -4,23 +4,27 @@
  */
 
 import React, { useState, useCallback, useMemo, useEffect, useRef } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing, Platform, ActivityIndicator, Alert } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, Animated, Easing, Platform, ActivityIndicator, Alert, useWindowDimensions } from 'react-native';
 import { Image } from 'expo-image';
-import { useRouter } from 'expo-router';
+import { useRouter, useFocusEffect } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
 import { Ionicons } from '@expo/vector-icons';
 import * as LocalAuthentication from 'expo-local-authentication';
 import { Button, OutfitCard, Loading, EmptyState, SkeletonCard } from '@/components';
 import { SuggestionDetailModal } from '@/components/SuggestionDetailModal';
-import type { Garment, Suggestion } from '@/types';
+import type { Outfit, Garment, Suggestion } from '@/types';
 import { useAuth } from '@/hooks/useAuth';
 import { useGarments } from '@/hooks/useGarments';
 import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS } from '@/lib/constants';
+import { parseLocalDate } from '@/utils/date';
 import { useSuggestionsStore } from '@/store/suggestionsStore';
+import { useSmartSuggestions } from '@/hooks/useSmartSuggestions';
 import { tokenService } from '@/services/tokenService';
+import { preloadBackgroundRemovalModel } from '@/services/backgroundRemoval';
 import { withScreenErrorBoundary } from '@/components';
+import { useRecentCalendarEntries } from '@/hooks/useRecentCalendarEntries';
 
 /** Unique key for a suggestion based on its garment IDs */
 function suggestionKey(s: Pick<Suggestion, 'garmentIds'>): string {
@@ -31,8 +35,8 @@ function HomeScreen() {
   const router = useRouter();
   const { profile, user, logout } = useAuth();
   const { garments } = useGarments(true);
-  const { outfits, isLoading, loadOutfits, createOutfit } = useOutfits(true, 3);
-  const { t } = useTranslation();
+  const { outfits, isLoading, loadOutfits, loadOutfitById, createOutfit } = useOutfits(true);
+  const { t, locale } = useTranslation();
   const [refreshing, setRefreshing] = useState(false);
   const spinAnim = useRef(new Animated.Value(0)).current;
 
@@ -43,25 +47,27 @@ function HomeScreen() {
   const [savedOutfitIds, setSavedOutfitIds] = useState<Record<string, string>>({});
 
   const {
-    suggestions,
     garments: suggestionGarments,
     weather,
-    isLoading: suggestionsLoading,
-    error: suggestionsError,
-    message: suggestionsMessage,
-    fetchSuggestions,
     lastUpdated,
     pinnedGarmentIds,
     isRegenerating,
     togglePin,
     clearPins,
     regenerateWithPinned,
+    message: suggestionsMessage,
   } = useSuggestionsStore();
 
-  // Fetch suggestions on mount
-  useEffect(() => {
-    fetchSuggestions();
-  }, []);
+  // Smart suggestions hook — orchestrates AI + user hybrid engine
+  const {
+    suggestions,
+    isLoading: smartSuggestionsLoading,
+    error: smartSuggestionsError,
+    refresh,
+  } = useSmartSuggestions();
+
+  const suggestionsLoading = smartSuggestionsLoading;
+  const suggestionsError = smartSuggestionsError;
 
   // Spinning animation for refresh icon
   useEffect(() => {
@@ -86,13 +92,67 @@ function HomeScreen() {
   });
 
   const favoriteOutfits = outfits.filter((o) => o.is_favorite);
-  const recentOutfits = outfits.slice(0, 3);
   const checklistSteps = useMemo(() => [
     { key: 'garment', label: t('home.addFirstGarment'), done: garments.length > 0 },
     { key: 'outfit', label: t('home.createFirstOutfit'), done: outfits.length > 0 },
   ], [garments.length, outfits.length, t]);
 
   const allStepsDone = useMemo(() => checklistSteps.every((s) => s.done), [checklistSteps]);
+
+  // Últimos 5 días desde el calendario (outfits usados recientemente)
+  const { dayEntries: recentDayEntries, isLoading: recentDaysLoading, refresh: refreshRecentDays } = useRecentCalendarEntries(6);
+
+  // Outfits usados recientemente, con garments inyectados desde el store local
+  const recentOutfits = useMemo(() => {
+    const result: Outfit[] = [];
+    for (const day of recentDayEntries) {
+      if (!day.entry) continue;
+      if (result.length >= 3) break;
+      const calendarOutfit = day.entry.outfit;
+
+      // 1ra prioridad: el store de outfits ya tiene garments cargados
+      const storeOutfit = outfits.find((o) => o.id === calendarOutfit.id);
+      if (storeOutfit?.garments?.length) {
+        result.push(storeOutfit);
+        continue;
+      }
+
+      // 2da: el outfit del calendario ya trajo garments[] (backen deployado)
+      if (calendarOutfit.garments?.length) {
+        result.push(calendarOutfit);
+        continue;
+      }
+
+      // 3ra: buscar garmentIds desde el store (que sí los tiene) y hacer lookup local
+      const rawOutfit = calendarOutfit as any;
+      const garmentIds: string[] = (storeOutfit as any)?.garmentIds || rawOutfit.garmentIds || [];
+      if (garmentIds.length > 0) {
+        const localGarments = garmentIds
+          .map((id: string) => garments.find((g) => g.id === id))
+          .filter((g): g is Garment => !!g);
+        if (localGarments.length > 0) {
+          result.push({ ...calendarOutfit, garments: localGarments });
+          continue;
+        }
+      }
+
+      // 4ta: mostrar el outfit igual (OutfitCard mostrará "Sin prendas")
+      result.push(calendarOutfit);
+    }
+    return result;
+  }, [recentDayEntries, outfits, garments]);
+
+  const { width: screenWidth } = useWindowDimensions();
+  const recentCardWidth = screenWidth < 600
+    ? (screenWidth - 60) / 2
+    : (screenWidth - 80) / 3;
+
+  // Refrescar al volver al home (después de loguear un outfit, etc.)
+  useFocusEffect(
+    useCallback(() => {
+      refreshRecentDays();
+    }, [refreshRecentDays]),
+  );
 
   const displayName = useMemo(() => {
     const name =
@@ -122,6 +182,15 @@ function HomeScreen() {
         // ignore — no hay soporte biométrico
       }
     })();
+  }, []);
+
+  // Precarga el modelo de background removal en segundo plano (solo web)
+  useEffect(() => {
+    // Pequeño delay para no competir con la carga inicial de la página
+    const timer = setTimeout(() => {
+      preloadBackgroundRemovalModel();
+    }, 2000);
+    return () => clearTimeout(timer);
   }, []);
 
   const dismissBiometricBanner = useCallback(() => {
@@ -411,7 +480,7 @@ function HomeScreen() {
               {t('home.suggestionsToday')}
             </Text>
             <TouchableOpacity
-              onPress={() => fetchSuggestions()}
+              onPress={refresh}
               style={styles.refreshButton}
               disabled={suggestionsLoading}
               accessibilityLabel={t('home.refresh')}
@@ -463,7 +532,7 @@ function HomeScreen() {
                 {t('home.suggestionsError')}
               </Text>
               <TouchableOpacity
-                onPress={() => fetchSuggestions()}
+                onPress={refresh}
                 style={styles.retryButton}
               >
                 <Text style={styles.retryButtonText}>{t('home.refresh')}</Text>
@@ -563,12 +632,27 @@ function HomeScreen() {
                         </View>
                       )}
 
-                      {/* Name + occasion badge + saved indicator */}
+                      {/* Name + occasion badge + source badge + saved indicator */}
                       <View style={styles.suggestionInfo}>
                         <Text style={styles.suggestionName} numberOfLines={1}>
                           {suggestion.name}
                         </Text>
                         <View style={styles.badgeRow}>
+                          {/* Source badge */}
+                          <View
+                            style={[
+                              styles.sourceBadge,
+                              suggestion.source === 'user'
+                                ? styles.sourceBadgeUser
+                                : styles.sourceBadgeAI,
+                            ]}
+                          >
+                            <Text style={styles.sourceBadgeText} numberOfLines={1}>
+                              {suggestion.source === 'user'
+                                ? t('smartSuggestions.sourceUser')
+                                : t('smartSuggestions.sourceAI')}
+                            </Text>
+                          </View>
                           <View style={styles.occasionBadge}>
                             <Text style={styles.occasionText} numberOfLines={1}>
                               {suggestion.occasion}
@@ -579,6 +663,21 @@ function HomeScreen() {
                           )}
                         </View>
                       </View>
+                      {/* Last-used line for user suggestions */}
+                      {suggestion.source === 'user' && (
+                        <View style={styles.lastUsedRow}>
+                          <Text style={styles.lastUsedText}>
+                            {suggestion.lastUsed
+                              ? t('smartSuggestions.lastUsed', {
+                                  date: new Date(suggestion.lastUsed).toLocaleDateString(
+                                    locale === 'es' ? 'es-AR' : 'en-US',
+                                    { day: 'numeric', month: 'long', year: 'numeric' },
+                                  ),
+                                })
+                              : t('smartSuggestions.neverWorn')}
+                          </Text>
+                        </View>
+                      )}
                     </TouchableOpacity>
 
                     {/* Regenerate with pinned button */}
@@ -647,44 +746,73 @@ function HomeScreen() {
           </View>
         )}
 
-        {/* Recent Outfits */}
+        {/* Recently Used — Last 5 Days from Calendar */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
             <Text style={styles.sectionTitle}>
-              {t('home.recentOutfits')}
+              {t('home.recentlyUsed')}
             </Text>
           </View>
-          {recentOutfits.length > 0 ? (
-            recentOutfits.map((outfit) => (
-              <OutfitCard
-                key={outfit.id}
-                outfit={outfit}
-                onPress={() => router.push(`/outfits/${outfit.id}`)}
-              />
-            ))
-          ) : isLoading ? (
-            <View style={styles.recentSkeleton}>
-              {[1, 2, 3].map((i) => (
-                <View key={i} style={styles.skeletonCard}>
-                  <View style={styles.skeletonImage} />
-                  <View style={styles.skeletonTextRow}>
-                    <View style={styles.skeletonLine} />
-                    <View style={[styles.skeletonLine, { width: '40%' }]} />
+          <View style={styles.recentDayGrid}>
+            {recentDayEntries.map((day) => {
+              const dayDate = parseLocalDate(day.date);
+              const dateParts = dayDate.toLocaleDateString(
+                locale === 'es' ? 'es-AR' : 'en-US',
+                { weekday: 'short', day: 'numeric', month: 'short' },
+              ).split(' ');
+              const weekday = dateParts[0]?.replace(',', '') || '';
+              const dayNum = dateParts[1] || '';
+              const month = dateParts[2]?.replace('.', '') || '';
+
+              // Date label compartido
+              const dateLabel = `${weekday}, ${dayNum} ${month}`;
+
+              if (day.entry) {
+                const outfit = recentOutfits.find((o) => o.id === day.entry!.outfit.id);
+                if (outfit) {
+                  return (
+                    <View key={day.date} style={[styles.recentCardWrapper, { width: recentCardWidth }]}>
+                      <View style={styles.recentDateLabel}>
+                        <Ionicons name="calendar-outline" size={12} color="#6B7280" />
+                        <Text style={styles.recentDateText}>{dateLabel}</Text>
+                      </View>
+                      <OutfitCard
+                        outfit={outfit}
+                        onPress={() => router.push(`/outfits/${outfit.id}`)}
+                      />
+                    </View>
+                  );
+                }
+              }
+
+              // Empty day — placeholder
+              return (
+                <View key={day.date} style={[styles.recentCardWrapper, { width: recentCardWidth }]}>
+                  <View style={styles.recentDateLabel}>
+                    <Ionicons name="calendar-outline" size={12} color="#6B7280" />
+                    <Text style={styles.recentDateText}>{dateLabel}</Text>
                   </View>
+                  <TouchableOpacity
+                    style={styles.recentEmptyCard}
+                    onPress={() => router.push(`/calendar/log-today?date=${day.date}`)}
+                    activeOpacity={0.95}
+                  >
+                    <View style={styles.recentEmptyImage}>
+                      <Ionicons name="image-outline" size={28} color="#D1D5DB" />
+                    </View>
+                    <View style={styles.recentEmptyInfo}>
+                      <View style={styles.recentEmptyCTA}>
+                        <Ionicons name="add-circle-outline" size={14} color={COLORS.primary} />
+                        <Text style={styles.recentEmptyCTAText}>
+                          {t('home.logForDay')}
+                        </Text>
+                      </View>
+                    </View>
+                  </TouchableOpacity>
                 </View>
-              ))}
-            </View>
-          ) : (
-            <View style={styles.emptyContainer}>
-              <EmptyState
-                icon="shirt-outline"
-                title={t('home.noOutfits')}
-                message={t('home.noOutfitsMessage')}
-                actionLabel={t('home.createOutfit')}
-                onAction={() => router.push('/outfits/create')}
-              />
-            </View>
-          )}
+              );
+            })}
+          </View>
         </View>
       </ScrollView>
 
@@ -1063,6 +1191,29 @@ const styles = StyleSheet.create({
     fontWeight: '500',
     color: COLORS.primary,
   },
+  sourceBadge: {
+    borderRadius: 8,
+    paddingHorizontal: 6,
+    paddingVertical: 3,
+  },
+  sourceBadgeAI: {
+    backgroundColor: '#7C3AED20',
+  },
+  sourceBadgeUser: {
+    backgroundColor: '#10B98120',
+  },
+  sourceBadgeText: {
+    fontSize: 10,
+    fontWeight: '600',
+  },
+  lastUsedRow: {
+    paddingHorizontal: 12,
+    paddingBottom: 8,
+  },
+  lastUsedText: {
+    fontSize: 11,
+    color: '#9CA3AF',
+  },
   reasoningContainer: {
     paddingHorizontal: 12,
     paddingBottom: 12,
@@ -1237,6 +1388,63 @@ const styles = StyleSheet.create({
     color: '#6B7280',
     fontSize: 13,
   },
+
+  // Recently Used — Grid
+  recentDayGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  recentCardWrapper: {
+    marginBottom: 16,
+  },
+  recentDateLabel: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    marginBottom: 6,
+    paddingLeft: 2,
+  },
+  recentDateText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: '#6B7280',
+    textTransform: 'capitalize',
+  },
+  recentEmptyCard: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 16,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 1 },
+    shadowOpacity: 0.08,
+    shadowRadius: 4,
+    elevation: 2,
+  },
+  recentEmptyImage: {
+    height: 120,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  recentEmptyInfo: {
+    paddingHorizontal: 10,
+    paddingVertical: 8,
+    gap: 4,
+  },
+  recentEmptyCTA: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  recentEmptyCTAText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
+  },
+
+
 });
 
 export default withScreenErrorBoundary(HomeScreen);

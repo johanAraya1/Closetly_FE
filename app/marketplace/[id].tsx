@@ -13,6 +13,7 @@ import { ListingTypeBadge, Loading, EmptyState, withScreenErrorBoundary } from '
 import { apiClient } from '@/utils/apiClient';
 import { useMarketplaceStore } from '@/store/marketplaceStore';
 import { useChatStore } from '@/store/chatStore';
+import { useAuthStore } from '@/store/authStore';
 import { useTranslation } from '@/hooks/useTranslation';
 import { COLORS, GARMENT_CATEGORIES, SEASONS, GARMENT_STYLES } from '@/lib/constants';
 import type { Garment, PublicProfileResult } from '@/types';
@@ -22,6 +23,7 @@ function MarketplaceGarmentDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const { t } = useTranslation();
   const { garments, isLoading, loadPublicGarments } = useMarketplaceStore();
+  const { user } = useAuthStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notFound, setNotFound] = useState(false);
 
@@ -260,7 +262,7 @@ function MarketplaceGarmentDetailScreen() {
                 {profile ? (
                   <>
                     <Text style={styles.userIdLabel}>
-                      @{profile.username || `usuario_${garment.userId.slice(0, 8)}`}
+                      @{profile.username || 'desconocido'}
                     </Text>
                     {profile.fullName && (
                       <Text style={styles.userFullName}>{profile.fullName}</Text>
@@ -269,7 +271,7 @@ function MarketplaceGarmentDetailScreen() {
                 ) : (
                   <>
                     <Text style={styles.userIdLabel}>
-                      @usuario_{garment.userId.slice(0, 8)}
+                      @desconocido
                     </Text>
                     <Text style={styles.userIdHint}>
                       ID: {garment.userId.slice(0, 12)}...
@@ -279,24 +281,32 @@ function MarketplaceGarmentDetailScreen() {
               </View>
             </View>
 
-            <TouchableOpacity
-              style={styles.profileButton}
-              activeOpacity={0.7}
-              onPress={() => (router as any).push('/users/' + garment.userId)}
-            >
-              <Ionicons name="person-outline" size={16} color={COLORS.gray[600]} />
-              <Text style={styles.profileButtonText}>Ver perfil</Text>
-            </TouchableOpacity>
+            {(() => {
+              const isOwn = user?.id === garment.userId;
+              return (
+                <>
+                  <TouchableOpacity
+                    style={styles.profileButton}
+                    activeOpacity={0.7}
+                    onPress={() => (router as any).push('/users/' + garment.userId)}
+                  >
+                    <Ionicons name="person-outline" size={16} color={COLORS.gray[600]} />
+                    <Text style={styles.profileButtonText}>Ver perfil</Text>
+                  </TouchableOpacity>
 
-            {/* Contactar Button */}
-            <TouchableOpacity
-              style={styles.contactarButton}
-              activeOpacity={0.8}
-              onPress={handleContactar}
-            >
-              <Ionicons name="chatbubble" size={18} color="#FFFFFF" />
-              <Text style={styles.contactarButtonText}>{t('chat.contactar')}</Text>
-            </TouchableOpacity>
+                  {!isOwn && (
+                    <TouchableOpacity
+                      style={styles.contactarButton}
+                      activeOpacity={0.8}
+                      onPress={handleContactar}
+                    >
+                      <Ionicons name="chatbubble" size={18} color="#FFFFFF" />
+                      <Text style={styles.contactarButtonText}>{t('chat.contactar')}</Text>
+                    </TouchableOpacity>
+                  )}
+                </>
+              );
+            })()}
           </View>
         </View>
       </ScrollView>

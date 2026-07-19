@@ -11,6 +11,11 @@ import { useTranslation } from '@/hooks/useTranslation';
 import { getColorHexArray } from '@/utils/format';
 import { COLORS } from '@/lib/constants';
 
+/** Normaliza string para comparación: minúsculas, sin tildes, sin espacios */
+function normalizeStr(s: string): string {
+  return s.toLowerCase().trim().normalize('NFD').replace(/[\u0300-\u036f]/g, '');
+}
+
 export interface ColorOption {
   name: string;
   hex: string;
@@ -24,25 +29,35 @@ export const PRESET_COLORS: ColorOption[] = [
   { name: 'Gris Oscuro', hex: '#374151' },
   { name: 'Rojo', hex: '#DC2626' },
   { name: 'Rojo Oscuro', hex: '#991B1B' },
-  { name: 'Azul', hex: '#2563EB' },
-  { name: 'Azul Oscuro', hex: '#1E3A8A' },
-  { name: 'Azul Claro', hex: '#BFDBFE' },
-  { name: 'Celeste', hex: '#87CEEB' },
+  { name: 'Borgoña', hex: '#800020' },
+  { name: 'Rosa', hex: '#EC4899' },
+  { name: 'Rosa Claro', hex: '#FBCFE8' },
+  { name: 'Coral', hex: '#FF7F50' },
+  { name: 'Naranja', hex: '#EA580C' },
+  { name: 'Mostaza', hex: '#FFDB58' },
+  { name: 'Amarillo', hex: '#EAB308' },
+  { name: 'Amarillo Claro', hex: '#FEF3C7' },
+  { name: 'Oliva', hex: '#808000' },
   { name: 'Verde', hex: '#16A34A' },
   { name: 'Verde Oscuro', hex: '#14532D' },
   { name: 'Verde Claro', hex: '#BBF7D0' },
-  { name: 'Amarillo', hex: '#EAB308' },
-  { name: 'Amarillo Claro', hex: '#FEF3C7' },
-  { name: 'Naranja', hex: '#EA580C' },
-  { name: 'Rosa', hex: '#EC4899' },
-  { name: 'Rosa Claro', hex: '#FBCFE8' },
+  { name: 'Menta', hex: '#98FB98' },
+  { name: 'Teal', hex: '#008080' },
+  { name: 'Turquesa', hex: '#14B8A6' },
+  { name: 'Azul Marino', hex: '#1E3A8A' },
+  { name: 'Azul', hex: '#2563EB' },
+  { name: 'Azul Claro', hex: '#BFDBFE' },
+  { name: 'Celeste', hex: '#87CEEB' },
+  { name: 'Lavanda', hex: '#E6E6FA' },
   { name: 'Morado', hex: '#9333EA' },
-  { name: 'Marrón', hex: '#92400E' },
-  { name: 'Beige', hex: '#D4C4B0' },
-  { name: 'Crema', hex: '#F5F5DC' },
   { name: 'Dorado', hex: '#FFD700' },
   { name: 'Plateado', hex: '#C0C0C0' },
-  { name: 'Turquesa', hex: '#14B8A6' },
+  { name: 'Marrón', hex: '#92400E' },
+  { name: 'Café', hex: '#8B4513' },
+  { name: 'Beige', hex: '#D4C4B0' },
+  { name: 'Crema', hex: '#F5F5DC' },
+  { name: 'Melocotón', hex: '#FFDAB9' },
+  { name: 'Arena', hex: '#C2B280' },
   { name: 'Vino', hex: '#7F1D1D' },
 ];
 
@@ -69,12 +84,12 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange, error
 
   const toggleColor = useCallback(
     (colorName: string) => {
-      const normalized = colorName.toLowerCase().trim();
-      const current = selectedColors.map((c) => c.toLowerCase().trim());
+      const normalized = normalizeStr(colorName);
+      const current = selectedColors.map((c) => normalizeStr(c));
       if (current.includes(normalized)) {
         // Sacarlo
         const filtered = selectedColors.filter(
-          (c) => c.toLowerCase().trim() !== normalized,
+          (c) => normalizeStr(c) !== normalized,
         );
         onChange(filtered.join(', '));
       } else {
@@ -86,7 +101,7 @@ export const ColorPicker: React.FC<ColorPickerProps> = ({ value, onChange, error
   );
 
   const isSelected = (colorName: string) =>
-    selectedColors.some((c) => c.toLowerCase().trim() === colorName.toLowerCase().trim());
+    selectedColors.some((c) => normalizeStr(c) === normalizeStr(colorName));
 
   return (
     <View style={styles.container}>

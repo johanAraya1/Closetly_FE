@@ -44,11 +44,14 @@ function MarketplaceScreen() {
     isLoadingMore,
     hasMore,
     error,
+    profilesByUserId,
     loadPublicGarments,
     loadMorePublicGarments,
+    loadProfilesForCurrentGarments,
   } = useMarketplaceStore();
 
   // ── Filter state ──────────────────────────────────────────────
+  const [activeTab, setActiveTab] = useState<'all' | 'mine'>('all');
   const [searchText, setSearchText] = useState('');
   const [selectedCategory, setSelectedCategory] = useState<string | null>(null);
   const [selectedListingType, setSelectedListingType] = useState<string | null>(null);
@@ -58,6 +61,11 @@ function MarketplaceScreen() {
   // ── Filtered list (client-side) ──────────────────────────────
   const filteredGarments = useMemo(() => {
     let result = garments;
+
+    // "Todas" tab: excluir las prendas del usuario actual
+    if (activeTab === 'all' && user?.id) {
+      result = result.filter((g) => g.userId !== user.id);
+    }
 
     // Search by name
     if (debouncedSearchText.trim()) {
@@ -76,14 +84,28 @@ function MarketplaceScreen() {
     }
 
     return result;
-  }, [garments, debouncedSearchText, selectedCategory, selectedListingType]);
+  }, [garments, debouncedSearchText, selectedCategory, selectedListingType, activeTab, user?.id]);
 
   const hasActiveFilters = debouncedSearchText.trim() !== '' || selectedCategory !== null || selectedListingType !== null;
+
+  // Mis prendas públicas (propias, con listing activo)
+  const myPublicGarments = useMemo(() => {
+    return myGarments.filter(
+      (g) => g.isPublic || (g as any).is_public || g.listingType,
+    );
+  }, [myGarments]);
 
   // ── Data fetching ─────────────────────────────────────────────
   useEffect(() => {
     loadPublicGarments();
   }, []);
+
+  // Cargar perfiles de los vendedores cuando se actualizan las prendas
+  useEffect(() => {
+    if (garments.length > 0) {
+      loadProfilesForCurrentGarments();
+    }
+  }, [garments, loadProfilesForCurrentGarments]);
 
   const onRefresh = useCallback(async () => {
     await loadPublicGarments();
@@ -96,50 +118,53 @@ function MarketplaceScreen() {
   }, [isLoadingMore, hasMore, loadMorePublicGarments]);
 
   // ── Renderers ─────────────────────────────────────────────────
-  const renderItem = useCallback(({ item }: { item: Garment }) => (
-    <TouchableOpacity
-      style={styles.card}
-      activeOpacity={0.7}
-      onPress={() => (router as any).push({
-            pathname: '/marketplace/[id]',
-            params: { id: item.id },
-          })}
-    >
-      <View style={styles.cardImageContainer}>
-        {(item as any).image_url ? (
-          <Image
-            source={{ uri: (item as any).image_url }}
-            style={styles.cardImage}
-            resizeMode="cover"
-          />
-        ) : (
-          <View style={styles.imagePlaceholder}>
-            <Ionicons name="shirt-outline" size={32} color={COLORS.gray[300]} />
-          </View>
-        )}
-        {item.listingType && (
-          <View style={styles.badgeContainer}>
-            <ListingTypeBadge type={item.listingType} />
-          </View>
-        )}
-      </View>
-      <View style={styles.cardContent}>
-        <Text
-          style={styles.cardName}
-          numberOfLines={2}
-          ellipsizeMode="tail"
-        >
-          {item.name}
-        </Text>
-        <View style={styles.cardUserRow}>
-          <Ionicons name="person-circle-outline" size={14} color="#9CA3AF" />
-          <Text style={styles.cardUserText}>
-            @usuario_{item.userId.slice(0, 8)}
-          </Text>
+  const renderItem = useCallback(({ item }: { item: Garment }) => {
+    const sellerUsername = profilesByUserId[item.userId]?.username || 'desconocido';
+    return (
+      <TouchableOpacity
+        style={styles.card}
+        activeOpacity={0.7}
+        onPress={() => (router as any).push({
+              pathname: '/marketplace/[id]',
+              params: { id: item.id },
+            })}
+      >
+        <View style={styles.cardImageContainer}>
+          {(item as any).image_url ? (
+            <Image
+              source={{ uri: (item as any).image_url }}
+              style={styles.cardImage}
+              resizeMode="cover"
+            />
+          ) : (
+            <View style={styles.imagePlaceholder}>
+              <Ionicons name="shirt-outline" size={32} color={COLORS.gray[300]} />
+            </View>
+          )}
+          {item.listingType && (
+            <View style={styles.badgeContainer}>
+              <ListingTypeBadge type={item.listingType} />
+            </View>
+          )}
         </View>
-      </View>
-    </TouchableOpacity>
-  ), []);
+        <View style={styles.cardContent}>
+          <Text
+            style={styles.cardName}
+            numberOfLines={2}
+            ellipsizeMode="tail"
+          >
+            {item.name}
+          </Text>
+          <View style={styles.cardUserRow}>
+            <Ionicons name="person-circle-outline" size={14} color="#9CA3AF" />
+            <Text style={styles.cardUserText}>
+              @{sellerUsername}
+            </Text>
+          </View>
+        </View>
+      </TouchableOpacity>
+    );
+  }, [profilesByUserId, router]);
 
   const renderFooter = useCallback(() => {
     if (!isLoadingMore) return null;
@@ -221,7 +246,30 @@ function MarketplaceScreen() {
         </Text>
       </View>
 
-      {/* Search Bar */}
+      {/* Tabs: Todas / Mis prendas */}
+      <View style={styles.tabBar}>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'all' && styles.tabActive]}
+          onPress={() => setActiveTab('all')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.tabText, activeTab === 'all' && styles.tabTextActive]}>
+            Todas
+          </Text>
+        </TouchableOpacity>
+        <TouchableOpacity
+          style={[styles.tab, activeTab === 'mine' && styles.tabActive]}
+          onPress={() => setActiveTab('mine')}
+          activeOpacity={0.7}
+        >
+          <Text style={[styles.tabText, activeTab === 'mine' && styles.tabTextActive]}>
+            Mis prendas {myPublicGarments.length > 0 && `(${myPublicGarments.length})`}
+          </Text>
+        </TouchableOpacity>
+      </View>
+
+      {activeTab === 'all' ? (
+        <>
       <View style={styles.searchContainer}>
         <View style={styles.searchBar}>
           <Ionicons name="search-outline" size={18} color={COLORS.gray[400]} />
@@ -359,6 +407,94 @@ function MarketplaceScreen() {
         ListFooterComponent={renderFooter}
         ListEmptyComponent={renderEmpty}
       />
+        </>
+      ) : (
+        /* ── Mis Prendas ─────────────────────────────── */
+        <ScrollView
+          style={styles.list}
+          contentContainerStyle={
+            myPublicGarments.length === 0 ? styles.emptyContainer : styles.listContent
+          }
+          showsVerticalScrollIndicator={false}
+        >
+          {myPublicGarments.length === 0 ? (
+            <View style={styles.centerContainer}>
+              <Ionicons name="shirt-outline" size={64} color={COLORS.gray[300]} />
+              <Text style={styles.errorTitle}>Tus prendas públicas</Text>
+              <Text style={styles.errorMessage}>
+                {user
+                  ? 'Todavía no tenés prendas públicas. Andá a tu closet, editá una prenda y activá "Público" para que aparezca acá.'
+                  : 'Iniciá sesión para ver y gestionar tus prendas públicas.'}
+              </Text>
+              {user ? (
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={() => router.push('/closet')}
+                >
+                  <Text style={styles.retryText}>Ir al Closet</Text>
+                </TouchableOpacity>
+              ) : (
+                <TouchableOpacity
+                  style={styles.retryButton}
+                  onPress={() => router.push('/(tabs)/profile')}
+                >
+                  <Text style={styles.retryText}>Iniciar sesión</Text>
+                </TouchableOpacity>
+              )}
+            </View>
+          ) : (
+            <View style={styles.gridContainer}>
+              {myPublicGarments.map((garment) => (
+                <View key={garment.id} style={styles.myCard}>
+                  <TouchableOpacity
+                    style={styles.myCardTouchable}
+                    activeOpacity={0.7}
+                    onPress={() => (router as any).push({
+                      pathname: '/marketplace/[id]',
+                      params: { id: garment.id },
+                    })}
+                  >
+                    <View style={styles.cardImageContainer}>
+                      {garment.imageUrl ? (
+                        <Image
+                          source={{ uri: garment.imageUrl }}
+                          style={styles.cardImage}
+                          resizeMode="cover"
+                        />
+                      ) : (
+                        <View style={styles.imagePlaceholder}>
+                          <Ionicons name="shirt-outline" size={32} color={COLORS.gray[300]} />
+                        </View>
+                      )}
+                      {garment.listingType && (
+                        <View style={styles.badgeContainer}>
+                          <ListingTypeBadge type={garment.listingType} />
+                        </View>
+                      )}
+                    </View>
+                    <View style={styles.cardContent}>
+                      <Text style={styles.cardName} numberOfLines={2} ellipsizeMode="tail">
+                        {garment.name}
+                      </Text>
+                      <Text style={styles.cardCategory}>
+                        {GARMENT_CATEGORIES.find((c) => c.value === garment.category)?.label || garment.category}
+                      </Text>
+                    </View>
+                  </TouchableOpacity>
+                  <TouchableOpacity
+                    style={styles.editButton}
+                    onPress={() => router.push(`/garments/create?id=${garment.id}`)}
+                    hitSlop={{ top: 8, bottom: 8, left: 8, right: 8 }}
+                  >
+                    <Ionicons name="pencil" size={16} color={COLORS.primary} />
+                    <Text style={styles.editButtonText}>Editar</Text>
+                  </TouchableOpacity>
+                </View>
+              ))}
+            </View>
+          )}
+        </ScrollView>
+      )}
     </SafeAreaView>
   );
 }
@@ -555,6 +691,85 @@ const styles = StyleSheet.create({
     height: 20,
     backgroundColor: '#E5E7EB',
     marginHorizontal: 4,
+  },
+
+  // ── Tab bar ───────────────────────────────────────────
+  tabBar: {
+    flexDirection: 'row',
+    backgroundColor: '#FFFFFF',
+    borderBottomWidth: 1,
+    borderBottomColor: '#E5E7EB',
+    paddingHorizontal: 16,
+    gap: 0,
+  },
+  tab: {
+    flex: 1,
+    paddingVertical: 12,
+    alignItems: 'center',
+    borderBottomWidth: 2,
+    borderBottomColor: 'transparent',
+  },
+  tabActive: {
+    borderBottomColor: COLORS.primary,
+  },
+  tabText: {
+    fontSize: 15,
+    fontWeight: '500',
+    color: '#6B7280',
+  },
+  tabTextActive: {
+    color: COLORS.primary,
+    fontWeight: '600',
+  },
+
+  // ── Mis Prendas ───────────────────────────────────────
+  list: {
+    flex: 1,
+  },
+  emptyContainer: {
+    flexGrow: 1,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  gridContainer: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+    padding: 16,
+  },
+  myCard: {
+    width: '47%',
+    backgroundColor: '#FFFFFF',
+    borderRadius: 12,
+    overflow: 'hidden',
+    marginBottom: 12,
+    shadowColor: '#000',
+    shadowOffset: { width: 0, height: 2 },
+    shadowOpacity: 0.1,
+    shadowRadius: 4,
+    elevation: 3,
+  },
+  myCardTouchable: {
+    width: '100%',
+  },
+  cardCategory: {
+    fontSize: 12,
+    color: '#9CA3AF',
+    marginTop: 2,
+  },
+  editButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 4,
+    paddingVertical: 8,
+    borderTopWidth: 1,
+    borderTopColor: '#F3F4F6',
+  },
+  editButtonText: {
+    fontSize: 13,
+    fontWeight: '600',
+    color: COLORS.primary,
   },
 });
 

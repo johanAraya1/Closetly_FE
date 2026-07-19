@@ -5,6 +5,7 @@
 
 import { create } from 'zustand';
 import * as Location from 'expo-location';
+import { Alert } from 'react-native';
 import type { Suggestion, Garment, WeatherData, SuggestionsResponse } from '@/types';
 import { apiClient } from '@/utils/apiClient';
 import i18n from '@/lib/i18n';
@@ -18,20 +19,26 @@ interface SuggestionsState {
   message: string | null;
   lastUpdated: Date | null;
 
+  // User & merged suggestions (hybrid engine)
+  userSuggestions: Suggestion[];
+  mergedSuggestions: Suggestion[];
+
   // Pin & Regenerate state
-  pinnedGarmentIds: Record<number, string[]>; // keyed by suggestion index 0-2
+  pinnedGarmentIds: Record<number, string[]>; // keyed by suggestion index 0-3
   isRegenerating: boolean;
 
   // Actions
   fetchSuggestions: (lat?: number, lon?: number) => Promise<void>;
   clearSuggestions: () => void;
+  setUserSuggestions: (suggestions: Suggestion[]) => void;
+  setMergedSuggestions: (suggestions: Suggestion[]) => void;
   togglePin: (suggestionIndex: number, garmentId: string, category: string) => boolean;
   clearPins: () => void;
   regenerateWithPinned: (suggestionIndex: number) => Promise<void>;
 }
 
 /**
- * Deduplica sugerencias y limita a 3 outfits diferentes.
+ * Deduplica sugerencias y limita a 4 outfits diferentes.
  * Dos sugerencias son iguales si tienen los mismos garmentIds.
  */
 function dedupeSuggestions(suggestions: Suggestion[]): Suggestion[] {
@@ -43,7 +50,7 @@ function dedupeSuggestions(suggestions: Suggestion[]): Suggestion[] {
       seen.add(key);
       return true;
     })
-    .slice(0, 3);
+    .slice(0, 4);
 }
 
 /**
@@ -60,6 +67,51 @@ function sanitizeMessage(msg: string | null): string | null {
   return msg;
 }
 
+/**
+ * Merges new AI suggestions with existing suggestions, preserving user-sourced
+ * suggestions at their original positions. AI suggestions fill remaining slots.
+ */
+function mergeWithUserPreserved(
+  newAiSuggestions: Suggestion[],
+  existingSuggestions: Suggestion[],
+  userSuggestions: Suggestion[],
+): Suggestion[] {
+  if (userSuggestions.length === 0 && existingSuggestions.length === 0) {
+    return newAiSuggestions;
+  }
+
+  // Build a map of user suggestions by garmentIds key for quick lookup
+  const userKeys = new Set(
+    userSuggestions.map((s) => [...s.garmentIds].sort().join(',')),
+  );
+
+  // Start with a slot array (max 4)
+  const result: (Suggestion | null)[] = [null, null, null, null];
+
+  // First pass: place user suggestions at their original positions
+  for (let i = 0; i < existingSuggestions.length && i < 4; i++) {
+    const existing = existingSuggestions[i];
+    if (existing?.source === 'user') {
+      const key = [...existing.garmentIds].sort().join(',');
+      if (userKeys.has(key)) {
+        result[i] = existing;
+      }
+    }
+  }
+
+  // Second pass: fill empty slots with new AI suggestions
+  let aiIdx = 0;
+  for (let i = 0; i < 4; i++) {
+    if (result[i] === null && aiIdx < newAiSuggestions.length) {
+      result[i] = newAiSuggestions[aiIdx];
+      aiIdx++;
+    }
+  }
+
+  // Filter out nulls (shouldn't happen with proper ratio, but defensive)
+  return result.filter((s): s is Suggestion => s !== null);
+}
+
 const initialState = {
   suggestions: [],
   garments: [],
@@ -68,6 +120,8 @@ const initialState = {
   error: null,
   message: null,
   lastUpdated: null,
+  userSuggestions: [],
+  mergedSuggestions: [],
   pinnedGarmentIds: {},
   isRegenerating: false,
 };
@@ -165,7 +219,18 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
 
   clearSuggestions: () => set(initialState),
 
+  setUserSuggestions: (suggestions: Suggestion[]) => {
+    set({ userSuggestions: suggestions });
+  },
+
+  setMergedSuggestions: (suggestions: Suggestion[]) => {
+    set({ mergedSuggestions: suggestions });
+  },
+
   togglePin: (suggestionIndex: number, garmentId: string, category: string): boolean => {
+    // Only indices 0-3 are valid (max 4 suggestions)
+    if (suggestionIndex > 3) return false;
+
     const state = get();
     const currentPins = state.pinnedGarmentIds[suggestionIndex] || [];
 
@@ -203,6 +268,20 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
 
   regenerateWithPinned: async (suggestionIndex: number) => {
     const state = get();
+    // Use mergedSuggestions if available, fall back to AI suggestions
+    const activeSuggestions = state.mergedSuggestions.length > 0
+      ? state.mergedSuggestions
+      : state.suggestions;
+
+    const targetSuggestion = activeSuggestions[suggestionIndex];
+
+    // User-sourced suggestions cannot be regenerated via API
+    if (targetSuggestion?.source === 'user') {
+      set({ isRegenerating: false });
+      Alert.alert('', i18n.t('suggestionPin.noRegenUser'));
+      return;
+    }
+
     const pinnedIds = state.pinnedGarmentIds[suggestionIndex];
 
     if (!pinnedIds || pinnedIds.length === 0) return;
@@ -227,27 +306,36 @@ export const useSuggestionsStore = create<SuggestionsState>((set, get) => ({
           return;
         }
 
-        const newSuggestions = dedupeSuggestions(result.data.suggestions ?? []);
+        const newAiSuggestions = dedupeSuggestions(result.data.suggestions ?? []);
         const currentPins = get().pinnedGarmentIds[suggestionIndex] || [];
 
-        // Merge: keep pinned items, add regenerated items for unpinned slots
-        if (newSuggestions.length > 0 && currentPins.length > 0) {
-          const targetIndex = Math.min(suggestionIndex, newSuggestions.length - 1);
+        // Build the new merged list: preserve user suggestions, replace AI slots
+        if (newAiSuggestions.length > 0 && currentPins.length > 0) {
+          const targetIndex = Math.min(suggestionIndex, newAiSuggestions.length - 1);
           const mergedIds = [
             ...currentPins,
-            ...newSuggestions[targetIndex].garmentIds.filter(
+            ...newAiSuggestions[targetIndex].garmentIds.filter(
               (id) => !currentPins.includes(id),
             ),
           ];
 
-          newSuggestions[targetIndex] = {
-            ...newSuggestions[targetIndex],
+          newAiSuggestions[targetIndex] = {
+            ...newAiSuggestions[targetIndex],
             garmentIds: mergedIds,
           };
         }
 
+        // Merge with user suggestions preserved at their positions
+        const userSuggestions = state.userSuggestions;
+        const finalSuggestions = mergeWithUserPreserved(
+          newAiSuggestions,
+          activeSuggestions,
+          userSuggestions,
+        );
+
         set({
-          suggestions: newSuggestions,
+          suggestions: newAiSuggestions,
+          mergedSuggestions: finalSuggestions,
           garments: result.data.garments ?? [],
           weather: result.data.weather ?? state.weather,
           message: sanitizeMessage(result.data.message ?? null),

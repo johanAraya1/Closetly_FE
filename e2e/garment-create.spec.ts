@@ -20,6 +20,11 @@ const TEST_IMAGE = path.join(__dirname, 'fixtures', 'test-image.png');
 
 test.describe('Garment Creation', () => {
   test.beforeEach(async ({ page }) => {
+    // ⚠️ addInitScript BEFORE any navigation — it runs on every page load
+    await page.addInitScript(() => {
+      (window as any).__E2E_TEST__ = true;
+    });
+
     await injectSession(page);
     await page.goto('/garments/create');
     await page.waitForLoadState('networkidle');
@@ -90,6 +95,8 @@ test.describe('Garment Creation', () => {
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
     // Click the "Rojo" swatch in the ColorPicker (replaced the old text input)
     await page.getByText('Rojo').first().click();
+    // Select a style chip
+    await page.getByText('Casual').first().click();
 
     // Submit the form
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();
@@ -116,6 +123,11 @@ test.describe('Garment Creation', () => {
 
     // Click the "Rojo" swatch in the ColorPicker
     await page.getByText('Rojo').first().click();
+    // Style not selected yet → button still disabled
+    await expect(submitBtn).toBeDisabled();
+
+    // Select a style chip to fully enable the button
+    await page.getByText('Casual').first().click();
     await expect(submitBtn).toBeEnabled();
   });
 
@@ -163,6 +175,8 @@ test.describe('Garment Creation', () => {
     await page.getByPlaceholder(/Levi/i).fill('Test Brand');
     // Click the "Rojo" swatch in the ColorPicker
     await page.getByText('Rojo').first().click();
+    // Select a style chip
+    await page.getByText('Casual').first().click();
 
     // Submit the form
     await page.getByText(/Add to Closet|Agregar al Closet/i).click();

@@ -14,9 +14,7 @@ import {
   Alert,
   ActivityIndicator,
   Modal,
-  TextInput,
   Dimensions,
-  Platform,
 } from 'react-native';
 import { useRouter, useLocalSearchParams, Stack } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -27,11 +25,9 @@ import { useOutfits } from '@/hooks/useOutfits';
 import { useTranslation } from '@/hooks/useTranslation';
 import { OutfitShareCard } from '@/components/OutfitShareCard';
 import { COLORS } from '@/lib/constants';
-import { useCalendarStore } from '@/store/calendarStore';
 import type { GarmentSeason } from '@/types';
 import { getOutfitStats } from '@/services/statsService';
 import type { OutfitStats } from '@/services/statsService';
-import { getLocalDateString } from '@/utils/date';
 
 const SCREEN_WIDTH = Dimensions.get('window').width;
 const isSmallScreen = SCREEN_WIDTH < 600;
@@ -66,12 +62,9 @@ export default function OutfitDetailScreen() {
   const { currentOutfit, isLoading, error, loadOutfitById, deleteOutfit, toggleFavorite, clearError } = useOutfits();
 
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showDeleteModal, setShowDeleteModal] = useState(false);
   const [isSharing, setIsSharing] = useState(false);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [showLogDatePicker, setShowLogDatePicker] = useState(false);
-  const [isLoggingToCalendar, setIsLoggingToCalendar] = useState(false);
-  const [selectedDate, setSelectedDate] = useState(getLocalDateString());
-  const todayFormatted = getLocalDateString();
   const shareCardRef = useRef<ViewShot>(null);
   const [outfitStats, setOutfitStats] = useState<OutfitStats | null>(null);
   const [statsLoading, setStatsLoading] = useState(false);
@@ -134,53 +127,48 @@ export default function OutfitDetailScreen() {
     }
   }, [outfit, t]);
 
-  // --- Log to Calendar ---
+  // --- Log to Calendar → redirect to calendar date picker ---
   const handleLogToCalendar = useCallback(() => {
     if (!outfit) return;
-    setSelectedDate(getLocalDateString());
-    setShowLogDatePicker(true);
-  }, [outfit]);
+    router.push(`/calendar?logOutfitId=${outfit.id}`);
+  }, [outfit, router]);
 
   // --- Favorite Toggle ---
   const handleToggleFavorite = useCallback(async () => {
     if (!outfit) return;
+    const wasFavorite = outfit.is_favorite;
     try {
-      await toggleFavorite(outfit.id, !outfit.is_favorite);
+      await toggleFavorite(outfit.id, !wasFavorite);
+      Alert.alert(
+        wasFavorite ? t('outfits.removedFavorite') : t('outfits.addedFavorite'),
+      );
     } catch (err) {
       Alert.alert(t('common.error'), t('outfits.errorFavorite'));
     }
   }, [outfit, t]);
 
-  // --- Delete Handler ---
+  // --- Delete Handler — abre el modal de confirmación ---
   const handleDelete = useCallback(() => {
     if (!outfit) return;
+    setShowDeleteModal(true);
+  }, [outfit]);
 
-    Alert.alert(
-      t('outfits.deleteTitle'),
-      t('outfits.deleteConfirm', { name: outfit.name }),
-      [
-        { text: t('common.cancel'), style: 'cancel' },
-        {
-            text: t('common.delete'),
-            style: 'destructive',
-            onPress: async () => {
-              setIsDeleting(true);
-              try {
-                const success = await deleteOutfit(outfit.id);
-                if (success) {
-                  router.back();
-                } else {
-                  Alert.alert(t('common.error'), t('outfits.errorDelete'));
-                }
-              } catch (err) {
-                Alert.alert(t('common.error'), t('outfits.errorDelete'));
-              } finally {
-                setIsDeleting(false);
-              }
-            },
-        },
-      ]
-    );
+  const handleConfirmDelete = useCallback(async () => {
+    if (!outfit) return;
+    setShowDeleteModal(false);
+    setIsDeleting(true);
+    try {
+      const success = await deleteOutfit(outfit.id);
+      if (success) {
+        router.back();
+      } else {
+        Alert.alert(t('common.error'), t('outfits.errorDelete'));
+      }
+    } catch (err) {
+      Alert.alert(t('common.error'), t('outfits.errorDelete'));
+    } finally {
+      setIsDeleting(false);
+    }
   }, [outfit, t, router]);
 
   // --- Error retry ---
@@ -402,15 +390,20 @@ export default function OutfitDetailScreen() {
         <View style={styles.actionsGrid}>
           {/* Row 1 */}
           <View style={styles.actionsRow}>
-            <TouchableOpacity style={styles.actionCard} onPress={handleToggleFavorite}>
-              <View style={[styles.actionIconCircle, { backgroundColor: '#FEE2E2' }]}>
+            <TouchableOpacity
+              style={styles.actionCard}
+              onPress={handleToggleFavorite}
+            >
+              <View style={[styles.actionIconCircle, { backgroundColor: outfit.is_favorite ? '#FEE2E2' : '#F3F4F6' }]}>
                 <Ionicons
                   name={outfit.is_favorite ? 'heart' : 'heart-outline'}
                   size={22}
-                  color={outfit.is_favorite ? COLORS.error : '#DC2626'}
+                  color={outfit.is_favorite ? COLORS.error : '#9CA3AF'}
                 />
               </View>
-              <Text style={styles.actionLabel}>{t('outfits.favorites')}</Text>
+              <Text style={[styles.actionLabel, !outfit.is_favorite && { color: '#9CA3AF' }]}>
+                {outfit.is_favorite ? t('outfits.removeFavorite') : t('outfits.addFavorite')}
+              </Text>
             </TouchableOpacity>
 
             <TouchableOpacity style={styles.actionCard} onPress={handleOpenShareModal}>
@@ -517,141 +510,43 @@ export default function OutfitDetailScreen() {
         </View>
       </Modal>
 
-      {/* ===== Log to Calendar Modal ===== */}
+      {/* ===== Delete Confirmation Modal ===== */}
       <Modal
-        visible={showLogDatePicker}
+        visible={showDeleteModal}
         transparent
         animationType="fade"
-        onRequestClose={() => setShowLogDatePicker(false)}
+        onRequestClose={() => setShowDeleteModal(false)}
       >
         <View style={styles.modalBackdrop}>
-          <View style={styles.modalContainer}>
-            <TouchableOpacity
-              style={styles.modalClose}
-              onPress={() => setShowLogDatePicker(false)}
-              disabled={isLoggingToCalendar}
-            >
-              <Ionicons name="close" size={28} color={COLORS.gray[600]} />
-            </TouchableOpacity>
+          <View style={styles.deleteModalContainer}>
+            {/* Icon */}
+            <View style={styles.deleteModalIconCircle}>
+              <Ionicons name="trash-outline" size={32} color="#DC2626" />
+            </View>
 
-            <Ionicons name="calendar-outline" size={40} color={COLORS.primary} style={{ marginBottom: 12 }} />
-            <Text style={styles.modalTitle}>
-              {t('calendar.logOutfitFor', { date: selectedDate })}
+            <Text style={styles.deleteModalTitle}>
+              {`⚠️ ${t('outfits.deleteTitle')}`}
+            </Text>
+            <Text style={styles.deleteModalMessage}>
+              {t('outfits.deleteWarning', { name: outfit?.name || '' })}
             </Text>
 
-            <TextInput
-              style={styles.dateInput}
-              value={selectedDate}
-              onChangeText={setSelectedDate}
-              placeholder="YYYY-MM-DD"
-              keyboardType="numbers-and-punctuation"
-              editable={!isLoggingToCalendar}
-            />
-
-            <View style={styles.modalActions}>
+            {/* Modal Actions */}
+            <View style={styles.deleteModalActions}>
               <TouchableOpacity
-                style={styles.cancelButton}
-                onPress={() => setShowLogDatePicker(false)}
-                disabled={isLoggingToCalendar}
+                style={styles.deleteCancelButton}
+                onPress={() => setShowDeleteModal(false)}
               >
-                <Text style={styles.cancelButtonText}>{t('common.cancel')}</Text>
+                <Text style={styles.deleteCancelText}>{t('common.cancel')}</Text>
               </TouchableOpacity>
 
               <TouchableOpacity
-                style={[styles.shareButton, isLoggingToCalendar && { opacity: 0.7 }]}
-                onPress={async () => {
-                  if (!outfit || isLoggingToCalendar) return;
-
-                  const store = useCalendarStore.getState();
-
-                  // Asegurar que las entries del mes correcto están cargadas
-                  const targetDateObj = new Date(selectedDate + 'T00:00:00');
-                  const targetMonth = targetDateObj.getMonth() + 1;
-                  const targetYear = targetDateObj.getFullYear();
-                  if (store.selectedMonth !== targetMonth || store.selectedYear !== targetYear || store.entries.length === 0) {
-                    await store.loadMonth(targetMonth, targetYear);
-                  }
-
-                  // Volver a obtener state fresco después de loadMonth
-                  const freshStore = useCalendarStore.getState();
-
-                  // 1. Check if date already has an outfit
-                  const existingEntry = freshStore.entries.find((e) => e.date === selectedDate);
-                  if (existingEntry) {
-                    const replace = await new Promise<boolean>((resolve) => {
-                      Alert.alert(
-                        t('calendar.existingOutfitTitle'),
-                        t('calendar.existingOutfitMessage', {
-                          name: existingEntry.outfit.name,
-                          date: selectedDate,
-                        }),
-                        [
-                          { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
-                          { text: t('calendar.existingOutfitAction'), onPress: () => resolve(true) },
-                        ],
-                      );
-                    });
-                    if (!replace) return;
-                  }
-
-                  // 2. Warn about nearby dates (optional)
-                  const targetMs = new Date(selectedDate + 'T00:00:00').getTime();
-                  const nearbyEntries = freshStore.entries.filter((e) => {
-                    if (e.outfit.id !== outfit.id) return false;
-                    const entryMs = new Date(e.date + 'T00:00:00').getTime();
-                    const diffDays = Math.abs((targetMs - entryMs) / 86400000);
-                    return diffDays <= 3 && diffDays > 0;
-                  });
-
-                  if (nearbyEntries.length > 0) {
-                    const datesStr = nearbyEntries
-                      .map((e) => {
-                        const d = new Date(e.date + 'T00:00:00');
-                        return d.toLocaleDateString('en-US', {
-                          weekday: 'short',
-                          month: 'short',
-                          day: 'numeric',
-                        });
-                      })
-                      .join(', ');
-
-                    const proceed = await new Promise<boolean>((resolve) => {
-                      Alert.alert(
-                        t('calendar.repeatTitle'),
-                        t('calendar.repeatMessage', {
-                          dates: datesStr,
-                          date: selectedDate,
-                        }),
-                        [
-                          { text: t('common.cancel'), style: 'cancel', onPress: () => resolve(false) },
-                          { text: t('planner.useAgain'), onPress: () => resolve(true) },
-                        ],
-                      );
-                    });
-                    if (!proceed) return;
-                  }
-
-                  // 3. Log it
-                  setIsLoggingToCalendar(true);
-                  try {
-                    await freshStore.logOutfit(outfit.id, selectedDate);
-                    setShowLogDatePicker(false);
-                    Alert.alert(t('common.success'), t('calendar.loggedSuccess', { date: selectedDate }));
-                  } catch (err) {
-                    const errorMsg = (err as any)?.message || t('calendar.errorLog');
-                    Alert.alert(t('common.error'), errorMsg);
-                  } finally {
-                    setIsLoggingToCalendar(false);
-                  }
-                }}
+                style={styles.deleteConfirmButton}
+                onPress={handleConfirmDelete}
               >
-                {isLoggingToCalendar ? (
-                  <ActivityIndicator size="small" color={COLORS.white} />
-                ) : (
-                  <Ionicons name="calendar-outline" size={20} color={COLORS.white} />
-                )}
-                <Text style={styles.shareButtonText}>
-                  {isLoggingToCalendar ? t('common.saving') : t('calendar.logOutfit')}
+                <Ionicons name="trash-outline" size={18} color="#FFFFFF" />
+                <Text style={styles.deleteConfirmText}>
+                  {t('outfits.deleteConfirmButton')}
                 </Text>
               </TouchableOpacity>
             </View>
@@ -825,6 +720,7 @@ const styles = StyleSheet.create({
     shadowOpacity: 0.06,
     shadowRadius: 3,
     elevation: 2,
+    // cursor: 'pointer' (web-compatible via className)
   },
   actionIconCircle: {
     width: 40,
@@ -1089,5 +985,69 @@ const styles = StyleSheet.create({
     color: COLORS.gray[400],
     textAlign: 'center',
     paddingVertical: 8,
+  },
+  // ── Delete Modal ──────────────────────────────────────────────
+  deleteModalContainer: {
+    backgroundColor: '#FFFFFF',
+    borderRadius: 20,
+    paddingHorizontal: 24,
+    paddingVertical: 28,
+    marginHorizontal: 32,
+    alignItems: 'center',
+  },
+  deleteModalIconCircle: {
+    width: 64,
+    height: 64,
+    borderRadius: 32,
+    backgroundColor: '#FEE2E2',
+    alignItems: 'center',
+    justifyContent: 'center',
+    marginBottom: 16,
+  },
+  deleteModalTitle: {
+    fontSize: 18,
+    fontWeight: '700',
+    color: '#111827',
+    textAlign: 'center',
+    marginBottom: 8,
+  },
+  deleteModalMessage: {
+    fontSize: 14,
+    color: '#6B7280',
+    textAlign: 'center',
+    lineHeight: 20,
+    marginBottom: 24,
+  },
+  deleteModalActions: {
+    flexDirection: 'row',
+    gap: 12,
+    width: '100%',
+  },
+  deleteCancelButton: {
+    flex: 1,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#F3F4F6',
+    alignItems: 'center',
+  },
+  deleteCancelText: {
+    fontSize: 15,
+    fontWeight: '600',
+    color: '#374151',
+  },
+  deleteConfirmButton: {
+    flex: 1,
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 6,
+    paddingVertical: 14,
+    borderRadius: 12,
+    backgroundColor: '#DC2626',
+  },
+  deleteConfirmText: {
+    fontSize: 15,
+    fontWeight: '700',
+    color: '#FFFFFF',
   },
 });

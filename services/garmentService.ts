@@ -9,6 +9,7 @@ import { fetchWithTimeout } from '@/utils/fetchUtils';
 import { apiCache } from '@/utils/apiCache';
 import { sanitizeName, sanitizeBrand, sanitizeColor, sanitizeNotes, isInputSafe } from '@/utils/sanitize';
 import { Platform } from 'react-native';
+// import { isModelLoaded } from './backgroundRemoval';
 import type { 
   Garment, 
   CreateGarmentDTO, 
@@ -26,7 +27,7 @@ const CACHE_TTL = 5 * 60 * 1000;
 function normalizeGarment(item: any): any {
   const imageUrls = item.imageUrls || item.image_urls || [];
   const imageUrl = item.imageUrl || item.image_url || item.image || (Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls[0] : '');
-  return {
+  const normalized = {
     ...item,
     // Normalizar is_public ↔ isPublic (la API puede devolver cualquiera)
     isPublic: item.isPublic ?? item.is_public ?? false,
@@ -35,7 +36,11 @@ function normalizeGarment(item: any): any {
     image_url: imageUrl,
     imageUrls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
     image_urls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),
+    // Normalizar color: asegurar string (puede venir null/undefined o como array)
+    color: item.color ? String(item.color) : (Array.isArray(item.colors) ? item.colors.join(', ') : undefined),
   };
+  
+  return normalized;
 }
 
 function garmentsCacheKey(userId: string, limit?: number, offset?: number): string {
@@ -43,26 +48,51 @@ function garmentsCacheKey(userId: string, limit?: number, offset?: number): stri
 }
 
 /**
- * Convierte una URI de imagen a base64 string (web only).
+ * Convierte una URI de imagen a base64 string.
+ * Funciona en web y React Native (usa XMLHttpRequest como fallback para file:// URIs).
  */
-async function uriToBase64(uri: string): Promise<string> {
+export async function uriToBase64(uri: string): Promise<string> {
   if (uri.startsWith('data:')) {
     const base64Match = uri.match(/^data:image\/\w+;base64,(.+)$/);
     if (base64Match) return base64Match[1];
     return uri;
   }
-  const blobResp = await fetch(uri);
-  const blob = await blobResp.blob();
-  return new Promise<string>((resolve, reject) => {
-    const reader = new FileReader();
-    reader.onloadend = () => {
-      const result = reader.result as string;
-      const base64Match = result.match(/^data:image\/\w+;base64,(.+)$/);
-      resolve(base64Match ? base64Match[1] : result);
-    };
-    reader.onerror = reject;
-    reader.readAsDataURL(blob);
-  });
+
+  // Intentar con fetch + FileReader (funciona en web, puede fallar en RN con file://)
+  try {
+    const blobResp = await fetch(uri);
+    const blob = await blobResp.blob();
+    return await new Promise<string>((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        const result = reader.result as string;
+        const base64Match = result.match(/^data:image\/\w+;base64,(.+)$/);
+        resolve(base64Match ? base64Match[1] : result);
+      };
+      reader.onerror = reject;
+      reader.readAsDataURL(blob);
+    });
+  } catch (e) {
+    // Fallback: XMLHttpRequest (más compatible con React Native file:// URIs)
+    // @ts-ignore - XMLHttpRequest está disponible en RN
+    const xhr = new XMLHttpRequest();
+    xhr.responseType = 'blob';
+    return await new Promise<string>((resolve, reject) => {
+      xhr.onload = () => {
+        const reader = new FileReader();
+        reader.onloadend = () => {
+          const result = reader.result as string;
+          const base64Match = result.match(/^data:image\/\w+;base64,(.+)$/);
+          resolve(base64Match ? base64Match[1] : result);
+        };
+        reader.onerror = reject;
+        reader.readAsDataURL(xhr.response);
+      };
+      xhr.onerror = reject;
+      xhr.open('GET', uri);
+      xhr.send();
+    });
+  }
 }
 
 export const invalidateGarmentsCache = (userId?: string): void => {
@@ -185,9 +215,21 @@ export const createGarment = async (
     
     // On web, send JSON with base64 image to avoid Multer issues on Vercel serverless
     if (Platform.OS === 'web') {
-      const firstImage = garmentData.imageUrl || (garmentData as any).image_url || '';
-      if (firstImage) {
-        bodyFields.imageBase64 = await uriToBase64(firstImage);
+      let base64 = garmentData.imageBase64; // Pre-processed from early bg removal
+
+      if (base64) {
+        // Ya viene pre-procesado desde create.tsx (bg removal ejecutado en paralelo)
+        console.log('[GarmentService] Using pre-processed image base64 from early bg removal');
+        bodyFields._bgRemovedClient = true;
+      } else {
+        const firstImage = garmentData.imageUrl || (garmentData as any).image_url || '';
+        if (firstImage) {
+          base64 = await uriToBase64(firstImage);
+        }
+      }
+
+      if (base64) {
+        bodyFields.imageBase64 = base64;
       }
       if (garmentData.imageBackUrl) {
         bodyFields.imageBase64Back = await uriToBase64(garmentData.imageBackUrl);
@@ -227,7 +269,8 @@ export const createGarment = async (
       return { data: garment };
     }
     
-    // On mobile, use FormData (React Native handles native file URIs)
+    // On mobile, use FormData (React Native handles native file URIs).
+    // El backend recibe el archivo y aplica bg removal con Sharp/Multer.
     const formData = new FormData();
     formData.append('name', sanitizedName);
     formData.append('category', garmentData.category);
@@ -277,7 +320,7 @@ export const createGarment = async (
       body: formData,
       timeout: 30000,
     });
-
+    
     if (!response.ok) {
       let errorText = '';
       try { errorText = await response.text(); } catch {}
@@ -288,11 +331,10 @@ export const createGarment = async (
       } catch {}
       return { error: `Error al crear prenda (${response.status}): ${detail || errorText}` };
     }
-
-    const result = await response.json();
     
+    const result = await response.json();
     const garment = normalizeGarment(result.data || result);
-
+    
     invalidateGarmentsCache(userId);
     if (garment?.id) apiCache.invalidate(`garment:${garment.id}`);
     

@@ -42,7 +42,8 @@
         {
           "color": "#62D9C7"
         }
-      ]
+      ],
+      "onnxruntime-react-native"
     ],
     "scheme": "closetly",
     "experiments": {
