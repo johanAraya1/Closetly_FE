@@ -340,6 +340,9 @@ export const createGarment = async (
     
     const garmentMobile = normalizeGarment(mobileResult.data || mobileResult);
     
+    // Debug: ver qué devolvió el backend
+    console.log('[GarmentService] Mobile create response - has imageBase64:', !!bodyFieldsMobile.imageBase64, 'image_url:', garmentMobile?.image_url?.slice(0, 40), '_bgRemovedClient received:', !!(garmentMobile as any)?._bgRemovedClient);
+    
     invalidateGarmentsCache(userId);
     if (garmentMobile?.id) apiCache.invalidate(`garment:${garmentMobile.id}`);
     
