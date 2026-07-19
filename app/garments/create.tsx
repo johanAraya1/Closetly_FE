@@ -344,7 +344,7 @@ export default function CreateGarmentScreen() {
 
   // Cuando el bg removal termina, mostrar la imagen procesada en preview
   const processedImageUri = bgProcessedBase64
-    ? `data:image/png;base64,${bgProcessedBase64}`
+    ? `data:image/jpeg;base64,${bgProcessedBase64}`
     : null;
 
   const handlePickImage = useCallback((isCamera: boolean) => {
