@@ -72,6 +72,7 @@ export default function CreateGarmentScreen() {
   // Parallel background removal state
   const [bgProcessedBase64, setBgProcessedBase64] = useState<string | null>(null);
   const bgProcessedRef = useRef<string | null>(null); // ref para evitar stale closure en doCreate
+  const bgProcessedUriRef = useRef<string | null>(null); // file URI del bg removal (mobile)
   const [isBgRemoving, setIsBgRemoving] = useState(false);
   const bgProcessingUri = useRef<string | null>(null);
 
@@ -218,6 +219,7 @@ export default function CreateGarmentScreen() {
     setIsBgRemoving(true);
     setBgProcessedBase64(null);
     bgProcessedRef.current = null;
+    bgProcessedUriRef.current = null;
 
     try {
       const manipResult = await ImageManipulator.manipulateAsync(
@@ -244,17 +246,20 @@ export default function CreateGarmentScreen() {
         }
       } else {
         // Mobile: bg removal con MLKit nativo (exp-background-remover)
-        // Le pasamos el file URI original, no el base64 — MLKit necesita un file URI
+        // Le pasamos el file URI original. La librería devuelve un file URI procesado.
+        // NO convertimos a base64 post-procesamiento (evita crash de memoria).
         console.log('[Create] Running native bg removal on mobile...');
         const result = await removeBackground(uri, 'image/jpeg');
         if (bgProcessingUri.current !== uri) return; // Stale, cancelar
 
-        if (result.bgRemoved) {
-          console.log('[Create] Native bg removal completed');
-          setBgProcessedBase64(result.base64);
-          bgProcessedRef.current = result.base64;
+        if (result.bgRemoved && result.processedUri) {
+          console.log('[Create] Native bg removal completed, URI:', result.processedUri.slice(0, 50));
+          bgProcessedUriRef.current = result.processedUri;
+          // Para el preview en mobile, dejamos la imagen original (la procesada requiere
+          // convertir a base64 y eso crashea). Al guardar se usa el processedUri directo.
         } else {
           console.warn('[Create] Native bg removal failed:', result.error);
+          // Fallback: guardar la original (base64)
           bgProcessedRef.current = base64;
         }
       }
@@ -396,6 +401,7 @@ export default function CreateGarmentScreen() {
         setAiDetected(false);
         setBgProcessedBase64(null);
         bgProcessedRef.current = null;
+        bgProcessedUriRef.current = null;
         setIsBgRemoving(false);
         bgProcessingUri.current = null;
       } else {
@@ -452,6 +458,7 @@ export default function CreateGarmentScreen() {
             imageUrl: imageUrl || '',
             imageBackUrl: firstExtra,
             imageBase64: bgProcessedRef.current || undefined, // Pasar si ya se procesó en paralelo
+            imageProcessedUri: bgProcessedUriRef.current || undefined, // file URI del bg removal mobile
             notes: notes.trim() || undefined,
             isPublic,
             ...(isPublic && listingType ? { listingType } : {}),
@@ -915,6 +922,7 @@ export default function CreateGarmentScreen() {
               setAiDetected(false);
               setBgProcessedBase64(null);
               bgProcessedRef.current = null;
+              bgProcessedUriRef.current = null;
               setIsBgRemoving(false);
               bgProcessingUri.current = null;
               resetImage();

@@ -101,6 +101,7 @@ export interface CreateGarmentDTO {
   imageUrls?: string[];
   imageBackUrl?: string; // URL/URI for the second image (back view)
   imageBase64?: string;  // Pre-processed base64 (bg removal already applied)
+  imageProcessedUri?: string;  // Native file URI from MLKit bg removal (mobile)
   notes?: string;
   isPublic?: boolean;
   listingType?: ListingType;
