@@ -229,28 +229,23 @@ export default function CreateGarmentScreen() {
 
       let base64 = manipResult.base64!;
 
-      if (Platform.OS === 'web') {
-        // Web: ejecutar bg removal con Transformers.js via Web Worker
-        const result = await removeBackground(base64, 'image/jpeg');
-        if (bgProcessingUri.current !== uri) return; // Stale, cancelar
+      // Ejecutar bg removal client-side: web usa Transformers.js via Web Worker,
+      // native (Android) usa MLKit Selfie Segmentation on-device, sin costos.
+      const result = await removeBackground(base64, 'image/jpeg');
+      if (bgProcessingUri.current !== uri) return; // Stale, cancelar
 
-        if (result.bgRemoved) {
-          console.log('[Create] Background removal completed in parallel');
-          setBgProcessedBase64(result.base64);
-          bgProcessedRef.current = result.base64;
-        } else {
-          console.warn('[Create] Early bg removal failed:', result.error);
-          // No es crítico — el service lo reintentará al guardar o usará la original
-        }
+      if (result.bgRemoved) {
+        console.log('[Create] Background removal completed');
+        setBgProcessedBase64(result.base64);
+        bgProcessedRef.current = result.base64;
       } else {
-        // Mobile: el bg removal lo hace el backend al recibir el file upload.
-        // No ejecutamos nada client-side para evitar crashes nativos.
+        console.warn('[Create] Early bg removal failed:', result.error);
+        // No es crítico — el service lo reintentará al guardar o usará la original
         bgProcessedRef.current = base64;
       }
     } catch (error) {
       if (bgProcessingUri.current === uri) {
         console.warn('[Create] Early bg removal error:', error);
-        Alert.alert('[DEBUG]', `ERROR in startBackgroundRemoval: ${error}`);
       }
     } finally {
       if (bgProcessingUri.current === uri) {
@@ -449,7 +444,6 @@ export default function CreateGarmentScreen() {
         setIsLoading(false);
 
         if (garment) {
-          Alert.alert('[DEBUG]', `createGarment OK! image_url="${(garment.image_url || '').slice(0, 40)}"`);
           setShowSuccessModal(true);
         } else {
           setErrorMessage(t('garments.create.errorCreateFailed'));
