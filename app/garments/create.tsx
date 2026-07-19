@@ -228,7 +228,6 @@ export default function CreateGarmentScreen() {
       if (bgProcessingUri.current !== uri) return; // Stale, cancelar
 
       let base64 = manipResult.base64!;
-      Alert.alert('[DEBUG]', `OS=${Platform.OS}\nbase64 length=${base64.length}\nEjecutando bg removal...`);
 
       if (Platform.OS === 'web') {
         // Web: ejecutar bg removal con Transformers.js via Web Worker
@@ -245,8 +244,9 @@ export default function CreateGarmentScreen() {
         }
       } else {
         // Mobile: bg removal con MLKit nativo (exp-background-remover)
+        // Le pasamos el file URI original, no el base64 — MLKit necesita un file URI
         console.log('[Create] Running native bg removal on mobile...');
-        const result = await removeBackground(base64, 'image/jpeg');
+        const result = await removeBackground(uri, 'image/jpeg');
         if (bgProcessingUri.current !== uri) return; // Stale, cancelar
 
         if (result.bgRemoved) {
