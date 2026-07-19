@@ -2,6 +2,9 @@
  * Background Removal Service — Native implementation
  * Usa expo-background-remover con MLKit (Android) / Vision (iOS) nativo.
  * MLKit corre on-device, no necesita backend.
+ *
+ * IMPORTANTE: imageInput debe ser un file URI (file:// o content://),
+ * NO base64. MLKit necesita un archivo local para procesar.
  */
 
 import * as ImageManipulator from 'expo-image-manipulator';
@@ -14,7 +17,7 @@ export function onModelProgress(callback: (progress: number) => void): () => voi
 }
 
 export function isModelLoaded(): boolean {
-  return true; // MLKit no necesita precarga
+  return true; // MLKit se descarga automáticamente
 }
 
 export function isModelLoading(): boolean {
@@ -35,8 +38,8 @@ export async function ensureModelLoaded(): Promise<boolean> {
 
 /**
  * Saca el fondo de una imagen usando MLKit nativo.
- * @param imageInput - file URI (file://) o base64 string
- * @param mimeType - tipo MIME (opcional)
+ * @param imageInput - file URI (file:// o content://) de la imagen original
+ * @param _mimeType - tipo MIME (opcional)
  * @returns objeto con base64 del PNG sin fondo
  */
 export async function removeBackground(
@@ -44,29 +47,16 @@ export async function removeBackground(
   _mimeType?: string,
 ): Promise<{ base64: string; bgRemoved: boolean; error?: string }> {
   try {
-    // Si es base64, guardarlo temporalmente como archivo no sería práctico sin
-    // expo-file-system. Pero el flujo actual en create.tsx siempre empieza con
-    // un file URI (imageUri) que se convierte a base64 via ImageManipulator.
-    // Así que recibimos base64, pero necesitamos un file URI para MLKit.
-    //
-    // Escribimos el base64 a un archivo temporal via ImageManipulator (que puede
-    // leer base64 y guardar como archivo).
-    const tempFile = await ImageManipulator.manipulateAsync(
-      imageInput.startsWith('data:') ? imageInput : `data:image/jpeg;base64,${imageInput}`,
-      [],
-      { format: ImageManipulator.SaveFormat.JPEG, compress: 1.0 },
-    );
+    if (_modelProgress) _modelProgress(0.1);
 
-    if (_modelProgress) _modelProgress(0.3);
-
-    // Llamar a expo-background-remover con el file URI
+    // Llamar a expo-background-remover con el file URI directamente
     const { removeBackgroundAsync } = await import('expo-background-remover');
-    const resultUri = await removeBackgroundAsync(tempFile.uri);
+    const resultUri = await removeBackgroundAsync(imageInput);
 
-    if (_modelProgress) _modelProgress(0.7);
+    if (_modelProgress) _modelProgress(0.6);
 
-    // Leer el resultado como base64 para mantener compatibilidad con el flujo web
-    const resultBase64 = await ImageManipulator.manipulateAsync(
+    // Leer el resultado como base64 para mantener compatibilidad con el service
+    const resultImg = await ImageManipulator.manipulateAsync(
       resultUri,
       [],
       { base64: true, format: ImageManipulator.SaveFormat.PNG },
@@ -75,15 +65,16 @@ export async function removeBackground(
     if (_modelProgress) _modelProgress(1.0);
 
     return {
-      base64: resultBase64.base64!,
+      base64: resultImg.base64!,
       bgRemoved: true,
     };
   } catch (error) {
     const msg = error instanceof Error ? error.message : String(error);
     console.warn('[backgroundRemoval.native] Error:', msg);
-    // Fallback: devolver la imagen original
+    // Fallback: devolver la imagen original (no podemos devolver base64 si
+    // recibimos file URI, así que tiramos error y create.tsx usa el base64 original)
     return {
-      base64: imageInput,
+      base64: '',
       bgRemoved: false,
       error: msg,
     };
