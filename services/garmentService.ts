@@ -270,8 +270,71 @@ export const createGarment = async (
     }
     
     // On mobile:
-    // - Si imageBase64 viene (bg removal ya procesado) → mandar JSON directo
-    // - Si no → mandar FormData (el backend lo procesará)
+    // 1. Si imageProcessedUri viene (bg removal con MLKit) → mandar FormData con el archivo procesado
+    // 2. Si imageBase64 viene (bg removal web) → mandar JSON
+    // 3. Si no → mandar FormData con el archivo original
+    if (garmentData.imageProcessedUri) {
+      // El bg removal ya se hizo con MLKit, mandar el archivo procesado
+      bodyFields._bgRemovedClient = true;
+      
+      const formData = new FormData();
+      formData.append('name', sanitizedName);
+      formData.append('category', garmentData.category);
+      formData.append('season', garmentData.season as string);
+      
+      if (sanitizedColor) formData.append('color', sanitizedColor);
+      if (sanitizedBrand) formData.append('brand', sanitizedBrand);
+      if (garmentData.style && garmentData.style.length > 0) {
+        formData.append('style', JSON.stringify(garmentData.style));
+      }
+      if (garmentData.size) formData.append('size', garmentData.size);
+      if (sanitizedNotes) formData.append('notes', sanitizedNotes);
+      
+      formData.append('image', {
+        uri: garmentData.imageProcessedUri,
+        type: 'image/png',
+        name: 'garment.png',
+      } as any);
+      if (garmentData.imageBackUrl) {
+        formData.append('fileBack', {
+          uri: garmentData.imageBackUrl,
+          type: 'image/jpeg',
+          name: 'garment-back.jpg',
+        } as any);
+      }
+      
+      formData.append('isPublic', String(garmentData.isPublic ?? false));
+      formData.append('is_public', String(garmentData.isPublic ?? false));
+      if (garmentData.isPublic && garmentData.listingType) {
+        formData.append('listingType', garmentData.listingType);
+        formData.append('listing_type', garmentData.listingType);
+      }
+      
+      const headers: Record<string, string> = {};
+      if (token) headers['Authorization'] = `Bearer ${token}`;
+      
+      const response = await fetchWithTimeout(`${API_URL}/garments`, {
+        method: 'POST',
+        headers,
+        body: formData,
+        timeout: 30000,
+      });
+      
+      if (!response.ok) {
+        let errorText = '';
+        try { errorText = await response.text(); } catch {}
+        let detail = '';
+        try { const e = JSON.parse(errorText); detail = e.message || e.error || ''; } catch {}
+        return { error: `Error al crear prenda (${response.status}): ${detail || errorText}` };
+      }
+      
+      const result = await response.json();
+      const garment = normalizeGarment(result.data || result);
+      invalidateGarmentsCache(userId);
+      if (garment?.id) apiCache.invalidate(`garment:${garment.id}`);
+      return { data: garment };
+    }
+    
     if (garmentData.imageBase64) {
       // El bg removal ya se hizo del lado del cliente (MLKit), mandar JSON
       bodyFields.imageBase64 = garmentData.imageBase64;
