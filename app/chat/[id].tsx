@@ -295,7 +295,7 @@ function ChatRoomScreen() {
         >
           {!isOwn && !isDeleted && (
             <Text style={styles.messageSender}>
-              {item.senderId.slice(0, 8)}
+              {currentConversation?.otherParticipant?.username || 'Usuario'}
             </Text>
           )}
           {isEditing ? (
@@ -532,7 +532,9 @@ function ChatRoomScreen() {
             placeholder={t('chat.inputPlaceholder')}
             placeholderTextColor="#9CA3AF"
             returnKeyType="send"
+            blurOnSubmit={false}
             onSubmitEditing={canSend ? handleSend : undefined}
+            multiline
           />
           <TouchableOpacity
             style={[styles.sendButton, !canSend && styles.sendButtonDisabled]}
@@ -612,6 +614,7 @@ const styles = StyleSheet.create({
   messageRow: {
     marginVertical: 3,
     flexDirection: 'row',
+    width: '100%',
   },
   messageRowOwn: {
     justifyContent: 'flex-end',
@@ -645,7 +648,6 @@ const styles = StyleSheet.create({
   messageText: {
     fontSize: 15,
     lineHeight: 20,
-    flexShrink: 1,
   },
   messageTextOwn: {
     color: '#FFFFFF',
@@ -681,7 +683,8 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     fontSize: 15,
     color: '#111827',
-    maxHeight: 40,
+    maxHeight: 120,
+    lineHeight: 20,
   },
   sendButton: {
     width: 40,
