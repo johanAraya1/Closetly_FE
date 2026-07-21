@@ -618,16 +618,17 @@ const styles = StyleSheet.create({
   },
   messageRowOwn: {
     justifyContent: 'flex-end',
+    alignItems: 'flex-end',
   },
   messageRowOther: {
     justifyContent: 'flex-start',
+    alignItems: 'flex-start',
   },
   messageBubble: {
     maxWidth: '78%',
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
-    flexShrink: 1,
   },
   messageBubbleOwn: {
     backgroundColor: COLORS.primary,
