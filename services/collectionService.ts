@@ -97,16 +97,21 @@ export const getCollectionById = async (id: string, userId: string): Promise<Api
       return { data: cached };
     }
 
-    // Fetch the specific collection directly
-    const collectionResponse = await apiClient.get<any>(`/collections/${id}`);
+    // Obtener todas las colecciones del usuario (el backend no soporta GET /collections/:id directo)
+    const collectionsResponse = await apiClient.get<any[]>(
+      `/collections?userId=${userId}`
+    );
     
-    
-    if (collectionResponse.error || !collectionResponse.data) {
-      return { error: collectionResponse.error || 'Failed to fetch collection' };
+    if (collectionsResponse.error || !collectionsResponse.data) {
+      return { error: collectionsResponse.error || 'Failed to fetch collections' };
     }
     
-    const collection = collectionResponse.data;
+    // Buscar la colección específica
+    const collection = collectionsResponse.data.find((c: any) => c.id === id);
     
+    if (!collection) {
+      return { error: 'Collection not found' };
+    }
     
     // Obtener los outfits de esta colección
     const outfitsResponse = await apiClient.get<any[]>(`/collections/${id}/outfits`);
