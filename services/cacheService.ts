@@ -9,6 +9,7 @@ const CACHE_KEYS = {
   GARMENTS: 'cache_garments',
   OUTFITS: 'cache_outfits',
   COLLECTIONS: 'cache_collections',
+  COLLECTION: 'cache_collection_',
   PROFILE: 'cache_profile',
   TIMESTAMP_PREFIX: 'cache_timestamp_',
 } as const;

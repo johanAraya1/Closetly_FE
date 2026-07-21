@@ -6,6 +6,7 @@
 import { create } from 'zustand';
 import type { Collection, CreateCollectionDTO, UpdateCollectionDTO } from '@/types';
 import * as collectionService from '@/services/collectionService';
+import { clearCache, CACHE_KEYS } from '@/services/cacheService';
 
 interface CollectionsState {
   collections: Collection[];
@@ -70,6 +71,7 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
 
   createCollection: async (userId: string, data: CreateCollectionDTO) => {
     set({ isLoading: true, error: null });
+    await clearCache(CACHE_KEYS.COLLECTIONS);
     
     const result = await collectionService.createCollection(userId, data);
     
@@ -89,6 +91,7 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
 
   updateCollection: async (id: string, updates: UpdateCollectionDTO) => {
     set({ isLoading: true, error: null });
+    await clearCache(CACHE_KEYS.COLLECTIONS);
     
     const result = await collectionService.updateCollection(id, updates);
     
@@ -115,6 +118,7 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
     // Optimistic update: eliminar inmediatamente
     const { collections } = get();
     const deletedCollection = collections.find((c) => c.id === id);
+    await clearCache(CACHE_KEYS.COLLECTIONS);
     
     set((state) => ({
       collections: state.collections.filter((c) => c.id !== id),
@@ -145,6 +149,7 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
 
   addOutfitToCollection: async (collectionId: string, outfitId: string) => {
     set({ error: null });
+    await clearCache(CACHE_KEYS.COLLECTIONS);
     
     const result = await collectionService.addOutfitToCollection(collectionId, outfitId);
     
@@ -169,6 +174,7 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
 
   removeOutfitFromCollection: async (collectionId: string, outfitId: string) => {
     set({ error: null });
+    await clearCache(CACHE_KEYS.COLLECTIONS);
 
     // Optimistic: remove from local state immediately
     const { currentCollection } = get();

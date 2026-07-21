@@ -5,6 +5,7 @@
 
 import { apiClient } from '@/utils/apiClient';
 import { sanitizeName, sanitizeNotes, isInputSafe } from '@/utils/sanitize';
+import { getCache, setCache, clearCache, CACHE_KEYS } from '@/services/cacheService';
 import type { 
   Collection, 
   CreateCollectionDTO, 
@@ -18,6 +19,12 @@ import type {
  */
 export const getCollections = async (userId: string): Promise<ApiResponse<Collection[]>> => {
   try {
+    // Check cache first
+    const cached = await getCache<Collection[]>(CACHE_KEYS.COLLECTIONS);
+    if (cached) {
+      return { data: cached };
+    }
+
     // Obtener las colecciones básicas
     const collectionsResponse = await apiClient.get<any[]>(
       `/collections?userId=${userId}`
@@ -28,50 +35,48 @@ export const getCollections = async (userId: string): Promise<ApiResponse<Collec
       return { data: [], error: collectionsResponse.error };
     }
     
-    // Para cada colección, obtener sus outfits usando el endpoint del backend
-    const collectionsWithOutfits: Collection[] = [];
+    // Fetch outfits for all collections in parallel
+    const collectionsWithOutfits = await Promise.all(
+      collectionsResponse.data.map(async (collection) => {
+        try {
+          const outfitsResponse = await apiClient.get<any[]>(
+            `/collections/${collection.id}/outfits`
+          );
+          
+          
+          const outfits = outfitsResponse.data || [];
+          
+          return {
+            id: collection.id,
+            userId: collection.userId,
+            name: collection.name,
+            description: collection.description,
+            coverImageUrl: collection.coverImageUrl,
+            isPublic: collection.isPublic,
+            createdAt: collection.createdAt,
+            updatedAt: collection.updatedAt,
+            outfits,
+          };
+        } catch (error: any) {
+          console.warn(`Error fetching outfits for collection ${collection.id}:`, error?.message);
+          
+          return {
+            id: collection.id,
+            userId: collection.userId,
+            name: collection.name,
+            description: collection.description,
+            coverImageUrl: collection.coverImageUrl,
+            isPublic: collection.isPublic,
+            createdAt: collection.createdAt,
+            updatedAt: collection.updatedAt,
+            outfits: [],
+          };
+        }
+      })
+    );
     
-    for (const collection of collectionsResponse.data) {
-      try {
-        // Usar el endpoint del backend /api/collections/:id/outfits
-        const outfitsResponse = await apiClient.get<any[]>(
-          `/collections/${collection.id}/outfits`
-        );
-        
-        
-        const outfits = outfitsResponse.data || [];
-        
-        collectionsWithOutfits.push({
-          id: collection.id,
-          userId: collection.userId,
-          name: collection.name,
-          description: collection.description,
-          coverImageUrl: collection.coverImageUrl,
-          isPublic: collection.isPublic,
-          createdAt: collection.createdAt,
-          updatedAt: collection.updatedAt,
-          outfits,
-        });
-        
-        // Pequeña pausa para evitar rate limiting
-        await new Promise(resolve => setTimeout(resolve, 50));
-      } catch (error: any) {
-        console.warn(`Error fetching outfits for collection ${collection.id}:`, error?.message);
-        
-        collectionsWithOutfits.push({
-          id: collection.id,
-          userId: collection.userId,
-          name: collection.name,
-          description: collection.description,
-          coverImageUrl: collection.coverImageUrl,
-          isPublic: collection.isPublic,
-          createdAt: collection.createdAt,
-          updatedAt: collection.updatedAt,
-          outfits: [],
-        });
-      }
-    }
-    
+    // Cache the result
+    await setCache(CACHE_KEYS.COLLECTIONS, collectionsWithOutfits);
     
     return { data: collectionsWithOutfits };
   } catch (error) {
@@ -85,24 +90,22 @@ export const getCollections = async (userId: string): Promise<ApiResponse<Collec
  */
 export const getCollectionById = async (id: string, userId: string): Promise<ApiResponse<Collection>> => {
   try {
+    // Check cache first
+    const cacheKey = CACHE_KEYS.COLLECTION + id;
+    const cached = await getCache<Collection>(cacheKey);
+    if (cached) {
+      return { data: cached };
+    }
+
+    // Fetch the specific collection directly
+    const collectionResponse = await apiClient.get<any>(`/collections/${id}`);
     
-    // Obtener todas las colecciones del usuario
-    const collectionsResponse = await apiClient.get<any[]>(
-      `/collections?userId=${userId}`
-    );
     
-    
-    if (collectionsResponse.error || !collectionsResponse.data) {
-      return { error: collectionsResponse.error || 'Failed to fetch collections' };
+    if (collectionResponse.error || !collectionResponse.data) {
+      return { error: collectionResponse.error || 'Failed to fetch collection' };
     }
     
-    // Buscar la colección específica
-    const collection = collectionsResponse.data.find((c: any) => c.id === id);
-    
-    if (!collection) {
-      console.error('❌ Collection not found with ID:', id);
-      return { error: 'Collection not found' };
-    }
+    const collection = collectionResponse.data;
     
     
     // Obtener los outfits de esta colección
@@ -126,7 +129,6 @@ export const getCollectionById = async (id: string, userId: string): Promise<Api
           outfit.garmentIds.map(async (garmentId: string) => {
             try {
               const garmentResponse = await apiClient.get<any>(`/garments/${garmentId}`);
-              // El backend devuelve el garment dentro de un array, extraer el primer elemento
               return Array.isArray(garmentResponse.data) ? garmentResponse.data[0] : garmentResponse.data;
             } catch (error) {
               console.warn(`Failed to fetch garment ${garmentId}:`, error);
@@ -135,7 +137,6 @@ export const getCollectionById = async (id: string, userId: string): Promise<Api
           })
         );
         
-        // Filtrar garments null (si alguno falló)
         const validGarments = garments.filter(g => g !== null);
         
         return {
@@ -148,19 +149,22 @@ export const getCollectionById = async (id: string, userId: string): Promise<Api
     
     const outfits = outfitsWithGarments;
     
-    return {
-      data: {
-        id: collection.id,
-        userId: collection.userId,
-        name: collection.name,
-        description: collection.description,
-        coverImageUrl: collection.coverImageUrl,
-        isPublic: collection.isPublic,
-        createdAt: collection.createdAt,
-        updatedAt: collection.updatedAt,
-        outfits,
-      }
+    const result: Collection = {
+      id: collection.id,
+      userId: collection.userId,
+      name: collection.name,
+      description: collection.description,
+      coverImageUrl: collection.coverImageUrl,
+      isPublic: collection.isPublic,
+      createdAt: collection.createdAt,
+      updatedAt: collection.updatedAt,
+      outfits,
     };
+
+    // Cache the result
+    await setCache(cacheKey, result);
+    
+    return { data: result };
   } catch (error) {
     console.error('❌ Error fetching collection by ID:', error);
     return { error: 'Failed to fetch collection' };

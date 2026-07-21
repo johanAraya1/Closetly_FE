@@ -46,6 +46,7 @@ export const getPublicGarments = async (
       const garments = result.data.map((item: any) => ({
         ...item,
         image_url: item.imageUrl || item.image_url || item.image || '',
+        imageUrls: item.imageUrls || item.image_urls || (item.image_url ? [item.image_url] : []),
       }));
 
       return {
@@ -59,6 +60,7 @@ export const getPublicGarments = async (
     const items = (result || []).map((item: any) => ({
       ...item,
       image_url: item.imageUrl || item.image_url || item.image || '',
+      imageUrls: item.imageUrls || item.image_urls || (item.image_url ? [item.image_url] : []),
     }));
 
     return { data: items, total: items.length, hasMore: false };

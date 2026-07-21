@@ -4,7 +4,7 @@
  */
 
 import React, { useCallback, useEffect, useState } from 'react';
-import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, TouchableOpacity, StyleSheet, RefreshControl, ActivityIndicator, FlatList, Dimensions } from 'react-native';
 import { Image } from 'expo-image';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -26,6 +26,7 @@ function MarketplaceGarmentDetailScreen() {
   const { user } = useAuthStore();
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [notFound, setNotFound] = useState(false);
+  const [currentImageIndex, setCurrentImageIndex] = useState(0);
 
   // Profile state
   const [profile, setProfile] = useState<PublicProfileResult | null>(null);
@@ -172,18 +173,68 @@ function MarketplaceGarmentDetailScreen() {
       >
         {/* Garment Image */}
         <View style={styles.imageContainer}>
-          {(garment as any).image_url ? (
-            <Image
-              source={{ uri: (garment as any).image_url }}
-              style={styles.image}
-              contentFit="cover"
-              cachePolicy="memory-disk"
-            />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="shirt-outline" size={64} color={COLORS.gray[300]} />
-            </View>
-          )}
+          {(() => {
+            const imageUrl = (garment as any).image_url || '';
+            const images: string[] = (garment as any).imageUrls?.length
+              ? (garment as any).imageUrls
+              : (garment as any).image_urls?.length
+              ? (garment as any).image_urls
+              : imageUrl
+              ? [imageUrl]
+              : [];
+
+            if (images.length === 0) {
+              return (
+                <View style={styles.imagePlaceholder}>
+                  <Ionicons name="shirt-outline" size={64} color={COLORS.gray[300]} />
+                </View>
+              );
+            }
+
+            if (images.length === 1) {
+              return (
+                <Image
+                  source={{ uri: images[0] }}
+                  style={styles.image}
+                  contentFit="cover"
+                  cachePolicy="memory-disk"
+                />
+              );
+            }
+
+            const screenWidth = Dimensions.get('window').width;
+            return (
+              <>
+                <FlatList
+                  data={images}
+                  horizontal
+                  pagingEnabled
+                  showsHorizontalScrollIndicator={false}
+                  keyExtractor={(_: string, i: number) => String(i)}
+                  onMomentumScrollEnd={(e) => {
+                    const index = Math.round(e.nativeEvent.contentOffset.x / screenWidth);
+                    setCurrentImageIndex(index);
+                  }}
+                  renderItem={({ item }) => (
+                    <Image
+                      source={{ uri: item }}
+                      style={{ width: screenWidth, height: screenWidth }}
+                      contentFit="cover"
+                      cachePolicy="memory-disk"
+                    />
+                  )}
+                />
+                <View style={styles.carouselDots}>
+                  {images.map((_: string, i: number) => (
+                    <View
+                      key={i}
+                      style={[styles.carouselDot, i === currentImageIndex ? styles.carouselDotActive : styles.carouselDotInactive]}
+                    />
+                  ))}
+                </View>
+              </>
+            );
+          })()}
           {garment.listingType && (
             <View style={styles.badgeOverlay}>
               <ListingTypeBadge type={garment.listingType} />
@@ -483,6 +534,30 @@ const styles = StyleSheet.create({
     fontSize: 16,
     fontWeight: '700',
     color: '#FFFFFF',
+  },
+  carouselDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: 12,
+    left: 0,
+    right: 0,
+    gap: 6,
+  },
+  carouselDot: {
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  carouselDotActive: {
+    backgroundColor: '#FFFFFF',
+    width: 10,
+    height: 10,
+    borderRadius: 5,
+  },
+  carouselDotInactive: {
+    backgroundColor: 'rgba(255,255,255,0.4)',
   },
 });
 

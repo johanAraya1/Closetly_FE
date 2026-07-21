@@ -5,7 +5,7 @@
  * Búsqueda y filtros por nombre, categoría y tipo de listing
  */
 
-import React, { useCallback, useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useState, useRef } from 'react';
 import {
   View,
   Text,
@@ -17,6 +17,7 @@ import {
   Image,
   TextInput,
   ScrollView,
+  Dimensions,
 } from 'react-native';
 import { useRouter } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -31,6 +32,52 @@ import { COLORS, GARMENT_CATEGORIES, LISTING_TYPES } from '@/lib/constants';
 import type { Garment } from '@/types';
 
 const SEARCH_DEBOUNCE_MS = 300;
+const CARD_WIDTH = (Dimensions.get('window').width - 44) / 2; // (screen - padding*2 - gap) / 2
+
+function ImageCarousel({ images }: { images: string[] }) {
+  const [currentIndex, setCurrentIndex] = useState(0);
+  const listRef = useRef<FlatList>(null);
+
+  if (images.length <= 1) {
+    return images[0] ? (
+      <Image source={{ uri: images[0] }} style={styles.cardImage} resizeMode="cover" />
+    ) : (
+      <View style={styles.imagePlaceholder}>
+        <Ionicons name="shirt-outline" size={32} color={COLORS.gray[300]} />
+      </View>
+    );
+  }
+
+  return (
+    <View style={{ width: CARD_WIDTH, height: CARD_WIDTH }}>
+      <FlatList
+        ref={listRef}
+        data={images}
+        horizontal
+        pagingEnabled
+        showsHorizontalScrollIndicator={false}
+        keyExtractor={(_: string, i: number) => String(i)}
+        onMomentumScrollEnd={(e) => {
+          const index = Math.round(e.nativeEvent.contentOffset.x / CARD_WIDTH);
+          setCurrentIndex(index);
+        }}
+        renderItem={({ item }) => (
+          <Image source={{ uri: item }} style={{ width: CARD_WIDTH, height: CARD_WIDTH }} resizeMode="cover" />
+        )}
+      />
+      {images.length > 1 && (
+        <View style={styles.carouselDots}>
+          {images.map((_: string, i: number) => (
+            <View
+              key={i}
+              style={[styles.carouselDot, i === currentIndex ? styles.carouselDotActive : styles.carouselDotInactive]}
+            />
+          ))}
+        </View>
+      )}
+    </View>
+  );
+}
 
 function MarketplaceScreen() {
   const router = useRouter();
@@ -130,17 +177,7 @@ function MarketplaceScreen() {
             })}
       >
         <View style={styles.cardImageContainer}>
-          {(item as any).image_url ? (
-            <Image
-              source={{ uri: (item as any).image_url }}
-              style={styles.cardImage}
-              resizeMode="cover"
-            />
-          ) : (
-            <View style={styles.imagePlaceholder}>
-              <Ionicons name="shirt-outline" size={32} color={COLORS.gray[300]} />
-            </View>
-          )}
+          <ImageCarousel images={(item as any).imageUrls || ((item as any).image_url ? [(item as any).image_url] : [])} />
           {item.listingType && (
             <View style={styles.badgeContainer}>
               <ListingTypeBadge type={item.listingType} />
@@ -770,6 +807,30 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+  carouselDots: {
+    flexDirection: 'row',
+    justifyContent: 'center',
+    alignItems: 'center',
+    position: 'absolute',
+    bottom: 6,
+    left: 0,
+    right: 0,
+    gap: 4,
+  },
+  carouselDot: {
+    width: 6,
+    height: 6,
+    borderRadius: 3,
+  },
+  carouselDotActive: {
+    backgroundColor: '#FFFFFF',
+    width: 8,
+    height: 8,
+    borderRadius: 4,
+  },
+  carouselDotInactive: {
+    backgroundColor: 'rgba(255,255,255,0.5)',
   },
 });
 
