@@ -52,7 +52,7 @@ export const useCollectionsStore = create<CollectionsState>((set, get) => ({
   },
 
   loadCollectionById: async (id: string, userId: string) => {
-    set({ isLoading: true, error: null });
+    set({ isLoading: true, error: null, currentCollection: null });
     
     const result = await collectionService.getCollectionById(id, userId);
     

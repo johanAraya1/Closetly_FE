@@ -114,37 +114,73 @@ export const getCollectionById = async (id: string, userId: string): Promise<Api
     
     const outfitsData = outfitsResponse.data || [];
     
-    // Para cada outfit, obtener sus garments completos
-    const outfitsWithGarments = await Promise.all(
-      outfitsData.map(async (outfit: any) => {
-        if (!outfit.garmentIds || outfit.garmentIds.length === 0) {
-          return {
-            ...outfit,
-            garments: [],
-          };
-        }
-        
-        // Obtener cada garment por su ID
-        const garments = await Promise.all(
-          outfit.garmentIds.map(async (garmentId: string) => {
-            try {
-              const garmentResponse = await apiClient.get<any>(`/garments/${garmentId}`);
-              return Array.isArray(garmentResponse.data) ? garmentResponse.data[0] : garmentResponse.data;
-            } catch (error) {
-              console.warn(`Failed to fetch garment ${garmentId}:`, error);
-              return null;
-            }
-          })
-        );
-        
-        const validGarments = garments.filter(g => g !== null);
-        
-        return {
-          ...outfit,
-          garments: validGarments,
-        };
-      })
+    // Si los outfits ya vienen con garments poblados del backend, usarlos directamente.
+    // Si no, fetchear cada garment individualmente con cache.
+    const outfitCacheKey = CACHE_KEYS.COLLECTION + id + '_outfits';
+    const cachedOutfits = await getCache<any[]>(outfitCacheKey);
+    if (cachedOutfits) {
+      return {
+        data: {
+          id: collection.id,
+          userId: collection.userId,
+          name: collection.name,
+          description: collection.description,
+          coverImageUrl: collection.coverImageUrl,
+          isPublic: collection.isPublic,
+          createdAt: collection.createdAt,
+          updatedAt: collection.updatedAt,
+          outfits: cachedOutfits,
+        },
+      };
+    }
+    
+    // Verificar si el backend ya pobló garments en cada outfit
+    const hasPrepopulatedGarments = outfitsData.some(
+      (o: any) => o.garments && Array.isArray(o.garments) && o.garments.length > 0
     );
+    
+    let outfitsWithGarments;
+    
+    if (hasPrepopulatedGarments) {
+      // El backend ya devolvió los garments poblados — no hace falta fetchear
+      outfitsWithGarments = outfitsData;
+    } else {
+      // Fetch paralelo con cache por cada garment
+      outfitsWithGarments = await Promise.all(
+        outfitsData.map(async (outfit: any) => {
+          if (!outfit.garmentIds || outfit.garmentIds.length === 0) {
+            return { ...outfit, garments: [] };
+          }
+          
+          const garments = await Promise.all(
+            outfit.garmentIds.map(async (garmentId: string) => {
+              try {
+                // Intentar cache primero
+                const garmentCacheKey = 'cache_garment_' + garmentId;
+                const cached = await getCache<any>(garmentCacheKey);
+                if (cached) return cached;
+                
+                const gResp = await apiClient.get<any>(`/garments/${garmentId}`);
+                const garment = Array.isArray(gResp.data) ? gResp.data[0] : gResp.data;
+                
+                // Cachear por 30 min (cambia poco)
+                if (garment) await setCache(garmentCacheKey, garment, { ttl: 30 * 60 * 1000 });
+                
+                return garment;
+              } catch (error) {
+                console.warn(`Failed to fetch garment ${garmentId}:`, error);
+                return null;
+              }
+            })
+          );
+          
+          return { ...outfit, garments: garments.filter((g: any) => g !== null) };
+        })
+      );
+      
+      // Cachear outfits ya poblados para próxima visita
+      await setCache(outfitCacheKey, outfitsWithGarments);
+    }
     
     
     const outfits = outfitsWithGarments;
