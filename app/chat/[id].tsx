@@ -19,6 +19,7 @@ import {
   Alert,
   Image,
   ActivityIndicator,
+  Pressable,
 } from 'react-native';
 import { useRouter, useLocalSearchParams } from 'expo-router';
 import { SafeAreaView } from 'react-native-safe-area-context';
@@ -378,12 +379,12 @@ function ChatRoomScreen() {
           ]}
         >
           {isOwn && !isDeleted && !isEditing ? (
-            <View
+            <Pressable
               onLongPress={() => handleLongPress(item)}
               delayLongPress={400}
             >
               {bubbleContent}
-            </View>
+            </Pressable>
           ) : (
             bubbleContent
           )}
