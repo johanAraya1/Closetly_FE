@@ -42,6 +42,9 @@ interface ChatState {
   // Typing indicator
   isTyping: boolean;
 
+  // Computed
+  totalUnreadCount: number;
+
   // Actions
   loadConversations: () => Promise<void>;
   loadMessages: (convId: string, reset?: boolean) => Promise<void>;
@@ -49,6 +52,7 @@ interface ChatState {
   editMessage: (convId: string, messageId: string, content: string) => Promise<void>;
   deleteMessage: (convId: string, messageId: string) => Promise<void>;
   createConversation: (dto: CreateConversationDTO) => Promise<Conversation>;
+  markAsRead: (convId: string) => Promise<void>;
   setActiveConversation: (convId: string | null) => void;
   subscribeToConversation: (convId: string) => void;
   unsubscribeFromConversation: () => void;
@@ -68,6 +72,7 @@ const initialState = {
   activeConversationId: null,
   isConnected: false,
   isTyping: false,
+  totalUnreadCount: 0,
 };
 
 export const useChatStore = create<ChatState>((set, get) => {
@@ -104,7 +109,8 @@ export const useChatStore = create<ChatState>((set, get) => {
         return;
       }
 
-      set({ conversations: result, isLoading: false });
+      const totalUnread = result.reduce((sum, c) => sum + (c.unreadCount || 0), 0);
+      set({ conversations: result, isLoading: false, totalUnreadCount: totalUnread });
     },
 
     /**
@@ -346,6 +352,28 @@ export const useChatStore = create<ChatState>((set, get) => {
         const errorMessage = err instanceof Error ? err.message : 'Error al crear conversación';
         set({ error: errorMessage });
         throw err;
+      }
+    },
+
+    /**
+     * Marca una conversación como leída
+     * Actualiza unreadCount a 0 y recalcula el total
+     */
+    markAsRead: async (convId: string) => {
+      try {
+        await chatService.markAsRead(convId);
+
+        set((state) => {
+          const updatedConversations = state.conversations.map((c) =>
+            c.id === convId ? { ...c, unreadCount: 0 } : c
+          );
+          const totalUnread = updatedConversations.reduce(
+            (sum, c) => sum + (c.unreadCount || 0), 0
+          );
+          return { conversations: updatedConversations, totalUnreadCount: totalUnread };
+        });
+      } catch {
+        // Silently fail - marking as read is best-effort
       }
     },
 

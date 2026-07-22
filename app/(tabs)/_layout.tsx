@@ -6,13 +6,16 @@
 
 import { Tabs, Redirect } from 'expo-router';
 import { Ionicons } from '@expo/vector-icons';
+import { View, Text, StyleSheet } from 'react-native';
 import { COLORS } from '@/lib/constants';
 import { useAuth } from '@/hooks/useAuth';
 import { useTranslation } from '@/hooks/useTranslation';
+import { useChatStore } from '@/store/chatStore';
 
 export default function TabsLayout() {
   const { isAuthenticated } = useAuth();
   const { t } = useTranslation();
+  const totalUnreadCount = useChatStore((s) => s.totalUnreadCount);
 
   // Si no está autenticado, no debería estar en tabs
   if (!isAuthenticated) {
@@ -85,7 +88,16 @@ export default function TabsLayout() {
         options={{
           title: t('chat.tabTitle') + ' +',
           tabBarIcon: ({ color, size }) => (
-            <Ionicons name="chatbubbles-outline" size={size} color={color} />
+            <View>
+              <Ionicons name="chatbubbles-outline" size={size} color={color} />
+              {totalUnreadCount > 0 && (
+                <View style={tabStyles.badge}>
+                  <Text style={tabStyles.badgeText}>
+                    {totalUnreadCount > 99 ? '99+' : totalUnreadCount}
+                  </Text>
+                </View>
+              )}
+            </View>
           ),
         }}
       />
@@ -101,3 +113,23 @@ export default function TabsLayout() {
     </Tabs>
   );
 }
+
+const tabStyles = StyleSheet.create({
+  badge: {
+    position: 'absolute',
+    top: -4,
+    right: -8,
+    backgroundColor: '#EF4444',
+    borderRadius: 10,
+    minWidth: 18,
+    height: 18,
+    justifyContent: 'center',
+    alignItems: 'center',
+    paddingHorizontal: 4,
+  },
+  badgeText: {
+    color: '#FFFFFF',
+    fontSize: 10,
+    fontWeight: '700',
+  },
+});

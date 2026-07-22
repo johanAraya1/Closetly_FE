@@ -194,4 +194,11 @@ export const chatService = {
     );
     if (res.error) throw new Error(res.error || 'No se pudo eliminar el mensaje');
   },
+
+  /**
+   * Marca una conversación como leída
+   */
+  async markAsRead(conversationId: string): Promise<void> {
+    await apiClient.patch(`/chat/conversations/${conversationId}/read`);
+  },
 };

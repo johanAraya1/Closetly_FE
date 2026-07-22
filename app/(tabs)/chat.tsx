@@ -71,7 +71,7 @@ function ChatListScreen() {
 
       return (
         <TouchableOpacity
-          style={styles.conversationItem}
+          style={[styles.conversationItem, hasUnread && styles.conversationItemUnread]}
           activeOpacity={0.7}
           onPress={() => (router as any).push({
             pathname: '/chat/[id]',
@@ -243,6 +243,9 @@ const styles = StyleSheet.create({
     paddingVertical: 14,
     paddingHorizontal: 16,
     backgroundColor: '#FFFFFF',
+  },
+  conversationItemUnread: {
+    backgroundColor: COLORS.primary + '08',
   },
   avatarContainer: {
     width: 48,

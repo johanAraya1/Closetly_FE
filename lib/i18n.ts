@@ -515,6 +515,7 @@ const i18n = new I18n({
       typing: 'Typing...',
       sendError: 'Failed to send message',
       unknownUser: 'Usuario',
+      newMessages: 'New messages',
     },
     profile: {
       title: 'Profile',
@@ -1153,6 +1154,7 @@ const i18n = new I18n({
       typing: 'Escribiendo...',
       sendError: 'No se pudo enviar el mensaje',
       unknownUser: 'Usuario',
+      newMessages: 'Mensajes nuevos',
     },
     profile: {
       title: 'Perfil',

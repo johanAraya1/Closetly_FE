@@ -55,6 +55,7 @@ function ChatRoomScreen() {
     editMessage,
     deleteMessage,
     loadMessages,
+    markAsRead,
     setActiveConversation,
     unsubscribeFromConversation,
     setTyping,
@@ -68,10 +69,32 @@ function ChatRoomScreen() {
     );
   }, [messages, conversationId]);
 
-  // Buscar la conversación actual para obtener el listingTitle
+  // Processed messages with unread divider
+  type MessageItem = Message | { type: 'divider'; id: string };
+  const processedMessages = useMemo<MessageItem[]>(() => {
+    if (unreadDividerIndex <= 0 || unreadDividerIndex >= conversationMessages.length) {
+      return conversationMessages;
+    }
+    const before = conversationMessages.slice(0, unreadDividerIndex);
+    const after = conversationMessages.slice(unreadDividerIndex);
+    return [
+      ...before,
+      { type: 'divider' as const, id: '__unread_divider__' },
+      ...after,
+    ];
+  }, [conversationMessages, unreadDividerIndex]);
+
+  // Buscar la conversación actual para obtener el listingTitle y unreadCount
   const currentConversation = useChatStore((s) =>
     s.conversations.find((c) => c.id === conversationId)
   );
+
+  // Track unread count for divider (before markAsRead resets it to 0)
+  const unreadDividerIndex = useMemo(() => {
+    if (!currentConversation?.unreadCount || currentConversation.unreadCount === 0) return -1;
+    // The divider goes before the last N unread messages
+    return conversationMessages.length - currentConversation.unreadCount;
+  }, [conversationMessages.length, currentConversation?.unreadCount]);
 
   // Mount: cargar mensajes, setear conversación activa, subscribir Realtime
   // Unmount: desubscribir Realtime, cleanup typing
@@ -81,7 +104,13 @@ function ChatRoomScreen() {
     setActiveConversation(conversationId);
     loadMessages(conversationId, true);
 
+    // Mark as read after a short delay (let messages load first)
+    const markTimer = setTimeout(() => {
+      markAsRead(conversationId);
+    }, 500);
+
     return () => {
+      clearTimeout(markTimer);
       // Cleanup typing
       if (typingTimeoutRef.current) {
         clearTimeout(typingTimeoutRef.current);
@@ -280,11 +309,23 @@ function ChatRoomScreen() {
   }, []);
 
   const renderMessage = useCallback(
-    ({ item }: { item: Message }) => {
+    ({ item }: { item: MessageItem }) => {
+      // Render unread divider
+      if ('type' in item && item.type === 'divider') {
+        return (
+          <View style={styles.unreadDividerContainer}>
+            <View style={styles.unreadDividerLine} />
+            <Text style={styles.unreadDividerText}>{t('chat.newMessages')}</Text>
+            <View style={styles.unreadDividerLine} />
+          </View>
+        );
+      }
+
+      const message = item as Message;
       if (!currentUserId) return null;
-      const isOwn = currentUserId === item.senderId;
-      const isDeleted = !!item.deletedAt;
-      const isEditing = editingMessageId === item.id;
+      const isOwn = currentUserId === message.senderId;
+      const isDeleted = !!message.deletedAt;
+      const isEditing = editingMessageId === message.id;
 
       const bubbleContent = (
         <View
@@ -327,21 +368,21 @@ function ChatRoomScreen() {
             </Text>
           ) : (
             <View style={styles.messageContentContainer}>
-              {item.imageUrl && (
+              {message.imageUrl && (
                 <Image
-                  source={{ uri: item.imageUrl }}
+                  source={{ uri: message.imageUrl }}
                   style={styles.messageImage}
                   resizeMode="cover"
                 />
               )}
-              {item.content !== null && (
+              {message.content !== null && (
                 <Text
                   style={[
                     styles.messageText,
                     isOwn ? styles.messageTextOwn : styles.messageTextOther,
                   ]}
                 >
-                  {item.content}
+                  {message.content}
                 </Text>
               )}
             </View>
@@ -354,9 +395,9 @@ function ChatRoomScreen() {
                   isOwn ? styles.messageTimeOwn : styles.messageTimeOther,
                 ]}
               >
-                {formatTime(item.createdAt)}
+                {formatTime(message.createdAt)}
               </Text>
-              {item.editedAt && !isDeleted && (
+              {message.editedAt && !isDeleted && (
                 <Text
                   style={[
                     styles.messageEdited,
@@ -380,7 +421,7 @@ function ChatRoomScreen() {
         >
           {isOwn && !isDeleted && !isEditing ? (
             <Pressable
-              onLongPress={() => handleLongPress(item)}
+              onLongPress={() => handleLongPress(message)}
               delayLongPress={400}
             >
               {bubbleContent}
@@ -462,7 +503,7 @@ function ChatRoomScreen() {
         ) : (
           <FlatList
             ref={flatListRef}
-            data={conversationMessages}
+            data={processedMessages}
             renderItem={renderMessage}
             keyExtractor={(item) => item.id}
             style={styles.messageList}
@@ -826,6 +867,26 @@ const styles = StyleSheet.create({
   },
   messageContentContainer: {
     gap: 4,
+  },
+
+  // Unread Divider
+  unreadDividerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    marginVertical: 12,
+    paddingHorizontal: 16,
+  },
+  unreadDividerLine: {
+    flex: 1,
+    height: 1,
+    backgroundColor: COLORS.primary,
+    opacity: 0.4,
+  },
+  unreadDividerText: {
+    fontSize: 12,
+    fontWeight: '600',
+    color: COLORS.primary,
+    marginHorizontal: 12,
   },
 });
 
