@@ -155,6 +155,11 @@ export const apiClient = {
 
         // Manejar respuesta
         if (!response.ok) {
+          // 401/403: Token inválido/expirado → logout inmediato
+          if (response.status === 401 || response.status === 403) {
+            await forceLogoutOnAuthFailure();
+            return { error: 'Sesión expirada' };
+          }
           // No reintentar errores 4xx (client errors)
           if (response.status >= 400 && response.status < 500) {
             try {
@@ -229,6 +234,11 @@ export const apiClient = {
       });
 
       if (!response.ok) {
+        // 401/403: Token inválido/expirado → logout inmediato
+        if (response.status === 401 || response.status === 403) {
+          await forceLogoutOnAuthFailure();
+          return { error: 'Sesión expirada' };
+        }
         return { error: `Error al subir archivo (${response.status})` };
       }
 

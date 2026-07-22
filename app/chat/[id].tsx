@@ -382,6 +382,7 @@ function ChatRoomScreen() {
               activeOpacity={0.7}
               onLongPress={() => handleLongPress(item)}
               delayLongPress={400}
+              style={styles.messageTouchable}
             >
               {bubbleContent}
             </TouchableOpacity>
@@ -629,6 +630,10 @@ const styles = StyleSheet.create({
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
+  },
+  messageTouchable: {
+    maxWidth: '78%',
+    alignSelf: 'flex-end',
   },
   messageBubbleOwn: {
     backgroundColor: COLORS.primary,

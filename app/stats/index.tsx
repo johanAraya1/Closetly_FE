@@ -32,6 +32,187 @@ const BAR_COLORS = [
   '#3B82F6',
 ];
 
+/**
+ * Mapa de nombres de colores comunes en español e inglés → hex.
+ * Si el nombre no está en el mapa, se intenta usar como CSS named color
+ * y como fallback se devuelve un gris.
+ */
+const COLOR_HEX_MAP: Record<string, string> = {
+  // Básicos
+  'black': '#000000',
+  'white': '#FFFFFF',
+  'gray': '#9CA3AF',
+  'grey': '#9CA3AF',
+  'beige': '#F5F5DC',
+  'cream': '#FFFDD0',
+  'ivory': '#FFFFF0',
+  // Rojos
+  'red': '#EF4444',
+  'rojo': '#EF4444',
+  'burgundy': '#800020',
+  'burdeos': '#800020',
+  'wine': '#722F37',
+  'vino': '#722F37',
+  'maroon': '#800000',
+  'carmesi': '#960018',
+  'scarlet': '#FF2400',
+  'escarlata': '#FF2400',
+  'cherry': '#DE3163',
+  'cereza': '#DE3163',
+  'ruby': '#E0115F',
+  // Rosas
+  'pink': '#EC4899',
+  'rosa': '#EC4899',
+  'rose': '#FBBF24',
+  'fuchsia': '#FF00FF',
+  'magenta': '#FF00FF',
+  'salmon': '#FA8072',
+  'salmon': '#FA8072',
+  'blush': '#DE5D83',
+  // Naranjas
+  'orange': '#F97316',
+  'naranja': '#F97316',
+  'peach': '#FFE5B4',
+  'durazno': '#FFE5B4',
+  'coral': '#FF7F50',
+  'apricot': '#FBCEB1',
+  'apricot': '#FBCEB1',
+  // Amarillos
+  'yellow': '#EAB308',
+  'amarillo': '#EAB308',
+  'gold': '#FFD700',
+  'dorado': '#FFD700',
+  'mustard': '#FFDB58',
+  'mostaza': '#FFDB58',
+  'lemon': '#FFF44F',
+  'limon': '#FFF44F',
+  // Verdes
+  'green': '#22C55E',
+  'verde': '#22C55E',
+  'olive': '#808000',
+  'oliva': '#808000',
+  'army': '#4B5320',
+  'ejercito': '#4B5320',
+  'military': '#4B5320',
+  'militar': '#4B5320',
+  'sage': '#BCB88A',
+  'mint': '#98FF98',
+  'menta': '#98FF98',
+  'emerald': '#50C878',
+  'esmeralda': '#50C878',
+  'forest': '#228B22',
+  'bosque': '#228B22',
+  'lime': '#32CD32',
+  'turquoise': '#40E0D0',
+  'turquesa': '#40E0D0',
+  'teal': '#008080',
+  'aguamarina': '#7FFFD4',
+  'aqua': '#00FFFF',
+  // Azules
+  'blue': '#3B82F6',
+  'azul': '#3B82F6',
+  'navy': '#000080',
+  'marino': '#000080',
+  'royal': '#4169E1',
+  'real': '#4169E1',
+  'sky': '#87CEEB',
+  'celeste': '#87CEEB',
+  'baby blue': '#89CFF0',
+  'azul claro': '#89CFF0',
+  'light blue': '#ADD8E6',
+  'cobalt': '#0047AB',
+  'cobalto': '#0047AB',
+  'denim': '#1560BD',
+  'azul marino': '#000080',
+  'midnight': '#191970',
+  'midnight blue': '#191970',
+  'powder blue': '#B0E0E6',
+  'steel blue': '#4682B4',
+  'acero': '#4682B4',
+  // Morados
+  'purple': '#8B5CF6',
+  'morado': '#8B5CF6',
+  'violet': '#8B5CF6',
+  'violeta': '#8B5CF6',
+  'lavender': '#E6E6FA',
+  'lavanda': '#E6E6FA',
+  'lilac': '#C8A2C8',
+  'lila': '#C8A2C8',
+  'plum': '#8E4585',
+  'ciruela': '#8E4585',
+  'mauve': '#E0B0FF',
+  // Marrones
+  'brown': '#92400E',
+  'marron': '#92400E',
+  'marrón': '#92400E',
+  'chocolate': '#7B3F00',
+  'cacao': '#7B3F00',
+  'camel': '#C19A6B',
+  'café': '#6F4E37',
+  'coffee': '#6F4E37',
+  'tan': '#D2B48C',
+  'caramelo': '#FFD59A',
+  'caramel': '#FFD59A',
+  'taupe': '#483C32',
+  'sand': '#C2B280',
+  'arena': '#C2B280',
+  'khaki': '#C3B091',
+  'caqui': '#C3B091',
+  'honey': '#EB9605',
+  'miel': '#EB9605',
+  'copper': '#B87333',
+  'cobre': '#B87333',
+  'bronze': '#CD7F32',
+  'bronce': '#CD7F32',
+  // Neutros
+  'charcoal': '#36454F',
+  'carbón': '#36454F',
+  'carbon': '#36454F',
+  'slate': '#708090',
+  'pizarra': '#708090',
+  'ash': '#B2BEB5',
+  'ceniza': '#B2BEB5',
+  'taupe': '#483C32',
+  'stone': '#928E85',
+  'piedra': '#928E85',
+  'pebble': '#BDB9B0',
+  'mushroom': '#C4AE85',
+  'champagne': '#F7E7CE',
+  'champaña': '#F7E7CE',
+  // Metalizados
+  'silver': '#C0C0C0',
+  'plateado': '#C0C0C0',
+  'plata': '#C0C0C0',
+  'gold': '#FFD700',
+  'dorado': '#FFD700',
+  'bronze': '#CD7F32',
+  'bronce': '#CD7F32',
+  // Otros comunes
+  'teal': '#008080',
+  'coral': '#FF7F50',
+  'khaki': '#C3B091',
+  'mauve': '#E0B0FF',
+  'rust': '#B7410E',
+  'óxido': '#B7410E',
+  'oxido': '#B7410E',
+  'terracotta': '#E2725B',
+  'terracota': '#E2725B',
+  'nude': '#E3BC9A',
+  'desnudo': '#E3BC9A',
+  'nude': '#E3BC9A',
+  'camel': '#C19A6B',
+  'camel': '#C19A6B',
+};
+
+function resolveColorHex(colorName: string): string {
+  const lower = colorName.toLowerCase().trim();
+  if (COLOR_HEX_MAP[lower]) return COLOR_HEX_MAP[lower];
+  // Si es un hex válido, devolverlo tal cual
+  if (/^#[0-9A-Fa-f]{3,8}$/.test(lower)) return lower;
+  // Fallback: gris neutro
+  return '#D1D5DB';
+}
+
 export default function StatsScreen() {
   const router = useRouter();
   const { t } = useTranslation();
@@ -256,7 +437,7 @@ export default function StatsScreen() {
                     <View
                       style={[
                         styles.colorSwatch,
-                        { backgroundColor: color.toLowerCase() },
+                        { backgroundColor: resolveColorHex(color) },
                       ]}
                     />
                     <Text style={styles.colorName} numberOfLines={1}>{color}</Text>
