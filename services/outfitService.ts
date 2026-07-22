@@ -251,5 +251,23 @@ export const toggleOutfitFavorite = async (
   return { data: normalizeOutfit(result.data) as Outfit };
 };
 
+export interface OutfitOverlap {
+  outfitId: string;
+  outfitName: string;
+  overlappingCount: number;
+  overlappingGarmentIds: string[];
+}
 
+export const checkOverlap = async (
+  garmentIds: string[],
+): Promise<ApiResponse<OutfitOverlap[]>> => {
+  if (garmentIds.length === 0) return { data: [] };
 
+  const idsParam = garmentIds.join(',');
+  const result = await apiClient.get<OutfitOverlap[]>(
+    `/outfits/check-overlap?garmentIds=${encodeURIComponent(idsParam)}`,
+    { timeout: 10000 },
+  );
+
+  return result;
+};

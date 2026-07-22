@@ -20,6 +20,7 @@ import { useSuggestionsStore } from '@/store/suggestionsStore';
 import { useOutfitsStore } from '@/store/outfitsStore';
 import { useMixOutfitStore } from '@/store/mixOutfitStore';
 import { generateRandomOutfit } from '@/utils';
+import { checkOverlap, type OutfitOverlap } from '@/services/outfitService';
 import type { GarmentSeason, Garment, GarmentStyle } from '@/types';
 import type { Occasion } from '@/utils/randomOutfit';
 
@@ -517,6 +518,25 @@ export default function CreateOutfitScreen() {
     return Object.keys(newErrors).length === 0;
   };
 
+  const OVERLAP_THRESHOLD = 3;
+
+  const performCreateOutfit = async () => {
+    if (!user) return;
+    setIsLoading(true);
+    const data = {
+      name: name.trim(),
+      description: description.trim() || undefined,
+      occasion: occasions.length > 0 ? occasions.join(', ') : undefined,
+      season,
+      garmentIds: selectedGarments.map((g) => g.id),
+    };
+    const outfit = await createOutfit(user.id, data, selectedGarments);
+    setIsLoading(false);
+    if (outfit) {
+      setShowSuccessModal(true);
+    }
+  };
+
   const handleSave = async () => {
     if (!validate() || !user) return;
 
@@ -527,6 +547,52 @@ export default function CreateOutfitScreen() {
       return;
     }
 
+    // Overlap check: solo al crear, con 3+ prendas seleccionadas
+    if (!isEditMode && selectedGarments.length >= OVERLAP_THRESHOLD) {
+      const ids = selectedGarments.map((g) => g.id);
+      const result = await checkOverlap(ids);
+
+      if (result.data && result.data.length > 0) {
+        // Mostrar el overlap con mayor cantidad de prendas coincidentes
+        const top = result.data.sort((a, b) => b.overlappingCount - a.overlappingCount)[0];
+        if (top.overlappingCount >= OVERLAP_THRESHOLD) {
+          const overlapMessage = t('outfits.create.overlapMessage', {
+            count: top.overlappingCount,
+            outfitName: top.outfitName,
+          });
+
+          if (Platform.OS === 'web') {
+            const choice = window.confirm(
+              `${t('outfits.create.overlapTitle')}\n\n${overlapMessage}`,
+            );
+            if (choice) {
+              // web confirm only has OK/Cancel, treat OK as "create new"
+              await performCreateOutfit();
+            }
+            return;
+          }
+
+          Alert.alert(
+            t('outfits.create.overlapTitle'),
+            overlapMessage,
+            [
+              { text: t('common.cancel'), style: 'cancel' },
+              {
+                text: t('outfits.create.overlapEditExisting'),
+                onPress: () => router.push({ pathname: '/outfits/[id]', params: { id: top.outfitId } }),
+              },
+              {
+                text: t('outfits.create.overlapCreateNew'),
+                onPress: performCreateOutfit,
+              },
+            ],
+          );
+          return;
+        }
+      }
+    }
+
+    // Sin overlap o edición → guardar directo
     setIsLoading(true);
     const data = {
       name: name.trim(),

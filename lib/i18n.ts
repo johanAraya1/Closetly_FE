@@ -419,6 +419,10 @@ const i18n = new I18n({
         createAnother: 'Yes, create another',
         viewOutfits: 'View My Outfits',
         withoutBrand: 'No brand',
+        overlapTitle: 'Similar outfit detected',
+        overlapMessage: '{{count}} garments are already in outfit \'{{outfitName}}\'. Do you want to edit that outfit or create a new one?',
+        overlapEditExisting: 'Edit existing',
+        overlapCreateNew: 'Create new',
       },
     },
     collections: {
@@ -1058,6 +1062,10 @@ const i18n = new I18n({
         createAnother: 'Sí, crear otro',
         viewOutfits: 'Ver mis Outfits',
         withoutBrand: 'Sin marca',
+        overlapTitle: 'Outfit similar detectado',
+        overlapMessage: '{{count}} de las prendas ya están en el outfit \'{{outfitName}}\'. ¿Querés editar ese outfit o crear uno nuevo?',
+        overlapEditExisting: 'Editar existente',
+        overlapCreateNew: 'Crear nuevo',
       },
     },
     collections: {
