@@ -267,17 +267,41 @@ export function useSmartSuggestions(): {
         if (cancelled) return;
 
         // 7. Merge garments: AI garments + garments from user suggestion outfits
+        // Ensure garments are resolved: use outfit.garments objects, or fetch by garmentIds
         const userGarments: Garment[] = [];
+        const missingGarmentIds = new Set<string>();
+
         for (const s of userSugs) {
           for (const outfit of outfits) {
-            if (outfit.garments) {
-              const matchingGarment = outfit.garments.find(
-                (g) => s.garmentIds.includes(g.id),
-              );
-              if (matchingGarment && !userGarments.some((ug) => ug.id === matchingGarment.id)) {
-                userGarments.push(matchingGarment);
+            const outfitGarmentIds = outfit.garmentIds?.length
+              ? outfit.garmentIds
+              : outfit.garments?.map((g) => g.id) ?? [];
+
+            for (const gid of outfitGarmentIds) {
+              if (s.garmentIds.includes(gid) && !userGarments.some((ug) => ug.id === gid)) {
+                const fullGarment = outfit.garments?.find((g) => g.id === gid);
+                if (fullGarment) {
+                  userGarments.push(fullGarment);
+                } else {
+                  missingGarmentIds.add(gid);
+                }
               }
             }
+          }
+        }
+
+        // Fetch any missing garments from the API
+        if (missingGarmentIds.size > 0) {
+          try {
+            const ids = Array.from(missingGarmentIds);
+            const garmentsRes = await apiClient.get<Garment[]>(
+              `/garments?id=in.(${ids.join(',')})`,
+            );
+            if (garmentsRes.data) {
+              userGarments.push(...garmentsRes.data);
+            }
+          } catch {
+            // Non-critical: suggestions will show without images for missing garments
           }
         }
 

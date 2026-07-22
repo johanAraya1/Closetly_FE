@@ -91,9 +91,10 @@ function buildLastUsedMap(
  * Converts an Outfit to a Suggestion with user-source metadata.
  */
 function toSuggestion(outfit: Outfit, lastUsed: Date | undefined): Suggestion {
-  const garmentIds = outfit.garments
-    ? outfit.garments.map((g) => g.id)
-    : [];
+  // Prefer garmentIds (raw IDs from backend) over garments.map() which may be empty
+  const garmentIds = outfit.garmentIds?.length
+    ? outfit.garmentIds
+    : outfit.garments?.map((g) => g.id) ?? [];
 
   const lastUsedIso = lastUsed ? lastUsed.toISOString() : undefined;
   const hasBeenUsed = lastUsed !== undefined;

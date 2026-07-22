@@ -133,6 +133,7 @@ export interface Outfit {
   is_favorite: boolean;
   createdAt: string;
   updatedAt: string;
+  garmentIds?: string[]; // Raw IDs from backend (always present from outfit_garments)
   garments?: Garment[]; // Populated when fetched with relations
 }
 
