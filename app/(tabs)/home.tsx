@@ -143,9 +143,8 @@ function HomeScreen() {
   }, [recentDayEntries, outfits, garments]);
 
   const { width: screenWidth } = useWindowDimensions();
-  const recentCardWidth = screenWidth < 600
-    ? (screenWidth - 60) / 2
-    : (screenWidth - 80) / 3;
+  const recentCardWidth = (screenWidth - 48 - 12) / 2;
+  const favoriteCardWidth = (screenWidth - 48 - 12) / 2;
 
   // Refrescar al volver al home (después de loguear un outfit, etc.)
   useFocusEffect(
@@ -725,27 +724,6 @@ function HomeScreen() {
           )}
         </View>
 
-        {/* Favorite Outfits */}
-        {favoriteOutfits.length > 0 && (
-          <View style={styles.section}>
-            <View style={styles.sectionHeader}>
-              <Text style={styles.sectionTitle}>
-                {t('home.favoriteOutfits')}
-              </Text>
-              <TouchableOpacity>
-                <Text style={styles.seeAllText}>{t('home.seeAll')}</Text>
-              </TouchableOpacity>
-            </View>
-            {favoriteOutfits.slice(0, 3).map((outfit) => (
-              <OutfitCard
-                key={outfit.id}
-                outfit={outfit}
-                onPress={() => router.push(`/outfits/${outfit.id}`)}
-              />
-            ))}
-          </View>
-        )}
-
         {/* Recently Used — Last 5 Days from Calendar */}
         <View style={styles.section}>
           <View style={styles.sectionHeader}>
@@ -814,6 +792,30 @@ function HomeScreen() {
             })}
           </View>
         </View>
+
+        {/* Favorite Outfits */}
+        {favoriteOutfits.length > 0 && (
+          <View style={styles.section}>
+            <View style={styles.sectionHeader}>
+              <Text style={styles.sectionTitle}>
+                {t('home.favoriteOutfits')}
+              </Text>
+              <TouchableOpacity>
+                <Text style={styles.seeAllText}>{t('home.seeAll')}</Text>
+              </TouchableOpacity>
+            </View>
+            <View style={styles.favoritesGrid}>
+              {favoriteOutfits.slice(0, 3).map((outfit) => (
+                <View key={outfit.id} style={[styles.favoriteCardWrapper, { width: favoriteCardWidth }]}>
+                  <OutfitCard
+                    outfit={outfit}
+                    onPress={() => router.push(`/outfits/${outfit.id}`)}
+                  />
+                </View>
+              ))}
+            </View>
+          </View>
+        )}
       </ScrollView>
 
       {/* Suggestion Detail Modal */}
@@ -1442,6 +1444,16 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '600',
     color: COLORS.primary,
+  },
+
+  // Favorite Outfits — Grid
+  favoritesGrid: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 12,
+  },
+  favoriteCardWrapper: {
+    marginBottom: 12,
   },
 
 
