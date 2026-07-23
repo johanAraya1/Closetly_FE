@@ -113,7 +113,15 @@ export const createRealtimeChannel = (
     });
   }
 
-  channel.subscribe();
+  channel.subscribe((status: string) => {
+    if (status === 'SUBSCRIBED') {
+      console.log(`[Realtime] ✅ Conectado a conversación ${conversationId.slice(0, 8)}…`);
+    } else if (status === 'CHANNEL_ERROR') {
+      console.error(`[Realtime] ❌ Error en conversación ${conversationId.slice(0, 8)}…`);
+    } else if (status === 'TIMED_OUT') {
+      console.warn(`[Realtime] ⏳ Timeout conectando a conversación ${conversationId.slice(0, 8)}…`);
+    }
+  });
 
   return {
     unsubscribe: () => {
