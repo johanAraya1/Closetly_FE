@@ -46,6 +46,7 @@ function ChatRoomScreen() {
   const flatListRef = useRef<FlatList<Message>>(null);
   const currentUserId = useAuthStore((s) => s.user?.id);
   const typingTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const isSendingRef = useRef(false);
 
   const {
     messages,
@@ -199,8 +200,10 @@ function ChatRoomScreen() {
   }, [t, handleCapturePhoto, handlePickImage]);
 
   const handleSend = useCallback(async () => {
+    if (isSendingRef.current) return; // Prevent double-tap
     const text = inputText.trim();
     if ((!text && !selectedImageUri) || !conversationId) return;
+    isSendingRef.current = true;
 
     // Al enviar, dejar de emitir typing
     if (typingTimeoutRef.current) {
@@ -233,6 +236,8 @@ function ChatRoomScreen() {
     } catch {
       const errMsg = useChatStore.getState().error || t('chat.sendError');
       Alert.alert(t('common.error'), errMsg);
+    } finally {
+      isSendingRef.current = false;
     }
   }, [inputText, selectedImageUri, conversationId, sendMessage, currentUserId, t]);
 

@@ -147,6 +147,13 @@ function MarketplaceScreen() {
     loadPublicGarments();
   }, []);
 
+  // Ensure user's own garments are loaded (for "My Garments" tab)
+  useEffect(() => {
+    if (user?.id && myGarmentsTotal === 0) {
+      useGarmentsStore.getState().loadGarments(user.id);
+    }
+  }, [user?.id, myGarmentsTotal]);
+
   // Cargar perfiles de los vendedores cuando se actualizan las prendas
   useEffect(() => {
     if (garments.length > 0) {
