@@ -428,11 +428,14 @@ function ChatRoomScreen() {
             <Pressable
               onLongPress={() => handleLongPress(message)}
               delayLongPress={400}
+              style={{ maxWidth: '78%' }}
             >
               {bubbleContent}
             </Pressable>
           ) : (
-            bubbleContent
+            <View style={{ maxWidth: '78%' }}>
+              {bubbleContent}
+            </View>
           )}
         </View>
       );
@@ -671,7 +674,6 @@ const styles = StyleSheet.create({
     alignItems: 'flex-start',
   },
   messageBubble: {
-    maxWidth: '78%',
     borderRadius: 16,
     paddingHorizontal: 14,
     paddingVertical: 10,
