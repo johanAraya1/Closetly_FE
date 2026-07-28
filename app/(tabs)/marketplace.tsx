@@ -138,6 +138,23 @@ function MarketplaceScreen() {
 
   // Mis prendas públicas (propias, con listing activo)
   const myPublicGarments = useMemo(() => {
+    // DEBUG: entender qué prendas se filtran y por qué
+    myGarments.forEach((g) => {
+      const passes = g.isPublic || (g as any).is_public || g.listingType;
+      console.log('[MP-DEBUG] prenda:', JSON.stringify({
+        id: g.id,
+        name: g.name,
+        isPublic: g.isPublic,
+        is_public: (g as any).is_public,
+        listingType: g.listingType,
+        category: g.category,
+        userId: g.userId,
+        passes,
+      }));
+    });
+    console.log('[MP-DEBUG] total myGarments:', myGarments.length, '| myPublicGarments filter result:', myGarments.filter(
+      (g) => g.isPublic || (g as any).is_public || g.listingType,
+    ).length);
     return myGarments.filter(
       (g) => g.isPublic || (g as any).is_public || g.listingType,
     );
