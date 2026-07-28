@@ -436,6 +436,17 @@ export const useChatStore = create<ChatState>((set, get) => {
                 },
               };
             }
+            // Defensa extra: verificar que no haya duplicados por contenido+timestamp
+            // (puede ocurrir en race condition con loadMessages)
+            const isDuplicate = currentMessages.some(
+              (m) =>
+                m.content === message.content &&
+                m.createdAt === message.createdAt &&
+                m.senderId === message.senderId
+            );
+            if (isDuplicate) {
+              return state; // no agregar duplicado
+            }
             return {
               messages: {
                 ...state.messages,
