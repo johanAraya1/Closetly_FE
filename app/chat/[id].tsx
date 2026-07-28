@@ -103,22 +103,39 @@ function ChatRoomScreen() {
     s.conversations.find((c) => c.id === conversationId)
   );
 
-  // Track unread count for divider (before markAsRead resets it to 0)
+  // Track last-seen message count for divider position.
+  // '0' means "no messages seen yet", so we use the server unreadCount as initial estimate.
+  // Once markAsRead fires, we freeze lastSeenCount at the current message length,
+  // and the divider moves as new messages arrive via Realtime.
+  const [lastSeenCount, setLastSeenCount] = React.useState<number | null>(null);
   const unreadCountForDivider = useMemo(() => {
-    return currentConversation?.unreadCount ?? 0;
-  }, [currentConversation?.unreadCount]);
+    if (lastSeenCount !== null) {
+      // After markAsRead: divider = messages received after lastSeenCount
+      return Math.max(0, conversationMessages.length - lastSeenCount);
+    }
+    // Before markAsRead: use server unreadCount (capped to loaded messages)
+    return Math.min(currentConversation?.unreadCount ?? 0, conversationMessages.length);
+  }, [lastSeenCount, conversationMessages.length, currentConversation?.unreadCount]);
 
   // Mount: cargar mensajes, setear conversación activa, subscribir Realtime
   // Unmount: desubscribir Realtime, cleanup typing
   useEffect(() => {
     if (!conversationId) return;
 
+    setLastSeenCount(null); // Reset for fresh conversation
     setActiveConversation(conversationId);
     loadMessages(conversationId, true);
 
     // Mark as read after a short delay (let messages load first)
-    const markTimer = setTimeout(() => {
-      markAsRead(conversationId);
+    const markTimer = setTimeout(async () => {
+      try {
+        await markAsRead(conversationId);
+        // Read fresh state from store (avoid stale closure)
+        const freshMessages = useChatStore.getState().messages[conversationId] || [];
+        setLastSeenCount(freshMessages.length);
+      } catch {
+        // markAsRead is best-effort; leave lastSeenCount null to keep server unreadCount
+      }
     }, 500);
 
     return () => {
