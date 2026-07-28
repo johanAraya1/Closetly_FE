@@ -32,6 +32,8 @@ function normalizeGarment(item: any): any {
     // Normalizar is_public ↔ isPublic (la API puede devolver cualquiera)
     isPublic: item.isPublic ?? item.is_public ?? false,
     is_public: item.is_public ?? item.isPublic ?? false,
+    listingType: item.listingType ?? item.listing_type ?? null,
+    listing_type: item.listing_type ?? item.listingType ?? null,
     imageUrl,
     image_url: imageUrl,
     imageUrls: Array.isArray(imageUrls) && imageUrls.length > 0 ? imageUrls : (imageUrl ? [imageUrl] : []),

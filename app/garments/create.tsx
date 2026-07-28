@@ -148,8 +148,8 @@ export default function CreateGarmentScreen() {
           setSelectedStyles([]);
         }
         setNotes(garment.notes || '');
-        setIsPublic((garment as any).is_public ?? false);
-        setListingType((garment as any).listing_type ?? null);
+        setIsPublic((garment as any).is_public ?? (garment as any).isPublic ?? false);
+        setListingType((garment as any).listing_type ?? (garment as any).listingType ?? null);
         const existingExtraUris = (garment as any).imageUrls?.slice(1) || (garment as any).image_urls?.slice(1) || [];
         setEditImageUri((garment as any).image_url || garment.imageUrl);
         setExtraEditImageUris(existingExtraUris);
