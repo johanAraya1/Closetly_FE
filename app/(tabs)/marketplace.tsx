@@ -138,23 +138,6 @@ function MarketplaceScreen() {
 
   // Mis prendas públicas (propias, con listing activo)
   const myPublicGarments = useMemo(() => {
-    // DEBUG: entender qué prendas se filtran y por qué
-    myGarments.forEach((g) => {
-      const passes = g.isPublic || (g as any).is_public || g.listingType;
-      console.log('[MP-DEBUG] prenda:', JSON.stringify({
-        id: g.id,
-        name: g.name,
-        isPublic: g.isPublic,
-        is_public: (g as any).is_public,
-        listingType: g.listingType,
-        category: g.category,
-        userId: g.userId,
-        passes,
-      }));
-    });
-    console.log('[MP-DEBUG] total myGarments:', myGarments.length, '| myPublicGarments filter result:', myGarments.filter(
-      (g) => g.isPublic || (g as any).is_public || g.listingType,
-    ).length);
     return myGarments.filter(
       (g) => g.isPublic || (g as any).is_public || g.listingType,
     );
@@ -166,9 +149,10 @@ function MarketplaceScreen() {
   }, []);
 
   // Ensure user's own garments are loaded (for "My Garments" tab)
+  // Usamos limit=999 para cargar todas las prendas, no solo las primeras 20
   useEffect(() => {
     if (user?.id && token && myGarmentsTotal === 0) {
-      useGarmentsStore.getState().loadGarments(user.id, token);
+      useGarmentsStore.getState().loadGarments(user.id, token, 999);
     }
   }, [user?.id, token, myGarmentsTotal]);
 
