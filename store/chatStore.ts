@@ -194,6 +194,16 @@ export const useChatStore = create<ChatState>((set, get) => {
         // Reemplazar el mensaje temporal con el real del server
         set((state) => {
           const currentMessages = state.messages[convId] || [];
+          // Si Realtime ya agregó el mensaje real, solo eliminar el temp
+          if (currentMessages.some((m) => m.id === sentMessage.id)) {
+            return {
+              messages: {
+                ...state.messages,
+                [convId]: currentMessages.filter((m) => m.id !== tempId),
+              },
+              isSending: false,
+            };
+          }
           return {
             messages: {
               ...state.messages,
@@ -436,8 +446,26 @@ export const useChatStore = create<ChatState>((set, get) => {
                 },
               };
             }
+            // Buscar mensaje optimístico (temp_*) del mismo sender con el mismo contenido
+            // para reemplazarlo en vez de agregar duplicado
+            const optimisticIndex = currentMessages.findIndex(
+              (m) =>
+                m.id.startsWith('temp_') &&
+                m.senderId === message.senderId &&
+                m.content === message.content &&
+                m.createdAt === message.createdAt
+            );
+            if (optimisticIndex !== -1) {
+              const updated = [...currentMessages];
+              updated[optimisticIndex] = message;
+              return {
+                messages: {
+                  ...state.messages,
+                  [convId]: updated,
+                },
+              };
+            }
             // Defensa extra: verificar que no haya duplicados por contenido+timestamp
-            // (puede ocurrir en race condition con loadMessages)
             const isDuplicate = currentMessages.some(
               (m) =>
                 m.content === message.content &&
@@ -445,7 +473,7 @@ export const useChatStore = create<ChatState>((set, get) => {
                 m.senderId === message.senderId
             );
             if (isDuplicate) {
-              return state; // no agregar duplicado
+              return state;
             }
             return {
               messages: {

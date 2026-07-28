@@ -19,7 +19,7 @@ function ClosetScreen() {
   const router = useRouter();
   const token = useAuthStore((state) => state.token);
   const user = useAuthStore((state) => state.user);
-  const { garments, isLoading, isLoadingMore, hasMore, total, deleteGarment, loadGarments, loadMoreGarments } = useGarments(true);
+  const { garments, isLoading, isLoadingMore, hasMore, total, deleteGarment, loadGarments, loadMoreGarments } = useGarments(true, 999);
   const { t } = useTranslation();
   const [selectedCategory, setSelectedCategory] = useState<GarmentCategory | 'all'>('all');
   const [searchQuery, setSearchQuery] = useState('');

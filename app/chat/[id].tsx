@@ -82,19 +82,21 @@ function ChatRoomScreen() {
       return true;
     });
     if (beforeDedup !== unique.length) {
-      console.log('[CHAT-DEBUG] dedup:', beforeDedup, '→', unique.length, 'ids:', unique.map((m) => m.id).join(', '));
+      console.log('[CHAT-DEBUG] dedup:', beforeDedup, '→', unique.length, 'eliminados', beforeDedup - unique.length);
     }
-    if (unreadDividerIndex <= 0 || unreadDividerIndex >= unique.length) {
+    // Recalcular divider sobre unique (post-dedup)
+    const validDividerIdx = unique.length - unreadCountForDivider;
+    if (validDividerIdx <= 0 || validDividerIdx >= unique.length) {
       return unique;
     }
-    const before = unique.slice(0, unreadDividerIndex);
-    const after = unique.slice(unreadDividerIndex);
+    const before = unique.slice(0, validDividerIdx);
+    const after = unique.slice(validDividerIdx);
     return [
       ...before,
       { type: 'divider' as const, id: '__unread_divider__' },
       ...after,
     ];
-  }, [conversationMessages, unreadDividerIndex]);
+  }, [conversationMessages, unreadCountForDivider]);
 
   // Buscar la conversación actual para obtener el listingTitle y unreadCount
   const currentConversation = useChatStore((s) =>
@@ -102,13 +104,9 @@ function ChatRoomScreen() {
   );
 
   // Track unread count for divider (before markAsRead resets it to 0)
-  const unreadDividerIndex = useMemo(() => {
-    if (!currentConversation?.unreadCount || currentConversation.unreadCount === 0) return -1;
-    // The divider goes before the last N unread messages
-    const idx = conversationMessages.length - currentConversation.unreadCount;
-    console.log('[CHAT-DEBUG] divider index:', idx, 'len:', conversationMessages.length, 'unread:', currentConversation.unreadCount);
-    return idx;
-  }, [conversationMessages.length, currentConversation?.unreadCount]);
+  const unreadCountForDivider = useMemo(() => {
+    return currentConversation?.unreadCount ?? 0;
+  }, [currentConversation?.unreadCount]);
 
   // Mount: cargar mensajes, setear conversación activa, subscribir Realtime
   // Unmount: desubscribir Realtime, cleanup typing
