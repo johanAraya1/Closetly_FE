@@ -83,6 +83,7 @@ function MarketplaceScreen() {
   const router = useRouter();
   const { t } = useTranslation();
   const user = useAuthStore((s) => s.user);
+  const token = useAuthStore((s) => s.token);
   const myGarmentsTotal = useGarmentsStore((s) => s.total);
   const myGarments = useGarmentsStore((s) => s.garments);
   const {
@@ -149,10 +150,10 @@ function MarketplaceScreen() {
 
   // Ensure user's own garments are loaded (for "My Garments" tab)
   useEffect(() => {
-    if (user?.id && myGarmentsTotal === 0) {
-      useGarmentsStore.getState().loadGarments(user.id);
+    if (user?.id && token && myGarmentsTotal === 0) {
+      useGarmentsStore.getState().loadGarments(user.id, token);
     }
-  }, [user?.id, myGarmentsTotal]);
+  }, [user?.id, token, myGarmentsTotal]);
 
   // Cargar perfiles de los vendedores cuando se actualizan las prendas
   useEffect(() => {

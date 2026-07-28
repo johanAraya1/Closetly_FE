@@ -43,8 +43,9 @@ function normalizeGarment(item: any): any {
   return normalized;
 }
 
-function garmentsCacheKey(userId: string, limit?: number, offset?: number): string {
-  return `${GARMENTS_CACHE_PREFIX}${userId}:l${limit ?? 'all'}:o${offset ?? 0}`;
+function garmentsCacheKey(userId: string, token?: string, limit?: number, offset?: number): string {
+  const auth = token ? 'auth' : 'noauth';
+  return `${GARMENTS_CACHE_PREFIX}${userId}:${auth}:l${limit ?? 'all'}:o${offset ?? 0}`;
 }
 
 /**
@@ -113,7 +114,7 @@ export const getGarments = async (
   offset?: number,
   signal?: AbortSignal,
 ): Promise<ApiResponse<Garment[]> & { total?: number; hasMore?: boolean }> => {
-  const cacheKey = garmentsCacheKey(userId, limit, offset);
+  const cacheKey = garmentsCacheKey(userId, token, limit, offset);
 
   const cached = apiCache.get<ApiResponse<Garment[]> & { total?: number; hasMore?: boolean }>(cacheKey);
   if (cached && !signal?.aborted) {
