@@ -149,12 +149,14 @@ function MarketplaceScreen() {
   }, []);
 
   // Ensure user's own garments are loaded (for "My Garments" tab)
-  // Usamos limit=999 para cargar todas las prendas, no solo las primeras 20
+  // Usamos limit=999 para cargar TODAS las prendas, no solo las primeras 20
+  const hasLoadedAllRef = useRef(false);
   useEffect(() => {
-    if (user?.id && token && myGarmentsTotal === 0) {
+    if (user?.id && token && !hasLoadedAllRef.current) {
+      hasLoadedAllRef.current = true;
       useGarmentsStore.getState().loadGarments(user.id, token, 999);
     }
-  }, [user?.id, token, myGarmentsTotal]);
+  }, [user?.id, token]);
 
   // Cargar perfiles de los vendedores cuando se actualizan las prendas
   useEffect(() => {

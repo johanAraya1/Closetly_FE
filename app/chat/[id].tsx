@@ -75,11 +75,15 @@ function ChatRoomScreen() {
   const processedMessages = useMemo<MessageItem[]>(() => {
     // Deduplicar por id para evitar race conditions entre API y Realtime
     const seen = new Set<string>();
+    const beforeDedup = conversationMessages.length;
     const unique = conversationMessages.filter((m) => {
       if (seen.has(m.id)) return false;
       seen.add(m.id);
       return true;
     });
+    if (beforeDedup !== unique.length) {
+      console.log('[CHAT-DEBUG] dedup:', beforeDedup, '→', unique.length, 'ids:', unique.map((m) => m.id).join(', '));
+    }
     if (unreadDividerIndex <= 0 || unreadDividerIndex >= unique.length) {
       return unique;
     }
@@ -101,7 +105,9 @@ function ChatRoomScreen() {
   const unreadDividerIndex = useMemo(() => {
     if (!currentConversation?.unreadCount || currentConversation.unreadCount === 0) return -1;
     // The divider goes before the last N unread messages
-    return conversationMessages.length - currentConversation.unreadCount;
+    const idx = conversationMessages.length - currentConversation.unreadCount;
+    console.log('[CHAT-DEBUG] divider index:', idx, 'len:', conversationMessages.length, 'unread:', currentConversation.unreadCount);
+    return idx;
   }, [conversationMessages.length, currentConversation?.unreadCount]);
 
   // Mount: cargar mensajes, setear conversación activa, subscribir Realtime
