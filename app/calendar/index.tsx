@@ -39,8 +39,8 @@ const COLOR_MAP: Record<string, string> = {
   amarillo: '#EAB308',
   black: '#111827',
   negro: '#111827',
-  white: '#FFFFFF',
-  blanco: '#FFFFFF',
+  white: '#D1D5DB',
+  blanco: '#D1D5DB',
   gray: '#6B7280',
   gris: '#6B7280',
   grey: '#6B7280',
@@ -60,11 +60,30 @@ const COLOR_MAP: Record<string, string> = {
   mint: '#A7F3D0',
 };
 
-function getOutfitColor(entry: CalendarLogEntry): string {
+// Light colors that would be invisible as dots on white background
+const LIGHT_COLORS = new Set(['#D4A574', '#A7F3D0', '#FEF3C7', '#EAB308', '#F97316']);
+
+function isLightColor(hex: string): boolean {
+  if (LIGHT_COLORS.has(hex)) return true;
+  // Parse hex and check luminance
+  const clean = hex.replace('#', '');
+  if (clean.length !== 6) return false;
+  const r = parseInt(clean.substring(0, 2), 16);
+  const g = parseInt(clean.substring(2, 4), 16);
+  const b = parseInt(clean.substring(4, 6), 16);
+  // Relative luminance approximation (sRGB)
+  const luminance = 0.299 * r + 0.587 * g + 0.114 * b;
+  return luminance > 200;
+}
+
+function getDotColor(entry: CalendarLogEntry): string {
   const garments = entry.outfit?.garments || [];
   if (garments.length === 0) return COLORS.primary;
   const colorText = garments[0].color?.toLowerCase().trim() || '';
-  return COLOR_MAP[colorText] || COLORS.primary;
+  const hex = COLOR_MAP[colorText] || COLORS.primary;
+  // Light colors on white bg are invisible — darken them
+  if (isLightColor(hex)) return '#6B7280'; // gray-500, always visible
+  return hex;
 }
 
 export default function CalendarScreen() {
@@ -94,35 +113,21 @@ export default function CalendarScreen() {
     return map;
   }, [entries]);
 
-  // Build marked dates with garment colors
+  // Build marked dates — dots for outfit days, no filled backgrounds
   const markedDates = useMemo(() => {
     const marks: Record<string, any> = {};
     const today = getLocalDateString();
 
     entries.forEach((entry) => {
-      const color = getOutfitColor(entry);
+      const color = getDotColor(entry);
       marks[entry.date] = {
-        selected: true,
-        selectedColor: color,
         marked: true,
         dotColor: color,
       };
     });
 
-    // Ensure today is visually distinct
-    if (marks[today]) {
-      marks[today] = {
-        ...marks[today],
-        selected: true,
-        selectedColor: marks[today].selectedColor,
-      };
-    } else {
-      marks[today] = {
-        selected: true,
-        selectedColor: COLORS.primary + '20',
-        marked: false,
-      };
-    }
+    // Today is already styled via theme todayTextColor + todayBackgroundColor.
+    // No need to add selected/special marks.
 
     return marks;
   }, [entries]);
