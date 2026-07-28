@@ -70,14 +70,21 @@ function ChatRoomScreen() {
     );
   }, [messages, conversationId]);
 
-  // Processed messages with unread divider
+  // Processed messages with unread divider (deduplicated by id)
   type MessageItem = Message | { type: 'divider'; id: string };
   const processedMessages = useMemo<MessageItem[]>(() => {
-    if (unreadDividerIndex <= 0 || unreadDividerIndex >= conversationMessages.length) {
-      return conversationMessages;
+    // Deduplicar por id para evitar race conditions entre API y Realtime
+    const seen = new Set<string>();
+    const unique = conversationMessages.filter((m) => {
+      if (seen.has(m.id)) return false;
+      seen.add(m.id);
+      return true;
+    });
+    if (unreadDividerIndex <= 0 || unreadDividerIndex >= unique.length) {
+      return unique;
     }
-    const before = conversationMessages.slice(0, unreadDividerIndex);
-    const after = conversationMessages.slice(unreadDividerIndex);
+    const before = unique.slice(0, unreadDividerIndex);
+    const after = unique.slice(unreadDividerIndex);
     return [
       ...before,
       { type: 'divider' as const, id: '__unread_divider__' },
